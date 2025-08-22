@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Santa’s — Pedidos por WhatsApp</title>
+  <meta name="description" content="Tomá pedidos online de Santa’s y enviá el detalle directo a WhatsApp." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0f1115; --card:#171a21; --muted:#a9b0be; --text:#f5f7fb; --primary:#22c55e; --accent:#f43f5e; --ring:#2a2f3a;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#0b0d12,#121622 40%,#0f1115);color:var(--text)}
+    a{color:inherit;text-decoration:none}
+    .container{max-width:1100px;margin:0 auto;padding:24px}
+    header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#ef4444 60%,#fb923c);display:grid;place-items:center;font-weight:800}
+    .logo span{font-size:18px}
+    .brand h1{font-size:20px;margin:0}
+    .tag{font-size:12px;color:var(--muted)}
+
+    .hero{padding:18px;border:1px solid var(--ring);background:radial-gradient(1200px 400px at 10% -5%,rgba(34,197,94,.25),transparent 40%),radial-gradient(800px 300px at 110% -10%,rgba(244,63,94,.20),transparent 40%),var(--card);border-radius:20px;display:grid;grid-template-columns:1.3fr .7fr;gap:18px}
+    .hero .copy h2{font-size:28px;margin:0 0 8px}
+    .hero .copy p{margin:0;color:var(--muted)}
+    .hero .info{display:grid;gap:8px;align-content:start}
+    .pill{display:inline-flex;gap:8px;align-items:center;background:#0c0f14;border:1px solid var(--ring);border-radius:999px;padding:8px 12px;font-size:12px;color:var(--muted)}
+
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-top:22px}
+    .card{background:var(--card);border:1px solid var(--ring);border-radius:18px;padding:14px}
+    .product{display:flex;flex-direction:column;gap:10px}
+    .product .img{height:140px;border-radius:14px;background:#10141c;border:1px dashed #2f3644;display:grid;place-items:center;font-size:12px;color:#97a0b2}
+    .product h3{margin:0;font-size:16px}
+    .product p{margin:0;color:var(--muted);font-size:13px}
+    .price{font-weight:700}
+    .qty{display:flex;align-items:center;gap:8px;margin-top:4px}
+    .qty button{width:28px;height:28px;border-radius:8px;border:1px solid var(--ring);background:#0c0f14;color:var(--text);cursor:pointer}
+
+    .actions{display:flex;gap:8px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#0c0f14;color:var(--text);cursor:pointer}
+    .btn.primary{background:linear-gradient(180deg,#23d164,#18b956);border:none}
+
+    /* Layout columns */
+    .col-9{grid-column:span 9}
+    .col-3{grid-column:span 3}
+    @media (max-width: 900px){
+      .hero{grid-template-columns:1fr}
+      .col-9,.col-3{grid-column:1/-1}
+    }
+
+    /* Cart */
+    .cart{position:sticky;top:12px;display:grid;gap:10px}
+    .cart h3{margin:0 0 6px}
+    .cart-list{display:grid;gap:8px;max-height:360px;overflow:auto;padding-right:6px}
+    .cart-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--ring);border-radius:12px;background:#0c0f14}
+    .cart-item .title{font-size:13px}
+    .cart-item .ops{display:flex;align-items:center;gap:6px}
+    .cart-item .ops button{width:24px;height:24px;border-radius:6px;border:1px solid var(--ring);background:#141824;color:var(--text);cursor:pointer}
+    .tot{display:flex;align-items:center;justify-content:space-between;font-weight:800}
+    .muted{color:var(--muted);font-size:12px}
+
+    .inputs{display:grid;gap:10px}
+    .inputs input, .inputs textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#0c0f14;color:var(--text)}
+    .inputs textarea{min-height:72px;resize:vertical}
+
+    footer{margin-top:22px;color:var(--muted);font-size:12px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"><span>🎅</span></div>
+        <div>
+          <h1>Santa’s</h1>
+          <div class="tag">Hamburguesería — Pedidos por WhatsApp</div>
+        </div>
+      </div>
+      <div class="pill">⏱️ Hoy: 20:00–00:00 · 📍 Villa María</div>
+    </header>
+
+    <section class="hero card">
+      <div class="copy">
+        <h2>Hacé tu pedido online y confirmalo por WhatsApp</h2>
+        <p>Elegí tus hamburguesas, agregalas al carrito y presioná “Enviar por WhatsApp”. Te llega el mensaje listo para confirmar con nuestra atención.</p>
+      </div>
+      <div class="info">
+        <div class="pill">🚚 Envíos y retiro en local</div>
+        <div class="pill">💳 Efectivo, Débito/Crédito, QR</div>
+        <div class="pill">🔥 Promo 2x1 en papas (jueves)</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <!-- Productos -->
+      <div class="col-9">
+        <div id="products" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));">
+          <!-- Render dinámico -->
+        </div>
+      </div>
+
+      <!-- Carrito -->
+      <aside class="col-3">
+        <div class="card cart">
+          <h3>🛒 Tu pedido</h3>
+          <div class="cart-list" id="cartList"></div>
+          <div class="tot"><span>Total</span><span id="total">$0</span></div>
+          <div class="inputs">
+            <input id="customerName" placeholder="Tu nombre"/>
+            <input id="customerAddress" placeholder="Dirección (si pedís envío)"/>
+            <textarea id="customerNotes" placeholder="Notas para la cocina (sin mayonesa, más ketchup, etc.)"></textarea>
+          </div>
+          <button class="btn primary" id="whatsBtn">📲 Enviar pedido por WhatsApp</button>
+          <div class="muted">Al hacer clic se abrirá WhatsApp con el detalle de tu pedido para confirmar.</div>
+        </div>
+      </aside>
+    </section>
+
+    <footer>
+      © <span id="year"></span> Santa’s · Hecho con ♥
+    </footer>
+  </div>
+
+  <script>
+    // ⚙️ CONFIGURACIÓN — Cambiá por tu número de WhatsApp en formato internacional.
+    // Ejemplo para Argentina (Córdoba): 5493511234567
+    const WHATSAPP_NUMBER = '+543537581341'; // ← REEMPLAZAR
+
+    // 🧾 MENÚ — Editá/extendé según tus productos.
+    const PRODUCTS = [
+      { id: 'santas-classic', name: 'Santa’s Classic', desc: 'Doble carne 110g, cheddar, lechuga, tomate, salsa house', price: 5200 },
+      { id: 'bacon-smash', name: 'Bacon Smash', desc: 'Doble smash 90g, cheddar, panceta crocante, pickles', price: 5600 },
+      { id: 'mushroom-swiss', name: 'Mushroom Swiss', desc: 'Carne 150g, hongos salteados, queso suizo, aioli', price: 5800 },
+      { id: 'pollo-crispy', name: 'Pollo Crispy', desc: 'Suprema crispy, lechuga, pepinillos, mayo de la casa', price: 5100 },
+      { id: 'veggie', name: 'Veggie Garden', desc: 'Medallón de garbanzo, provo, rúcula, alioli', price: 5000 },
+      { id: 'papas', name: 'Papas Clásicas', desc: 'Porción individual de papas fritas', price: 2200 },
+      { id: 'papas-cheddar', name: 'Papas Cheddar & Bacon', desc: 'Papas con cheddar y panceta', price: 3200 },
+      { id: 'gaseosa', name: 'Gaseosa 354 ml', desc: 'Surtidas', price: 1500 }
+    ];
+
+    const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
+
+    const state = { cart: {} }; // { [id]: { qty, product } }
+
+    const $ = (sel)=>document.querySelector(sel);
+    const $$ = (sel)=>document.querySelectorAll(sel);
+
+    function renderProducts(){
+      const wrap = document.getElementById('products');
+      wrap.innerHTML = '';
+      PRODUCTS.forEach(p=>{
+        const card = document.createElement('div');
+        card.className = 'card product';
+        card.innerHTML = `
+          <div class="img">Imagen ${p.name}</div>
+          <div>
+            <h3>${p.name}</h3>
+            <p>${p.desc}</p>
+          </div>
+          <div class="actions">
+            <div class="price">${currency.format(p.price)}</div>
+            <div class="qty">
+              <button data-id="${p.id}" data-op="-">−</button>
+              <span id="qty-${p.id}">0</span>
+              <button data-id="${p.id}" data-op="+">＋</button>
+            </div>
+          </div>`;
+        wrap.appendChild(card);
+      });
+
+      wrap.addEventListener('click', (e)=>{
+        if(e.target.tagName !== 'BUTTON') return;
+        const id = e.target.getAttribute('data-id');
+        const op = e.target.getAttribute('data-op');
+        const product = PRODUCTS.find(x=>x.id===id);
+        const item = state.cart[id] || { qty:0, product };
+        item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
+        if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
+        document.getElementById(`qty-${id}`).textContent = item.qty || 0;
+        renderCart();
+      }, { passive:true });
+    }
+
+    function renderCart(){
+      const list = document.getElementById('cartList');
+      list.innerHTML = '';
+      const entries = Object.values(state.cart);
+      let total = 0;
+      entries.forEach(({product, qty})=>{
+        total += product.price * qty;
+        const row = document.createElement('div');
+        row.className = 'cart-item';
+        row.innerHTML = `
+          <div>
+            <div class="title">${product.name}</div>
+            <div class="muted">${qty} × ${currency.format(product.price)}</div>
+          </div>
+          <div class="ops">
+            <button data-id="${product.id}" data-op="-">−</button>
+            <span>${qty}</span>
+            <button data-id="${product.id}" data-op="+">＋</button>
+          </div>`;
+        list.appendChild(row);
+      });
+
+      // Delegación para +/- dentro del carrito
+      list.onclick = (e)=>{
+        if(e.target.tagName !== 'BUTTON') return;
+        const id = e.target.getAttribute('data-id');
+        const op = e.target.getAttribute('data-op');
+        const product = PRODUCTS.find(x=>x.id===id);
+        const item = state.cart[id] || { qty:0, product };
+        item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
+        if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
+        document.getElementById(`qty-${id}`).textContent = item.qty || 0;
+        renderCart();
+      };
+
+      document.getElementById('total').textContent = currency.format(total);
+    }
+
+    function buildWhatsAppMessage(){
+      const entries = Object.values(state.cart);
+      if(entries.length===0){
+        alert('Agregá al menos 1 producto al carrito.');
+        return null;
+      }
+      const name = document.getElementById('customerName').value.trim();
+      const addr = document.getElementById('customerAddress').value.trim();
+      const notes = document.getElementById('customerNotes').value.trim();
+
+      const lines = [];
+      lines.push('🧾 *Nuevo pedido — Santa’s*');
+      lines.push('');
+      entries.forEach(({product, qty})=>{
+        lines.push(`• ${product.name} × ${qty} — ${currency.format(product.price*qty)}`);
+      });
+      const total = entries.reduce((acc,{product,qty})=>acc+product.price*qty,0);
+      lines.push('');
+      lines.push(`*Total:* ${currency.format(total)}`);
+      if(name) lines.push(`*Nombre:* ${name}`);
+      if(addr) lines.push(`*Dirección:* ${addr}`);
+      if(notes) lines.push(`*Notas:* ${notes}`);
+      lines.push('');
+      lines.push('Enviado desde la web de pedidos ✅');
+
+      return lines.join('\n');
+    }
+
+    function goWhatsApp(){
+      const msg = buildWhatsAppMessage();
+      if(!msg) return;
+      const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+      window.open(url,'_blank');
+    }
+
+    document.getElementById('whatsBtn').addEventListener('click', goWhatsApp);
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Init
+    renderProducts();
+    renderCart();
+  </script>
+</body>
+</html>
