@@ -12,9 +12,9 @@
 body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
 h1, h2 { margin-bottom:20px;}
 form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
-input, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
+input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
 button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
-ul { list-style:none; padding:0; margin-top:20px; width:320px; }
+ul { list-style:none; padding:0; margin-top:20px; width:100%; max-width:400px; }
 li { display:flex; justify-content:space-between; background:#171a21; padding:10px; border-radius:8px; margin-bottom:8px; align-items:center;}
 li span { flex:1; }
 li button { background:#f43f5e; color:#fff; border:none; border-radius:6px; cursor:pointer; padding:5px 10px; }
@@ -28,6 +28,13 @@ li button { background:#f43f5e; color:#fff; border:none; border-radius:6px; curs
   <input type="text" id="desc" placeholder="Descripción" required>
   <input type="number" id="price" placeholder="Precio" required>
   <input type="text" id="img" placeholder="URL de imagen (opcional)">
+  <select id="category" required>
+    <option value="">Seleccionar categoría</option>
+    <option value="pizza">Pizza</option>
+    <option value="hamburguesa">Hamburguesa</option>
+    <option value="papas">Papas</option>
+    <option value="menu especial">Menú especial</option>
+  </select>
   <button type="submit">Guardar producto</button>
 </form>
 
@@ -50,18 +57,19 @@ const db = firebase.firestore();
 const form = document.getElementById('productForm');
 const productList = document.getElementById('productList');
 
-// Agregar producto
+// Agregar producto con categoría
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('name').value.trim();
   const desc = document.getElementById('desc').value.trim();
   const price = parseInt(document.getElementById('price').value);
   const img = document.getElementById('img').value.trim();
+  const category = document.getElementById('category').value;
 
-  if(!name || !desc || !price) return alert('Todos los campos obligatorios excepto la imagen');
+  if(!name || !desc || !price || !category) return alert('Todos los campos son obligatorios');
 
   try {
-    await db.collection('productos').add({ name, desc, price, img: img || "" });
+    await db.collection('productos').add({ name, desc, price, img: img || "", category });
     alert('Producto agregado correctamente');
     form.reset();
   } catch(err) {
@@ -76,7 +84,7 @@ db.collection('productos').onSnapshot(snapshot => {
   snapshot.forEach(doc => {
     const data = doc.data();
     const li = document.createElement('li');
-    li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
+    li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price} — ${data.category}</span>`;
     const btn = document.createElement('button');
     btn.textContent = 'Borrar';
     btn.addEventListener('click', async () => {
