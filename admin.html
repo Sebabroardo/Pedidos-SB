@@ -13,8 +13,8 @@
   <style>
     body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
     h1 { margin-bottom:20px;}
-    form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:300px;}
-    input, button { padding:10px; border-radius:8px; border:none;}
+    form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
+    input, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
     button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
   </style>
 </head>
@@ -25,6 +25,7 @@
     <input type="text" id="name" placeholder="Nombre del producto" required>
     <input type="text" id="desc" placeholder="Descripción" required>
     <input type="number" id="price" placeholder="Precio" required>
+    <input type="text" id="img" placeholder="URL imagen (opcional)">
     <button type="submit">Guardar producto</button>
   </form>
 
@@ -52,14 +53,15 @@
       const name = document.getElementById('name').value.trim();
       const desc = document.getElementById('desc').value.trim();
       const price = parseInt(document.getElementById('price').value);
+      const img = document.getElementById('img').value.trim() || '';
 
       if(!name || !desc || !price) {
-        alert('Todos los campos son obligatorios');
+        alert('Todos los campos obligatorios deben estar completos.');
         return;
       }
 
       try {
-        await db.collection('productos').add({ name, desc, price });
+        await db.collection('productos').add({ name, desc, price, img });
         alert('Producto agregado correctamente');
         form.reset();
       } catch(err) {
