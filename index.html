@@ -153,6 +153,8 @@ function renderCart() {
     item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
     if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
     renderCart();
+    const qtySpan = document.getElementById(`qty-${id}`);
+    if(qtySpan) qtySpan.textContent = state.cart[id]?.qty || 0;
   };
 
   document.getElementById('total').textContent = currency.format(total);
@@ -207,6 +209,24 @@ onSnapshot(collection(db,"productos"), snapshot => {
       </div>`;
     productsContainer.appendChild(card);
   });
+
+  // 🔹 Asignar eventos a botones de cada producto
+  productsContainer.onclick = (e) => {
+    if(e.target.tagName !== 'BUTTON') return;
+    const id = e.target.getAttribute('data-id');
+    const op = e.target.getAttribute('data-op');
+    if(!id || !op) return;
+
+    const item = state.cart[id] || { product: snapshot.docs.find(d=>d.id===id).data(), qty:0 };
+    item.product.id = id; // aseguramos que el producto tenga id
+    item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
+    if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
+
+    // Actualizar cantidad en producto y carrito
+    const qtySpan = document.getElementById(`qty-${id}`);
+    if(qtySpan) qtySpan.textContent = state.cart[id]?.qty || 0;
+    renderCart();
+  };
 });
 
 document.getElementById('year').textContent = new Date().getFullYear();
