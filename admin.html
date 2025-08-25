@@ -1,71 +1,72 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin — Santa’s</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Santa’s</title>
 
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics.js"></script>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js"></script>
 
-  <style>
-    body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
-    h1 { margin-bottom:20px;}
-    form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
-    input, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
-    button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
-  </style>
+<style>
+  body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
+  h1 { margin-bottom:20px;}
+  form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
+  input, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
+  button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
+</style>
 </head>
 <body>
-  <h1>Panel Admin — Agregar Producto</h1>
+<h1>Panel Admin — Agregar Producto</h1>
 
-  <form id="productForm">
-    <input type="text" id="name" placeholder="Nombre del producto" required>
-    <input type="text" id="desc" placeholder="Descripción" required>
-    <input type="number" id="price" placeholder="Precio" required>
-    <input type="text" id="img" placeholder="URL de imagen (opcional)">
-    <button type="submit">Guardar producto</button>
-  </form>
+<form id="productForm">
+  <input type="text" id="name" placeholder="Nombre del producto" required>
+  <input type="text" id="desc" placeholder="Descripción" required>
+  <input type="number" id="price" placeholder="Precio" required>
+  <input type="text" id="img" placeholder="URL de imagen (opcional)">
+  <button type="submit">Guardar producto</button>
+</form>
 
-  <script>
-    // 🔹 Configuración de Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
-      authDomain: "santa-roti.firebaseapp.com",
-      projectId: "santa-roti",
-      storageBucket: "santa-roti.appspot.com",
-      messagingSenderId: "66221970620",
-      appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
-      measurementId: "G-BMXRPFDDJQ"
-    };
+<script>
+  // 🔹 Configuración Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+    authDomain: "santa-roti.firebaseapp.com",
+    projectId: "santa-roti",
+    storageBucket: "santa-roti.appspot.com",
+    messagingSenderId: "66221970620",
+    appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
+  };
 
-    // Inicializar Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const analytics = firebase.analytics(app);
-    const db = firebase.firestore();
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore(); // <-- importante, antes no estaba definido
 
-    // ⚙️ Manejo del formulario
-    const form = document.getElementById('productForm');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('name').value.trim();
-      const desc = document.getElementById('desc').value.trim();
-      const price = parseInt(document.getElementById('price').value);
-      const img = document.getElementById('img').value.trim();
+  const form = document.getElementById('productForm');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-      if(!name || !desc || !price) return alert('Todos los campos obligatorios excepto la imagen');
+    const name = document.getElementById('name').value.trim();
+    const desc = document.getElementById('desc').value.trim();
+    const price = parseInt(document.getElementById('price').value);
+    const img = document.getElementById('img').value.trim();
 
-      try {
-        await db.collection('productos').add({ name, desc, price, img: img || "" });
-        alert('Producto agregado correctamente');
-        form.reset();
-      } catch(err) {
-        console.error(err);
-        alert('Error al guardar producto');
-      }
-    });
-  </script>
+    if(!name || !desc || !price) return alert('Todos los campos obligatorios excepto la imagen');
+
+    try {
+      await db.collection('productos').add({
+        name,
+        desc,
+        price,
+        img: img || ""
+      });
+      alert('Producto agregado correctamente');
+      form.reset();
+    } catch(err) {
+      console.error(err);
+      alert('Error al guardar producto');
+    }
+  });
+</script>
 </body>
 </html>
