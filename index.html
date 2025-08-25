@@ -124,34 +124,41 @@
     </footer>
   </div>
 
-  <script>
-    // ⚙️ CONFIGURACIÓN — Cambiá por tu número de WhatsApp en formato internacional.
-    // Ejemplo para Argentina (Córdoba): 5493511234567
-    const WHATSAPP_NUMBER = '+543537581341'; // ← REEMPLAZAR
+  <!-- Reemplazá tu bloque de productos en JS con esto -->
 
-    // 🧾 MENÚ — Editá/extendé según tus productos.
-    const PRODUCTS = [
-      { id: 'santas-classic', name: 'Santa’s Classic', desc: 'Doble carne 110g, cheddar, lechuga, tomate, salsa house', price: 5200 },
-      { id: 'bacon-smash', name: 'Bacon Smash', desc: 'Doble smash 90g, cheddar, panceta crocante, pickles', price: 5600 },
-      { id: 'mushroom-swiss', name: 'Mushroom Swiss', desc: 'Carne 150g, hongos salteados, queso suizo, aioli', price: 5800 },
-      { id: 'pollo-crispy', name: 'Pollo Crispy', desc: 'Suprema crispy, lechuga, pepinillos, mayo de la casa', price: 5100 },
-      { id: 'veggie', name: 'Veggie Garden', desc: 'Medallón de garbanzo, provo, rúcula, alioli', price: 5000 },
-      { id: 'papas', name: 'Papas Clásicas', desc: 'Porción individual de papas fritas', price: 2200 },
-      { id: 'papas-cheddar', name: 'Papas Cheddar & Bacon', desc: 'Papas con cheddar y panceta', price: 3200 },
-      { id: 'gaseosa', name: 'Gaseosa 354 ml', desc: 'Surtidas', price: 1500 }
-    ];
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js"></script>
 
-    const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
+<script>
+  // 🔹 Configuración de Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+    authDomain: "santa-roti.firebaseapp.com",
+    projectId: "santa-roti",
+    storageBucket: "santa-roti.firebasestorage.app",
+    messagingSenderId: "66221970620",
+    appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
+    measurementId: "G-BMXRPFDDJQ"
+  };
 
-    const state = { cart: {} }; // { [id]: { qty, product } }
+  // Inicializar Firebase
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-    const $ = (sel)=>document.querySelector(sel);
-    const $$ = (sel)=>document.querySelectorAll(sel);
+  const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
+  const state = { cart: {} };
 
-    function renderProducts(){
-      const wrap = document.getElementById('products');
-      wrap.innerHTML = '';
-      PRODUCTS.forEach(p=>{
+  // ⚙️ Función para renderizar productos
+  async function renderProducts(){
+    const wrap = document.getElementById('products');
+    wrap.innerHTML = '';
+
+    try {
+      const snapshot = await db.collection('productos').get();
+      snapshot.forEach(doc => {
+        const p = doc.data();
+        const id = doc.id;
         const card = document.createElement('div');
         card.className = 'card product';
         card.innerHTML = `
@@ -163,107 +170,110 @@
           <div class="actions">
             <div class="price">${currency.format(p.price)}</div>
             <div class="qty">
-              <button data-id="${p.id}" data-op="-">−</button>
-              <span id="qty-${p.id}">0</span>
-              <button data-id="${p.id}" data-op="+">＋</button>
+              <button data-id="${id}" data-op="-">−</button>
+              <span id="qty-${id}">0</span>
+              <button data-id="${id}" data-op="+">＋</button>
             </div>
           </div>`;
         wrap.appendChild(card);
       });
 
+      // Delegación de eventos para botones +/-
       wrap.addEventListener('click', (e)=>{
         if(e.target.tagName !== 'BUTTON') return;
         const id = e.target.getAttribute('data-id');
         const op = e.target.getAttribute('data-op');
-        const product = PRODUCTS.find(x=>x.id===id);
+        const product = Array.from(snapshot.docs).find(x=>x.id===id).data();
         const item = state.cart[id] || { qty:0, product };
         item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
         if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
         document.getElementById(`qty-${id}`).textContent = item.qty || 0;
         renderCart();
       }, { passive:true });
+
+    } catch(err) {
+      console.error("Error al cargar productos:", err);
+      wrap.innerHTML = '<p>Error al cargar productos.</p>';
     }
+  }
 
-    function renderCart(){
-      const list = document.getElementById('cartList');
-      list.innerHTML = '';
-      const entries = Object.values(state.cart);
-      let total = 0;
-      entries.forEach(({product, qty})=>{
-        total += product.price * qty;
-        const row = document.createElement('div');
-        row.className = 'cart-item';
-        row.innerHTML = `
-          <div>
-            <div class="title">${product.name}</div>
-            <div class="muted">${qty} × ${currency.format(product.price)}</div>
-          </div>
-          <div class="ops">
-            <button data-id="${product.id}" data-op="-">−</button>
-            <span>${qty}</span>
-            <button data-id="${product.id}" data-op="+">＋</button>
-          </div>`;
-        list.appendChild(row);
-      });
+  function renderCart(){
+    const list = document.getElementById('cartList');
+    list.innerHTML = '';
+    const entries = Object.values(state.cart);
+    let total = 0;
+    entries.forEach(({product, qty})=>{
+      total += product.price * qty;
+      const row = document.createElement('div');
+      row.className = 'cart-item';
+      row.innerHTML = `
+        <div>
+          <div class="title">${product.name}</div>
+          <div class="muted">${qty} × ${currency.format(product.price)}</div>
+        </div>
+        <div class="ops">
+          <button data-id="${product.id || product.name}" data-op="-">−</button>
+          <span>${qty}</span>
+          <button data-id="${product.id || product.name}" data-op="+">＋</button>
+        </div>`;
+      list.appendChild(row);
+    });
 
-      // Delegación para +/- dentro del carrito
-      list.onclick = (e)=>{
-        if(e.target.tagName !== 'BUTTON') return;
-        const id = e.target.getAttribute('data-id');
-        const op = e.target.getAttribute('data-op');
-        const product = PRODUCTS.find(x=>x.id===id);
-        const item = state.cart[id] || { qty:0, product };
-        item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
-        if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
-        document.getElementById(`qty-${id}`).textContent = item.qty || 0;
-        renderCart();
-      };
+    // Delegación dentro del carrito
+    list.onclick = (e)=>{
+      if(e.target.tagName !== 'BUTTON') return;
+      const id = e.target.getAttribute('data-id');
+      const op = e.target.getAttribute('data-op');
+      const product = Object.values(state.cart).find(x=>x.product.name===id)?.product;
+      if(!product) return;
+      const item = state.cart[id] || { qty:0, product };
+      item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
+      if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
+      document.getElementById(`qty-${id}`).textContent = item.qty || 0;
+      renderCart();
+    };
 
-      document.getElementById('total').textContent = currency.format(total);
+    document.getElementById('total').textContent = currency.format(total);
+  }
+
+  function buildWhatsAppMessage(){
+    const entries = Object.values(state.cart);
+    if(entries.length===0){
+      alert('Agregá al menos 1 producto al carrito.');
+      return null;
     }
+    const name = document.getElementById('customerName').value.trim();
+    const addr = document.getElementById('customerAddress').value.trim();
+    const notes = document.getElementById('customerNotes').value.trim();
 
-    function buildWhatsAppMessage(){
-      const entries = Object.values(state.cart);
-      if(entries.length===0){
-        alert('Agregá al menos 1 producto al carrito.');
-        return null;
-      }
-      const name = document.getElementById('customerName').value.trim();
-      const addr = document.getElementById('customerAddress').value.trim();
-      const notes = document.getElementById('customerNotes').value.trim();
+    const lines = [];
+    lines.push('🧾 *Nuevo pedido — Santa’s*');
+    lines.push('');
+    entries.forEach(({product, qty})=>{
+      lines.push(`• ${product.name} × ${qty} — ${currency.format(product.price*qty)}`);
+    });
+    const total = entries.reduce((acc,{product,qty})=>acc+product.price*qty,0);
+    lines.push('');
+    lines.push(`*Total:* ${currency.format(total)}`);
+    if(name) lines.push(`*Nombre:* ${name}`);
+    if(addr) lines.push(`*Dirección:* ${addr}`);
+    if(notes) lines.push(`*Notas:* ${notes}`);
+    lines.push('');
+    lines.push('Enviado desde la web de pedidos ✅');
+    return lines.join('\n');
+  }
 
-      const lines = [];
-      lines.push('🧾 *Nuevo pedido — Santa’s*');
-      lines.push('');
-      entries.forEach(({product, qty})=>{
-        lines.push(`• ${product.name} × ${qty} — ${currency.format(product.price*qty)}`);
-      });
-      const total = entries.reduce((acc,{product,qty})=>acc+product.price*qty,0);
-      lines.push('');
-      lines.push(`*Total:* ${currency.format(total)}`);
-      if(name) lines.push(`*Nombre:* ${name}`);
-      if(addr) lines.push(`*Dirección:* ${addr}`);
-      if(notes) lines.push(`*Notas:* ${notes}`);
-      lines.push('');
-      lines.push('Enviado desde la web de pedidos ✅');
+  function goWhatsApp(){
+    const msg = buildWhatsAppMessage();
+    if(!msg) return;
+    const url = `https://wa.me/+543537581341?text=${encodeURIComponent(msg)}`;
+    window.open(url,'_blank');
+  }
 
-      return lines.join('\n');
-    }
+  document.getElementById('whatsBtn').addEventListener('click', goWhatsApp);
+  document.getElementById('year').textContent = new Date().getFullYear();
 
-    function goWhatsApp(){
-      const msg = buildWhatsAppMessage();
-      if(!msg) return;
-      const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-      window.open(url,'_blank');
-    }
-
-    document.getElementById('whatsBtn').addEventListener('click', goWhatsApp);
-
-    document.getElementById('year').textContent = new Date().getFullYear();
-
-    // Init
-    renderProducts();
-    renderCart();
-  </script>
-</body>
-</html>
+  // Inicializamos todo
+  renderProducts();
+  renderCart();
+</script>
