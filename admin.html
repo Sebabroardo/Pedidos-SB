@@ -22,34 +22,50 @@
   <h1>Panel Admin — Agregar Producto</h1>
 
   <form id="productForm">
-  <input type="text" id="name" placeholder="Nombre del producto" required>
-  <input type="text" id="desc" placeholder="Descripción" required>
-  <input type="number" id="price" placeholder="Precio" required>
-  <input type="text" id="img" placeholder="URL de imagen (opcional)">
-  <button type="submit">Guardar producto</button>
-</form>
+    <input type="text" id="name" placeholder="Nombre del producto" required>
+    <input type="text" id="desc" placeholder="Descripción" required>
+    <input type="number" id="price" placeholder="Precio" required>
+    <input type="text" id="img" placeholder="URL de imagen (opcional)">
+    <button type="submit">Guardar producto</button>
+  </form>
 
-<script>
-  const form = document.getElementById('productForm');
+  <script>
+    // 🔹 Configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+      authDomain: "santa-roti.firebaseapp.com",
+      projectId: "santa-roti",
+      storageBucket: "santa-roti.appspot.com",
+      messagingSenderId: "66221970620",
+      appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
+      measurementId: "G-BMXRPFDDJQ"
+    };
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('name').value.trim();
-    const desc = document.getElementById('desc').value.trim();
-    const price = parseInt(document.getElementById('price').value);
-    const img = document.getElementById('img').value.trim();
+    // Inicializar Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const analytics = firebase.analytics(app);
+    const db = firebase.firestore();
 
-    if(!name || !desc || !price) return alert('Todos los campos obligatorios excepto la imagen');
+    // ⚙️ Manejo del formulario
+    const form = document.getElementById('productForm');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const desc = document.getElementById('desc').value.trim();
+      const price = parseInt(document.getElementById('price').value);
+      const img = document.getElementById('img').value.trim();
 
-    try {
-      await db.collection('productos').add({ name, desc, price, img: img || "" });
-      alert('Producto agregado correctamente');
-      form.reset();
-    } catch(err) {
-      console.error(err);
-      alert('Error al guardar producto');
-    }
-  });
-</script>
+      if(!name || !desc || !price) return alert('Todos los campos obligatorios excepto la imagen');
+
+      try {
+        await db.collection('productos').add({ name, desc, price, img: img || "" });
+        alert('Producto agregado correctamente');
+        form.reset();
+      } catch(err) {
+        console.error(err);
+        alert('Error al guardar producto');
+      }
+    });
+  </script>
 </body>
 </html>
