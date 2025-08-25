@@ -1,41 +1,58 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Santa’s</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Santa’s</title>
 
-<!-- Firebase SDKs modular -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js"></script>
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
-    authDomain: "santa-roti.firebaseapp.com",
-    projectId: "santa-roti",
-    storageBucket: "santa-roti.appspot.com",
-    messagingSenderId: "66221970620",
-    appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
-  };
+  <style>
+    body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
+    h1 { margin-bottom:20px;}
+    form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
+    input, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
+    button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
+    ul { list-style:none; padding:0; margin-top:20px; width:320px; }
+    li { display:flex; justify-content:space-between; background:#171a21; padding:10px; border-radius:8px; margin-bottom:8px; align-items:center;}
+    li span { flex:1; }
+    li button { background:#f43f5e; color:#fff; border:none; border-radius:6px; cursor:pointer; padding:5px 10px; }
+  </style>
+</head>
+<body>
+  <h1>Panel Admin — Agregar Producto</h1>
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  <form id="productForm">
+    <input type="text" id="name" placeholder="Nombre del producto" required>
+    <input type="text" id="desc" placeholder="Descripción" required>
+    <input type="number" id="price" placeholder="Precio" required>
+    <input type="text" id="img" placeholder="URL de imagen (opcional)">
+    <button type="submit">Guardar producto</button>
+  </form>
 
-  // Cuando se cargue la página, inicializamos el formulario
-  window.addEventListener('DOMContentLoaded', () => {
-    const form = document.createElement('form');
-    form.id = 'productForm';
-    form.innerHTML = `
-      <h1>Panel Admin — Agregar Producto</h1>
-      <input type="text" id="name" placeholder="Nombre del producto" required>
-      <input type="text" id="desc" placeholder="Descripción" required>
-      <input type="number" id="price" placeholder="Precio" required>
-      <input type="text" id="img" placeholder="URL de imagen (opcional)">
-      <button type="submit">Guardar producto</button>
-    `;
-    document.body.appendChild(form);
+  <h2>Productos existentes</h2>
+  <ul id="productList"></ul>
 
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+      authDomain: "santa-roti.firebaseapp.com",
+      projectId: "santa-roti",
+      storageBucket: "santa-roti.appspot.com",
+      messagingSenderId: "66221970620",
+      appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
+    };
+
+    // Inicializar Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const form = document.getElementById('productForm');
+    const productList = document.getElementById('productList');
+
+    // Agregar producto
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('name').value.trim();
@@ -46,12 +63,7 @@
       if(!name || !desc || !price) return alert('Todos los campos obligatorios excepto la imagen');
 
       try {
-        await addDoc(collection(db, 'productos'), {
-          name,
-          desc,
-          price,
-          img: img || ""
-        });
+        await db.collection('productos').add({ name, desc, price, img: img || "" });
         alert('Producto agregado correctamente');
         form.reset();
       } catch(err) {
@@ -59,15 +71,29 @@
         alert('Error al guardar producto');
       }
     });
-  });
-</script>
 
-<style>
-  body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
-  input, button { padding:10px; border-radius:8px; border:none; margin:5px 0; font-size:14px; width:320px;}
-  button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
-</style>
-</head>
-<body>
+    // Renderizar productos existentes
+    async function renderProducts() {
+      productList.innerHTML = '';
+      const snapshot = await db.collection('productos').get();
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
+        const btn = document.createElement('button');
+        btn.textContent = 'Borrar';
+        btn.addEventListener('click', async () => {
+          if(confirm(`¿Eliminar ${data.name}?`)) {
+            await db.collection('productos').doc(doc.id).delete();
+            renderProducts();
+          }
+        });
+        li.appendChild(btn);
+        productList.appendChild(li);
+      });
+    }
+
+    renderProducts();
+  </script>
 </body>
 </html>
