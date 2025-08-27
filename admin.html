@@ -21,6 +21,7 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 .btn-delete { background:#f43f5e; color:#fff; }
 .btn-edit { background:#3b82f6; color:#fff; }
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
+#searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
 </style>
 </head>
 <body>
@@ -43,6 +44,8 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 </form>
 
 <h2>Productos existentes</h2>
+
+<input type="text" id="searchInput" placeholder="Buscar producto o categoría...">
 
 <div id="productLists">
   <div class="category-section">
@@ -171,6 +174,22 @@ db.collection('productos').onSnapshot(snapshot => {
         console.warn(`Categoría desconocida: ${data.category}`);
         break;
     }
+  });
+});
+
+// Buscador dinámico por nombre o categoría
+const searchInput = document.getElementById('searchInput');
+searchInput.addEventListener('input', () => {
+  const query = searchInput.value.trim().toLowerCase();
+
+  const allLists = ['pizzaList','hamburguesaList','papasList','menuEspecialList','extrasList'];
+  allLists.forEach(listId => {
+    const ul = document.getElementById(listId);
+    Array.from(ul.children).forEach(li => {
+      const text = li.querySelector('span').textContent.toLowerCase();
+      const categoryName = listId.replace('List','').toLowerCase();
+      li.style.display = (text.includes(query) || categoryName.includes(query)) ? 'flex' : 'none';
+    });
   });
 });
 </script>
