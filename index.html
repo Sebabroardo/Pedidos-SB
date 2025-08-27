@@ -13,8 +13,21 @@
   .container{max-width:1100px;margin:0 auto;padding:24px}
   header{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
   .brand{display:flex;gap:12px;align-items:center}
-  .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#ef4444 60%,#fb923c);display:grid;place-items:center;font-weight:800}
-  .logo span{font-size:18px}
+  .logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px; /* bordes redondeados */
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+  }
+  .logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* mantiene el logo completo sin deformarlo */
+  }
   .brand h1{font-size:20px;margin:0}
   .tag{font-size:12px;color:var(--muted)}
   .hero{padding:18px;border:1px solid var(--ring);background:radial-gradient(1200px 400px at 10% -5%,rgba(34,197,94,.25),transparent 40%),radial-gradient(800px 300px at 110% -10%,rgba(244,63,94,.20),transparent 40%),var(--card);border-radius:20px;display:grid;grid-template-columns:1.3fr .7fr;gap:18px}
@@ -57,24 +70,25 @@
 <div class="container">
   <header>
     <div class="brand">
-      <div class="logo" aria-hidden="true"><span>🎅</span></div>
+      <div class="logo">
+        <img src="logo.png" alt="Santa Rotisería">
+      </div>
       <div>
-        <h1>Santa’s</h1>
-        <div class="tag">Hamburguesería — Pedidos por WhatsApp</div>
+        <h1>Santa</h1>
+        <div class="tag">Rotisería — Pedidos por WhatsApp</div>
       </div>
     </div>
-    <div class="pill">⏱️ Hoy: 20:00–00:00 · 📍 Villa María</div>
+    <div class="pill">⏱️ Hoy: 20:00 – 23:30 · 📍 Cintra</div>
   </header>
 
   <section class="hero card">
     <div class="copy">
       <h2>Hacé tu pedido online y confirmalo por WhatsApp</h2>
-      <p>Elegí tus hamburguesas, agregalas al carrito y presioná “Enviar por WhatsApp”. Te llega el mensaje listo para confirmar con nuestra atención.</p>
+      <p>Elegí lo que vas a pedir, agregalo al carrito y presioná “Enviar por WhatsApp”. Te llega el mensaje listo para confirmar con nuestra atención.</p>
     </div>
     <div class="info">
       <div class="pill">🚚 Envíos y retiro en local</div>
       <div class="pill">💳 Efectivo, Débito/Crédito, QR</div>
-      <div class="pill">🔥 Promo 2x1 en papas (jueves)</div>
     </div>
   </section>
 
@@ -153,8 +167,6 @@ function renderCart() {
     item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
     if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
     renderCart();
-    const qtySpan = document.getElementById(`qty-${id}`);
-    if(qtySpan) qtySpan.textContent = state.cart[id]?.qty || 0;
   };
 
   document.getElementById('total').textContent = currency.format(total);
@@ -209,24 +221,6 @@ onSnapshot(collection(db,"productos"), snapshot => {
       </div>`;
     productsContainer.appendChild(card);
   });
-
-  // 🔹 Asignar eventos a botones de cada producto
-  productsContainer.onclick = (e) => {
-    if(e.target.tagName !== 'BUTTON') return;
-    const id = e.target.getAttribute('data-id');
-    const op = e.target.getAttribute('data-op');
-    if(!id || !op) return;
-
-    const item = state.cart[id] || { product: snapshot.docs.find(d=>d.id===id).data(), qty:0 };
-    item.product.id = id; // aseguramos que el producto tenga id
-    item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
-    if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
-
-    // Actualizar cantidad en producto y carrito
-    const qtySpan = document.getElementById(`qty-${id}`);
-    if(qtySpan) qtySpan.textContent = state.cart[id]?.qty || 0;
-    renderCart();
-  };
 });
 
 document.getElementById('year').textContent = new Date().getFullYear();
