@@ -45,7 +45,7 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 
 <h2>Productos existentes</h2>
 
-<input type="text" id="searchInput" placeholder="Buscar producto o categoría...">
+<input type="text" id="searchInput" placeholder="Buscar producto por nombre...">
 
 <div id="productLists">
   <div class="category-section">
@@ -116,7 +116,6 @@ form.addEventListener('submit', async (e) => {
 
 // Listar productos por categoría en tiempo real
 db.collection('productos').onSnapshot(snapshot => {
-  // Vaciar todas las listas
   const lists = ['pizzaList','hamburguesaList','papasList','menuEspecialList','extrasList'];
   lists.forEach(id => document.getElementById(id).innerHTML = '');
 
@@ -152,7 +151,6 @@ db.collection('productos').onSnapshot(snapshot => {
     li.appendChild(btnEdit);
     li.appendChild(btnDelete);
 
-    // Normalizar categoría y asignar a la lista correspondiente
     const categoryNormalized = data.category?.trim().toLowerCase();
     switch(categoryNormalized) {
       case 'pizza':
@@ -177,18 +175,18 @@ db.collection('productos').onSnapshot(snapshot => {
   });
 });
 
-// Buscador dinámico por nombre o categoría
+// Buscador dinámico por NOMBRE de producto solamente
 const searchInput = document.getElementById('searchInput');
 searchInput.addEventListener('input', () => {
   const query = searchInput.value.trim().toLowerCase();
-
   const allLists = ['pizzaList','hamburguesaList','papasList','menuEspecialList','extrasList'];
+
   allLists.forEach(listId => {
     const ul = document.getElementById(listId);
     Array.from(ul.children).forEach(li => {
-      const text = li.querySelector('span').textContent.toLowerCase();
-      const categoryName = listId.replace('List','').toLowerCase();
-      li.style.display = (text.includes(query) || categoryName.includes(query)) ? 'flex' : 'none';
+      const spanText = li.querySelector('span').textContent;
+      const productName = spanText.split('—')[0].trim().toLowerCase(); // Solo nombre
+      li.style.display = productName.includes(query) ? 'flex' : 'none';
     });
   });
 });
