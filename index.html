@@ -104,6 +104,9 @@ footer{margin-top:22px;color:var(--muted);font-size:12px;text-align:center}
 
     <h2>Menú Especial</h2>
     <div id="menuEspecial" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
+
+    <h2>Extras</h2>
+    <div id="extras" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
   </section>
 
   <aside class="col-3">
@@ -208,7 +211,7 @@ document.getElementById('whatsBtn').addEventListener('click', () => {
 // Render productos desde Firestore en tiempo real, separados por categoría
 onSnapshot(collection(db,"productos"), snapshot => {
   // Limpiar todos los contenedores
-  ['pizzas','hamburguesas','papas','menuEspecial'].forEach(id => document.getElementById(id).innerHTML = '');
+  ['pizzas','hamburguesas','papas','menuEspecial','extras'].forEach(id => document.getElementById(id).innerHTML = '');
   
   snapshot.forEach(doc => {
     const p = doc.data();
@@ -236,6 +239,7 @@ onSnapshot(collection(db,"productos"), snapshot => {
       case 'hamburguesa': containerId = 'hamburguesas'; break;
       case 'papas': containerId = 'papas'; break;
       case 'menu especial': containerId = 'menuEspecial'; break;
+      case 'extras': containerId = 'extras'; break;
       default: containerId = 'pizzas';
     }
     document.getElementById(containerId).appendChild(card);
