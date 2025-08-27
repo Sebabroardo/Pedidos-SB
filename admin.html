@@ -94,11 +94,17 @@ form.addEventListener('submit', async (e) => {
 
 // Listar productos en tiempo real
 db.collection('productos').onSnapshot(snapshot => {
-  productList.innerHTML = '';
+  // Vaciar todas las listas
+  document.getElementById('pizzaList').innerHTML = '';
+  document.getElementById('hamburguesaList').innerHTML = '';
+  document.getElementById('papasList').innerHTML = '';
+  document.getElementById('menuEspecialList').innerHTML = '';
+  document.getElementById('extrasList').innerHTML = '';
+
   snapshot.forEach(doc => {
     const data = doc.data();
     const li = document.createElement('li');
-    li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price} — ${data.category}</span>`;
+    li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
 
     // Botón editar
     const btnEdit = document.createElement('button');
@@ -126,7 +132,27 @@ db.collection('productos').onSnapshot(snapshot => {
 
     li.appendChild(btnEdit);
     li.appendChild(btnDelete);
-    productList.appendChild(li);
+
+    // Asignar li a la lista según categoría
+    switch(data.category) {
+      case 'pizza':
+        document.getElementById('pizzaList').appendChild(li);
+        break;
+      case 'hamburguesa':
+        document.getElementById('hamburguesaList').appendChild(li);
+        break;
+      case 'papas':
+        document.getElementById('papasList').appendChild(li);
+        break;
+      case 'menu especial':
+        document.getElementById('menuEspecialList').appendChild(li);
+        break;
+      case 'extras':
+        document.getElementById('extrasList').appendChild(li);
+        break;
+      default:
+        break;
+    }
   });
 });
 </script>
