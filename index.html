@@ -295,7 +295,7 @@ document.querySelectorAll('.category-btn').forEach(btn=>{
 });
 
 // PRODUCTOS FIRESTORE
-const productsRef = collection(db,'products');
+const productsRef = collection(db,'productos');
 onSnapshot(productsRef, snapshot=>{
   const categories = {};
   snapshot.docs.forEach(doc=>{
