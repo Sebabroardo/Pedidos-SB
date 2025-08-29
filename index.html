@@ -46,21 +46,21 @@ header {
   align-items: center;
   gap: 4px;
   color: var(--muted);
-  text-decoration: underline; /* subrayado */
-  font-size: 18px; /* tamaño recomendado */
+  text-decoration: underline;
+  font-size:16px; /* tamaño de IG */
   transition: color 0.3s ease;
 }
 .brand-text .tag a svg {
   width: 16px;
   height: 16px;
-  fill: var(--muted);
+  fill: #E1306C;
   transition: transform 0.3s ease, fill 0.3s ease;
 }
 .brand-text .tag a:hover {
-  color: #E1306C; /* rojo */
+  color: red;
 }
 .brand-text .tag a:hover svg {
-  fill: #E1306C;
+  fill: red;
   transform: scale(1.2);
 }
 
@@ -263,7 +263,6 @@ function buildWhatsAppMessage() {
   const entries = Object.values(state.cart);
   if(entries.length===0) { alert('Agregá al menos 1 producto al carrito.'); return null; }
   const name = document.getElementById('customerName').value.trim();
-  const addr = document.getElementById('customerAddress')?.value.trim() || '';
   const notes = document.getElementById('customerNotes').value.trim();
 
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
@@ -273,12 +272,16 @@ function buildWhatsAppMessage() {
   });
   const total = entries.reduce((acc,{product,extra})=>acc+product.price+(extra?3000:0),0);
   lines.push('',`*Total:* ${currency.format(total)}`);
+
+  // Mensaje fijo de retiro por local con link a coordenadas
+  lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
+
   if(name) lines.push(`*Nombre:* ${name}`);
-  if(addr) lines.push(`*Dirección:* ${addr}`);
   if(notes) lines.push(`*Notas:* ${notes}`);
   lines.push('','Enviado desde la web de pedidos ✅');
   return lines.join('\n');
 }
+
 document.getElementById('whatsBtn').addEventListener('click', () => {
   const msg = buildWhatsAppMessage();
   if(!msg) return;
