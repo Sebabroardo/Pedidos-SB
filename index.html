@@ -46,20 +46,21 @@ header {
   align-items: center;
   gap: 4px;
   color: var(--muted);
-  text-decoration: none;
+  text-decoration: underline; /* subrayado */
+  font-size: 16px; /* tamaño recomendado */
   transition: color 0.3s ease;
 }
 .brand-text .tag a svg {
   width: 16px;
   height: 16px;
-  fill: #E1306C;
+  fill: var(--muted);
   transition: transform 0.3s ease, fill 0.3s ease;
 }
 .brand-text .tag a:hover {
-  color: #C13584;
+  color: #E1306C; /* rojo */
 }
 .brand-text .tag a:hover svg {
-  fill: #C13584;
+  fill: #E1306C;
   transform: scale(1.2);
 }
 
@@ -142,7 +143,7 @@ footer {
       <div class="brand-text">
         <h1>Santa</h1>
         <div class="tag">
-          <a href="https://www.instagram.com/santa.roti" target="_blank" style="color: inherit; text-decoration: none; font-size:16px;">
+          <a href="https://www.instagram.com/santa.roti" target="_blank">
             <svg viewBox="0 0 448 512">
               <path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9S160.5 370.8 224.1 370.8 339 319.5 339 255.9 287.7 141 224.1 141zm0 186c-39.6 0-71.8-32.2-71.8-71.8s32.2-71.8 71.8-71.8 71.8 32.2 71.8 71.8-32.2 71.8-71.8 71.8zm146.4-194.3c0 14.9-12.1 27-27 27s-27-12.1-27-27 12.1-27 27-27 27 12.1 27 27zM398.8 80c-8.2-19.6-24.3-35.7-43.9-43.9C332.6 32 224 32 224 32S115.4 32 93.1 36.1c-19.6 8.2-35.7 24.3-43.9 43.9C32 115.4 32 224 32 224s0 108.6 17.1 131c8.2 19.6 24.3 35.7 43.9 43.9 22.3 4.1 130.9 4.1 130.9 4.1s108.6 0 131-17.1c19.6-8.2 35.7-24.3 43.9-43.9 4.1-22.3 4.1-130.9 4.1-130.9s0-108.6-17.1-131zM224 338c-45.5 0-82.4-36.9-82.4-82.4S178.5 173.2 224 173.2 306.4 210.1 306.4 255.6 269.5 338 224 338z"/>
             </svg>
