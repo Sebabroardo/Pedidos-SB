@@ -159,59 +159,54 @@ function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
   let total = 0;
-
-  Object.values(state.cart).forEach(({ product, qty, extra }) => {
-    const lineTotal = (product.price + (extra && product.category==='hamburguesa'?3000:0)) * qty;
+  Object.values(state.cart).forEach(({ uid, product, extra }) => {
+    const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
     total += lineTotal;
     const row = document.createElement('div');
     row.className='cart-item';
     row.innerHTML=`
       <div>
-        <div class="title">${product.name}${extra?' (Agrandado)':''} x${qty} — ${currency.format(lineTotal)}</div>
-        ${product.category==='hamburguesa'?`<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${product.id}" ${extra?'checked':''}> Agrandar Pedido +$3.000</label>`:''}
+        <div class="title">${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}</div>
+        ${product.category==='hamburguesa'?`<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra?'checked':''}> Agrandar Pedido +$3.000</label>`:''}
       </div>
-      <button class="remove-btn" data-id="${product.id}">X</button>
+      <button class="remove-btn" data-id="${uid}">X</button>
     `;
     list.appendChild(row);
   });
 
   list.querySelectorAll('.extra-checkbox').forEach(chk=>{
     chk.addEventListener('change', e=>{
-      const id = e.target.dataset.id;
-      if(state.cart[id]) state.cart[id].extra = e.target.checked;
+      const uid = e.target.dataset.id;
+      if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
       renderCart();
+      // Actualizamos el contador de la card si es hamburguesa
+      if(state.cart[uid]) updateCardQty(state.cart[uid].product.id);
     });
   });
 
   list.querySelectorAll('.remove-btn').forEach(btn=>{
     btn.addEventListener('click', e=>{
-      const id = e.target.dataset.id;
-      delete state.cart[id];
+      const uid = e.target.dataset.id;
+      delete state.cart[uid];
       renderCart();
-      updateCardQty(id);
+      updateCardQty(uid.split('-')[0]); // actualizamos contador
     });
   });
 
   document.getElementById('total').textContent = currency.format(total);
 }
 
-function updateCardQty(uid){
-  const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
-  const qty = state.cart[uid]?.qty || 0;
-  if(span) span.textContent = qty;
-}
-
-function buildWhatsAppMessage(){
+function buildWhatsAppMessage() {
   const entries = Object.values(state.cart);
   if(entries.length===0){ alert('Agregá al menos 1 producto al carrito.'); return null; }
   const name = document.getElementById('customerName').value.trim();
   const notes = document.getElementById('customerNotes').value.trim();
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
-  entries.forEach(({ product, qty, extra })=>{
-    const lineTotal = (product.price + (extra && product.category==='hamburguesa'?3000:0)) * qty;
-    lines.push(`• ${product.name}${extra?' (Agrandado)':''} x${qty} — ${currency.format(lineTotal)}`);
+  entries.forEach(({ product, extra })=>{
+    const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
+    lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}`);
   });
-  const total = entries.reduce((acc,{product,qty,extra})=>acc + (product.price + (extra && product.category==='hamburguesa'?3000:0))*qty,0);
+  const total = entries.reduce((acc,{product,extra})=>acc + product.price + ((extra && product.category==='hamburguesa')?3000:0),0);
   lines.push('',`*Total:* ${currency.format(total)}`);
   lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
   if(name) lines.push(`*Nombre:* ${name}`);
@@ -275,8 +270,8 @@ onSnapshot(productsRef,snapshot=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
       const product = snapshot.docs.find(d=>d.id===uid).data();
-      if(state.cart[uid]) state.cart[uid].qty += 1;
-      else state.cart[uid] = { product, qty: 1, extra: false };
+      const uniqueId = uid+'-'+Date.now();
+      state.cart[uniqueId] = { uid: uniqueId, product, extra:false };
       renderCart();
       updateCardQty(uid);
     });
@@ -285,15 +280,21 @@ onSnapshot(productsRef,snapshot=>{
   document.querySelectorAll('.card .btn-minus').forEach(btn=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
-      if(state.cart[uid]){
-        state.cart[uid].qty -= 1;
-        if(state.cart[uid].qty <= 0) delete state.cart[uid];
+      const firstKey = Object.keys(state.cart).find(k=>state.cart[k].product.id===uid);
+      if(firstKey){
+        delete state.cart[firstKey];
+        renderCart();
+        updateCardQty(uid);
       }
-      renderCart();
-      updateCardQty(uid);
     });
   });
 });
+
+function updateCardQty(uid){
+  const count = Object.values(state.cart).filter(item=>item.product.id===uid).length;
+  const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
+  if(span) span.textContent = count;
+}
 
 document.getElementById('year').textContent = new Date().getFullYear();
 </script>
