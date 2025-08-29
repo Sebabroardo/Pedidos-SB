@@ -84,6 +84,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 .cart-list{display:grid;gap:8px;max-height:360px;overflow:auto;padding-right:6px}
 .cart-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--ring);border-radius:12px;background:#f8f8f8}
 .cart-item .title{font-size:13px}
+.cart-item button.remove-btn{background:#ef4444;color:#fff;border:none;border-radius:6px;padding:2px 6px;cursor:pointer}
 .tot{display:flex;align-items:center;justify-content:space-between;font-weight:800}
 .muted{color:var(--muted);font-size:12px}
 .inputs{display:grid;gap:10px}
@@ -187,25 +188,35 @@ function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
   let total = 0;
-  Object.values(state.cart).forEach(({ product, extra }) => {
-    const itemTotal = product.price + (extra ? 3000 : 0);
-    total += itemTotal;
-
+  Object.values(state.cart).forEach(({ product, extra, uid }) => {
+    const lineTotal = product.price + (extra ? 3000 : 0);
+    total += lineTotal;
     const row = document.createElement('div');
-row.className = 'cart-item';
-row.innerHTML = `
-  <div>
-    <div class="title">${product.name} — ${currency.format(product.price)}</div>
-    ${product.category === 'hamburguesa' ? `<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${product.uid}" ${extra ? 'checked' : ''}> Agrandar Pedido +$3.000</label>` : ''}
-  </div>`;
+    row.className = 'cart-item';
+    row.innerHTML = `
+      <div>
+        <div class="title">${product.name} — ${currency.format(product.price)}</div>
+        ${product.category === 'hamburguesa' ? `<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra ? 'checked' : ''}> Agrandar Pedido +$3.000</label>` : ''}
+      </div>
+      <button class="remove-btn" data-id="${uid}">X</button>
+    `;
     list.appendChild(row);
   });
 
-  // Manejo de checkbox “Agrandar Pedido”
+  // Checkbox handler
   list.querySelectorAll('.extra-checkbox').forEach(chk => {
     chk.addEventListener('change', (e) => {
       const uid = e.target.getAttribute('data-id');
       if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
+      renderCart();
+    });
+  });
+
+  // Remove button handler
+  list.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const uid = e.target.getAttribute('data-id');
+      delete state.cart[uid];
       renderCart();
     });
   });
@@ -285,8 +296,8 @@ onSnapshot(collection(db,"productos"), snapshot => {
 
     const btn = card.querySelector('button[data-op="+"]');
     btn.addEventListener('click', () => {
-      const uid = id + '-' + Date.now(); // id único por cada instancia
-      state.cart[uid] = { product: {...p, uid}, extra: false };
+      const uid = id + '-' + Date.now();
+      state.cart[uid] = { product: {...p, uid}, extra: false, uid };
       renderCart();
     });
   });
