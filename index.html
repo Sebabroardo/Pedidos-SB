@@ -192,12 +192,12 @@ function renderCart() {
     total += itemTotal;
 
     const row = document.createElement('div');
-    row.className = 'cart-item';
-    row.innerHTML = `
-      <div>
-        <div class="title">${product.name}</div>
-        ${product.category === 'hamburguesa' ? `<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${product.uid}" ${extra ? 'checked' : ''}> Agrandar Pedido +$3.000</label>` : ''}
-      </div>`;
+row.className = 'cart-item';
+row.innerHTML = `
+  <div>
+    <div class="title">${product.name} — ${currency.format(product.price)}</div>
+    ${product.category === 'hamburguesa' ? `<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${product.uid}" ${extra ? 'checked' : ''}> Agrandar Pedido +$3.000</label>` : ''}
+  </div>`;
     list.appendChild(row);
   });
 
