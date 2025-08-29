@@ -219,6 +219,7 @@ const db = getFirestore(app);
 const state = { cart: {} };
 const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
 
+// --- CART RENDER ---
 function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
@@ -257,6 +258,7 @@ function renderCart() {
   document.getElementById('total').textContent = currency.format(total);
 }
 
+// --- WHATSAPP ---
 function buildWhatsAppMessage() {
   const entries = Object.values(state.cart);
   if(entries.length===0){ alert('Agregá al menos 1 producto al carrito.'); return null; }
@@ -284,7 +286,7 @@ document.getElementById('whatsBtn').addEventListener('click', ()=>{
   window.open(url,'_blank');
 });
 
-// DESPLEGABLES
+// --- DESPLEGABLES ---
 document.querySelectorAll('.category-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
     const targetId = btn.getAttribute('data-target');
@@ -294,26 +296,38 @@ document.querySelectorAll('.category-btn').forEach(btn=>{
   });
 });
 
-// PRODUCTOS FIRESTORE
-const productsRef = collection(db,'productos');
+// --- PRODUCTOS FIRESTORE ---
+const productsRef = collection(db,'productos'); // CORREGIDO
 onSnapshot(productsRef, snapshot=>{
   const categories = {};
   snapshot.docs.forEach(doc=>{
     const data = doc.data();
     const id = doc.id;
-    if(!categories[data.category]) categories[data.category] = [];
-    categories[data.category].push({id, ...data});
+    const catKey = data.category?.trim().toLowerCase();
+    if(!categories[catKey]) categories[catKey] = [];
+    categories[catKey].push({id, ...data});
   });
+
+  // Mapear nombres de categoría a IDs de los grids
+  const categoryMap = {
+    'pizza':'pizzas',
+    'hamburguesa':'hamburguesas',
+    'papas':'papas',
+    'menu especial':'menuEspecial',
+    'extras':'extras'
+  };
+
   for(const cat in categories){
-    const grid = document.getElementById(cat);
-    if(!grid) continue;
+    const gridId = categoryMap[cat];
+    if(!gridId) continue;
+    const grid = document.getElementById(gridId);
     grid.innerHTML='';
     categories[cat].forEach(product=>{
       const uid = product.id;
       const card = document.createElement('div');
       card.className='card product';
       card.innerHTML=`
-        <div class="img"><img src="${product.image}" alt="${product.name}"></div>
+        <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
         <h3>${product.name}</h3>
         <p class="price">${currency.format(product.price)}</p>
         <div class="actions"><button class="btn" data-id="${uid}">Agregar</button></div>
@@ -322,6 +336,7 @@ onSnapshot(productsRef, snapshot=>{
     });
   }
 
+  // Botones agregar al carrito
   document.querySelectorAll('.card .btn').forEach(btn=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
