@@ -34,14 +34,35 @@ header {
   margin-bottom: 18px;
 
   display: flex;
-  align-items: flex-start;   /* alinea verticalmente al inicio */
-  justify-content: space-between; /* logo a la izquierda, horario a la derecha */
+  align-items: flex-start;
+  justify-content: space-between;
 }
-.brand{display:flex;gap:12px;align-items:center}
+.brand-wrapper { display: flex; gap: 12px; align-items: center; }
 .logo {width: 64px;height: 64px;border-radius: 12px;overflow: hidden;display: flex;align-items: center;justify-content: center;background: none;}
 .logo img {width: 100%;height: 100%;object-fit: contain;}
-.brand h1{font-size:20px;margin:0}
-.tag{font-size:12px;color:var(--muted)}
+.brand-text h1{font-size:20px;margin:0}
+.brand-text .tag a {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+.brand-text .tag a svg {
+  width: 16px;
+  height: 16px;
+  fill: #E1306C;
+  transition: transform 0.3s ease, fill 0.3s ease;
+}
+.brand-text .tag a:hover {
+  color: #C13584;
+}
+.brand-text .tag a:hover svg {
+  fill: #C13584;
+  transform: scale(1.2);
+}
+
 .hero{
   padding:18px;
   border:1px solid var(--ring);
@@ -100,7 +121,6 @@ header {
 .inputs{display:grid;gap:10px}
 .inputs input, .inputs textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text)}
 .inputs textarea{min-height:72px;resize:vertical}
-/* Footer más legible */
 footer {
   margin-top: 22px;
   color: var(--muted);
@@ -114,22 +134,26 @@ footer {
 </head>
 <body>
 <div class="container">
- <header>
-  <div style="display:flex; align-items:center; gap:12px;">
-    <div class="logo">
-      <img src="logo.png" alt="Santa Rotisería">
-    </div>
-    <div>
-      <h1>Santa</h1>
-      <div class="tag">
-        <a href="https://www.instagram.com/santa.roti" target="_blank" style="color: inherit; text-decoration: none;">
-          Nuestro Instagram - Santa Rotisería
-        </a>
+  <header>
+    <div class="brand-wrapper">
+      <div class="logo">
+        <img src="logo.png" alt="Santa Rotisería">
+      </div>
+      <div class="brand-text">
+        <h1>Santa</h1>
+        <div class="tag">
+          <a href="https://www.instagram.com/santa.roti" target="_blank">
+            <svg viewBox="0 0 448 512">
+              <path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9S160.5 370.8 224.1 370.8 339 319.5 339 255.9 287.7 141 224.1 141zm0 186c-39.6 0-71.8-32.2-71.8-71.8s32.2-71.8 71.8-71.8 71.8 32.2 71.8 71.8-32.2 71.8-71.8 71.8zm146.4-194.3c0 14.9-12.1 27-27 27s-27-12.1-27-27 12.1-27 27-27 27 12.1 27 27zM398.8 80c-8.2-19.6-24.3-35.7-43.9-43.9C332.6 32 224 32 224 32S115.4 32 93.1 36.1c-19.6 8.2-35.7 24.3-43.9 43.9C32 115.4 32 224 32 224s0 108.6 17.1 131c8.2 19.6 24.3 35.7 43.9 43.9 22.3 4.1 130.9 4.1 130.9 4.1s108.6 0 131-17.1c19.6-8.2 35.7-24.3 43.9-43.9 4.1-22.3 4.1-130.9 4.1-130.9s0-108.6-17.1-131zM224 338c-45.5 0-82.4-36.9-82.4-82.4S178.5 173.2 224 173.2 306.4 210.1 306.4 255.6 269.5 338 224 338z"/>
+            </svg>
+            Nuestro Instagram - Santa Rotisería
+          </a>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="pill">⏱️ Viernes, Sábados y Domingos: 20:00 – 23:30· 📍 Cintra</div>
-</header>
+    <div class="pill">⏱️ Viernes, Sábados y Domingos: 20:00 – 23:30· 📍 Cintra</div>
+  </header>
+
   <section class="hero">
     <div class="copy">
       <h2>Hacé tu pedido online y confirmalo por WhatsApp</h2>
@@ -215,7 +239,6 @@ function renderCart() {
     list.appendChild(row);
   });
 
-  // Checkbox handler
   list.querySelectorAll('.extra-checkbox').forEach(chk => {
     chk.addEventListener('change', (e) => {
       const uid = e.target.getAttribute('data-id');
@@ -224,7 +247,6 @@ function renderCart() {
     });
   });
 
-  // Remove button handler
   list.querySelectorAll('.remove-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const uid = e.target.getAttribute('data-id');
@@ -240,7 +262,7 @@ function buildWhatsAppMessage() {
   const entries = Object.values(state.cart);
   if(entries.length===0) { alert('Agregá al menos 1 producto al carrito.'); return null; }
   const name = document.getElementById('customerName').value.trim();
-  const addr = document.getElementById('customerAddress').value.trim();
+  const addr = document.getElementById('customerAddress')?.value.trim() || '';
   const notes = document.getElementById('customerNotes').value.trim();
 
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
@@ -256,7 +278,6 @@ function buildWhatsAppMessage() {
   lines.push('','Enviado desde la web de pedidos ✅');
   return lines.join('\n');
 }
-
 document.getElementById('whatsBtn').addEventListener('click', () => {
   const msg = buildWhatsAppMessage();
   if(!msg) return;
@@ -294,9 +315,9 @@ onSnapshot(collection(db,"productos"), snapshot => {
           <button data-id="${id}" data-op="+">+</button>
         </div>
       </div>`;
-    
+
     let containerId;
-    switch(p.category) {
+    switch(p.category.toLowerCase()) {
       case 'pizza': containerId = 'pizzas'; break;
       case 'hamburguesa': containerId = 'hamburguesas'; break;
       case 'papas': containerId = 'papas'; break;
