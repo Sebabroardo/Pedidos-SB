@@ -19,7 +19,7 @@
 html, body {
   margin: 0;
   height: 100%;
-  font-family: STAATLICHES;
+  font-family: STAATLICHES, sans-serif;
   background: url('Fondo.png') repeat center center;
   background-size: auto;
   color: var(--text);
@@ -47,7 +47,7 @@ header {
   gap: 4px;
   color: var(--muted);
   text-decoration: underline;
-  font-size: 18px !important; /* tamaño desktop */
+  font-size: 18px; /* desktop */
   transition: color 0.3s ease;
 }
 .brand-text .tag a svg {
@@ -56,13 +56,8 @@ header {
   fill: #E1306C;
   transition: transform 0.3s ease, fill 0.3s ease;
 }
-.brand-text .tag a:hover {
-  color: red;
-}
-.brand-text .tag a:hover svg {
-  fill: red;
-  transform: scale(1.2);
-}
+.brand-text .tag a:hover { color:red; }
+.brand-text .tag a:hover svg { fill:red; transform: scale(1.2); }
 
 .hero{
   padding:18px;
@@ -78,8 +73,10 @@ header {
 .hero .copy p{margin:0;color:#000}
 .hero .info{display:grid;gap:8px;align-content:start}
 .pill{display:inline-flex;gap:8px;align-items:center;background:#f8f8f8;border:1px solid var(--ring);border-radius:999px;padding:8px 12px;font-size:12px;color:var(--muted)}
+
 .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-top:8px;transition:max-height 0.3s ease, opacity 0.3s ease;overflow:hidden;opacity:0;max-height:0}
 .grid.show{opacity:1;max-height:2000px}
+
 .card{background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; padding:14px; backdrop-filter: blur(4px);}
 .product{display:flex;flex-direction:column;gap:10px}
 .product .img{height:140px;border-radius:14px;background:#ffffff;border:1px dashed #d1d5db;display:grid;place-items:center;font-size:12px;color:#6b7280;overflow:hidden}
@@ -110,7 +107,9 @@ header {
 .category-btn:hover{background:rgba(255,255,255,1)}
 .col-9{grid-column:span 9}
 .col-3{grid-column:span 3}
+
 @media (max-width:900px){.hero{grid-template-columns:1fr}.col-9,.col-3{grid-column:1/-1}}
+
 .cart{position:sticky;top:12px;display:grid;gap:10px;background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; backdrop-filter: blur(4px);}
 .cart h3{margin:0 0 6px}
 .cart-list{display:grid;gap:8px;max-height:360px;overflow:auto;padding-right:6px}
@@ -122,54 +121,17 @@ header {
 .inputs{display:grid;gap:10px}
 .inputs input, .inputs textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text)}
 .inputs textarea{min-height:72px;resize:vertical}
-.card img {
-  width: 100%;
-  height: 180px;
-  object-fit: cover;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
-  display: block;
-}
-footer {
-  margin-top: 22px;
-  color: var(--muted);
-  font-size: 12px;
-  text-align: center;
-  background: rgba(255,255,255,0.9);
-  padding: 10px;
-  border-radius: 12px;
-}
+.card img { width:100%; height:180px; object-fit:cover; border-top-left-radius:12px; border-top-right-radius:12px; display:block;}
+footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center; background: rgba(255,255,255,0.9); padding:10px; border-radius:12px; }
 
-/* MEDIA QUERY MÓVIL */
-@media (max-width: 600px) {
-  header {
-    flex-direction: column;
-    align-items: center;
-    padding: 12px;
-    gap: 12px;
-  }
-  .brand-wrapper {
-    flex-direction: column;
-    gap: 6px;
-    align-items: center;
-  }
-  .logo { 
-    width: 48px; 
-    height: 48px; 
-  }
-  .brand-text h1 { 
-    font-size: 18px; 
-    text-align: center; 
-  }
-  .brand-text .tag a { 
-    font-size: 16px; 
-    text-align: center; 
-  }
-  .pill { 
-    font-size: 12px; 
-    padding: 6px 10px; 
-    text-align: center; 
-  }
+/* MOBILE */
+@media (max-width:600px){
+  header {flex-direction: column;align-items:center;padding:12px;gap:12px;}
+  .brand-wrapper {flex-direction: column; gap:6px; align-items:center;}
+  .logo {width:48px;height:48px;}
+  .brand-text h1 {font-size:18px; text-align:center;}
+  .brand-text .tag a {font-size:16px; text-align:center;}
+  .pill {font-size:12px; padding:6px 10px; text-align:center;}
 }
 </style>
 </head>
@@ -177,16 +139,12 @@ footer {
 <div class="container">
   <header>
     <div class="brand-wrapper">
-      <div class="logo">
-        <img src="logo.png" alt="Santa Rotisería">
-      </div>
+      <div class="logo"><img src="logo.png" alt="Santa Rotisería"></div>
       <div class="brand-text">
         <h1>Santa</h1>
         <div class="tag">
           <a href="https://www.instagram.com/santa.roti" target="_blank">
-            <svg viewBox="0 0 448 512">
-              <path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9S160.5 370.8 224.1 370.8 339 319.5 339 255.9 287.7 141 224.1 141zm0 186c-39.6 0-71.8-32.2-71.8-71.8s32.2-71.8 71.8-71.8 71.8 32.2 71.8 71.8-32.2 71.8-71.8 71.8zm146.4-194.3c0 14.9-12.1 27-27 27s-27-12.1-27-27 12.1-27 27-27 27 12.1 27 27zM398.8 80c-8.2-19.6-24.3-35.7-43.9-43.9C332.6 32 224 32 224 32S115.4 32 93.1 36.1c-19.6 8.2-35.7 24.3-43.9 43.9C32 115.4 32 224 32 224s0 108.6 17.1 131c8.2 19.6 24.3 35.7 43.9 43.9 22.3 4.1 130.9 4.1 130.9 4.1s108.6 0 131-17.1c19.6-8.2 35.7-24.3 43.9-43.9 4.1-22.3 4.1-130.9 4.1-130.9s0-108.6-17.1-131zM224 338c-45.5 0-82.4-36.9-82.4-82.4S178.5 173.2 224 173.2 306.4 210.1 306.4 255.6 269.5 338 224 338z"/>
-            </svg>
+            <svg viewBox="0 0 448 512"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9S160.5 370.8 224.1 370.8 339 319.5 339 255.9 287.7 141 224.1 141zm0 186c-39.6 0-71.8-32.2-71.8-71.8s32.2-71.8 71.8-71.8 71.8 32.2 71.8 71.8-32.2 71.8-71.8 71.8zm146.4-194.3c0 14.9-12.1 27-27 27s-27-12.1-27-27 12.1-27 27-27 27 12.1 27 27zM398.8 80c-8.2-19.6-24.3-35.7-43.9-43.9C332.6 32 224 32 224 32S115.4 32 93.1 36.1c-19.6 8.2-35.7 24.3-43.9 43.9C32 115.4 32 224 32 224s0 108.6 17.1 131c8.2 19.6 24.3 35.7 43.9 43.9 22.3 4.1 130.9 4.1 130.9 4.1s108.6 0 131-17.1c19.6-8.2 35.7-24.3 43.9-43.9 4.1-22.3 4.1-130.9 4.1-130.9s0-108.6-17.1-131zM224 338c-45.5 0-82.4-36.9-82.4-82.4S178.5 173.2 224 173.2 306.4 210.1 306.4 255.6 269.5 338 224 338z"/></svg>
             Nuestro Instagram - Santa Rotisería
           </a>
         </div>
@@ -273,7 +231,7 @@ function renderCart() {
     row.innerHTML = `
       <div>
         <div class="title">${product.name} — ${currency.format(product.price)}</div>
-        ${product.category === 'hamburguesa' ? `<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra ? 'checked' : ''}> Agrandar Pedido +$3.000</label>` : ''}
+        ${product.category==='hamburguesa'?`<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra?'checked':''}> Agrandar Pedido +$3.000</label>`:''}
       </div>
       <button class="remove-btn" data-id="${uid}">X</button>
     `;
@@ -301,14 +259,14 @@ function renderCart() {
 
 function buildWhatsAppMessage() {
   const entries = Object.values(state.cart);
-  if(entries.length===0) { alert('Agregá al menos 1 producto al carrito.'); return null; }
+  if(entries.length===0){ alert('Agregá al menos 1 producto al carrito.'); return null; }
   const name = document.getElementById('customerName').value.trim();
   const notes = document.getElementById('customerNotes').value.trim();
 
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
-  entries.forEach(({ product, extra }) => {
+  entries.forEach(({ product, extra })=>{
     const lineTotal = product.price + (extra ? 3000 : 0);
-    lines.push(`• ${product.name}${extra ? ' (Agrandado)' : ''} — ${currency.format(lineTotal)}`);
+    lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}`);
   });
   const total = entries.reduce((acc,{product,extra})=>acc+product.price+(extra?3000:0),0);
   lines.push('',`*Total:* ${currency.format(total)}`);
@@ -326,13 +284,17 @@ document.getElementById('whatsBtn').addEventListener('click', ()=>{
   window.open(url,'_blank');
 });
 
-document.querySelectorAll('.category-btn').forEach(btn => {
-  btn.addEventListener('click', ()=>{
-    const target = document.getElementById(btn.dataset.target);
-    target.classList.toggle('show');
+// DESPLEGABLES
+document.querySelectorAll('.category-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const targetId = btn.getAttribute('data-target');
+    const grid = document.getElementById(targetId);
+    grid.classList.toggle('show');
+    btn.textContent = btn.textContent.includes('▸') ? btn.textContent.replace('▸','▾') : btn.textContent.replace('▾','▸');
   });
 });
 
+// PRODUCTOS FIRESTORE
 const productsRef = collection(db,'products');
 onSnapshot(productsRef, snapshot=>{
   const categories = {};
@@ -345,12 +307,12 @@ onSnapshot(productsRef, snapshot=>{
   for(const cat in categories){
     const grid = document.getElementById(cat);
     if(!grid) continue;
-    grid.innerHTML = '';
+    grid.innerHTML='';
     categories[cat].forEach(product=>{
       const uid = product.id;
       const card = document.createElement('div');
-      card.className = 'card product';
-      card.innerHTML = `
+      card.className='card product';
+      card.innerHTML=`
         <div class="img"><img src="${product.image}" alt="${product.name}"></div>
         <h3>${product.name}</h3>
         <p class="price">${currency.format(product.price)}</p>
