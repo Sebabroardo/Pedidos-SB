@@ -84,8 +84,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 .cart-list{display:grid;gap:8px;max-height:360px;overflow:auto;padding-right:6px}
 .cart-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--ring);border-radius:12px;background:#f8f8f8}
 .cart-item .title{font-size:13px}
-.cart-item .ops{display:flex;align-items:center;gap:6px}
-.cart-item .ops button{width:24px;height:24px;border-radius:6px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text);cursor:pointer}
 .tot{display:flex;align-items:center;justify-content:space-between;font-weight:800}
 .muted{color:var(--muted);font-size:12px}
 .inputs{display:grid;gap:10px}
@@ -189,8 +187,8 @@ function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
   let total = 0;
-  Object.values(state.cart).forEach(({ product, qty, extra }) => {
-    let itemTotal = product.price * qty + (extra ? 3000 : 0);
+  Object.values(state.cart).forEach(({ product, extra }) => {
+    const itemTotal = product.price + (extra ? 3000 : 0);
     total += itemTotal;
 
     const row = document.createElement('div');
@@ -198,37 +196,16 @@ function renderCart() {
     row.innerHTML = `
       <div>
         <div class="title">${product.name}</div>
-        <div class="muted">${qty} × ${currency.format(product.price)}</div>
-        ${product.category === 'hamburguesa' ? `<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${product.id}" ${extra ? 'checked' : ''}> Agrandar Pedido +$3.000</label>` : ''}
-      </div>
-      <div class="ops">
-        <button data-id="${product.id}" data-op="-">−</button>
-        <span>${qty}</span>
-        <button data-id="${product.id}" data-op="+">＋</button>
+        ${product.category === 'hamburguesa' ? `<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${product.uid}" ${extra ? 'checked' : ''}> Agrandar Pedido +$3.000</label>` : ''}
       </div>`;
-
     list.appendChild(row);
   });
 
-  // Manejo de botones +/-
-  list.onclick = (e) => {
-    if(e.target.tagName === 'BUTTON') {
-      const id = e.target.getAttribute('data-id');
-      const op = e.target.getAttribute('data-op');
-      const item = state.cart[id];
-      if(!item) return;
-      item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
-      if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
-      renderCart();
-    }
-  };
-
-  // Manejo de checkboxes “Agrandar Pedido”
+  // Manejo de checkbox “Agrandar Pedido”
   list.querySelectorAll('.extra-checkbox').forEach(chk => {
     chk.addEventListener('change', (e) => {
-      const id = e.target.getAttribute('data-id');
-      if(!state.cart[id]) return;
-      state.cart[id].extra = e.target.checked;
+      const uid = e.target.getAttribute('data-id');
+      if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
       renderCart();
     });
   });
@@ -244,11 +221,11 @@ function buildWhatsAppMessage() {
   const notes = document.getElementById('customerNotes').value.trim();
 
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
-  entries.forEach(({ product, qty, extra }) => {
-    const lineTotal = product.price * qty + (extra ? 3000 : 0);
-    lines.push(`• ${product.name}${extra ? ' (Agrandado)' : ''} × ${qty} — ${currency.format(lineTotal)}`);
+  entries.forEach(({ product, extra }) => {
+    const lineTotal = product.price + (extra ? 3000 : 0);
+    lines.push(`• ${product.name}${extra ? ' (Agrandado)' : ''} — ${currency.format(lineTotal)}`);
   });
-  const total = entries.reduce((acc,{product,qty,extra})=>acc+product.price*qty+(extra?3000:0),0);
+  const total = entries.reduce((acc,{product,extra})=>acc+product.price+(extra?3000:0),0);
   lines.push('',`*Total:* ${currency.format(total)}`);
   if(name) lines.push(`*Nombre:* ${name}`);
   if(addr) lines.push(`*Dirección:* ${addr}`);
@@ -291,9 +268,7 @@ onSnapshot(collection(db,"productos"), snapshot => {
       <div class="actions">
         <div class="price">${currency.format(p.price)}</div>
         <div class="qty">
-          <button data-id="${id}" data-op="-">−</button>
-          <span id="qty-${id}">0</span>
-          <button data-id="${id}" data-op="+">＋</button>
+          <button data-id="${id}" data-op="+">Agregar</button>
         </div>
       </div>`;
     
@@ -308,18 +283,11 @@ onSnapshot(collection(db,"productos"), snapshot => {
     }
     document.getElementById(containerId).appendChild(card);
 
-    const btns = card.querySelectorAll('button');
-    btns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const op = btn.getAttribute('data-op');
-        const pid = btn.getAttribute('data-id');
-        if(!state.cart[pid]) state.cart[pid] = { product: {...p, id: pid}, qty: 0, extra: false };
-        const item = state.cart[pid];
-        item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
-        if(item.qty===0) delete state.cart[pid]; else state.cart[pid]=item;
-        document.getElementById(`qty-${pid}`).textContent = item.qty;
-        renderCart();
-      });
+    const btn = card.querySelector('button[data-op="+"]');
+    btn.addEventListener('click', () => {
+      const uid = id + '-' + Date.now(); // id único por cada instancia
+      state.cart[uid] = { product: {...p, uid}, extra: false };
+      renderCart();
     });
   });
 });
