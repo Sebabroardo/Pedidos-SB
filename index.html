@@ -122,6 +122,14 @@ header {
 .inputs{display:grid;gap:10px}
 .inputs input, .inputs textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text)}
 .inputs textarea{min-height:72px;resize:vertical}
+.card img {
+      width: 100%;
+      height: auto; /* si querés mantener proporción */
+      object-fit: cover; /* o cambiar a contain si querés ver toda la imagen */
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      display: block;
+  }
 footer {
   margin-top: 22px;
   color: var(--muted);
@@ -131,6 +139,7 @@ footer {
   padding: 10px;
   border-radius: 12px;
 }
+  
 </style>
 </head>
 <body>
