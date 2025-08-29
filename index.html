@@ -189,14 +189,15 @@ function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
   let total = 0;
-  Object.values(state.cart).forEach(({ product, qty }) => {
-    total += product.price * qty;
+  Object.values(state.cart).forEach(({ product, qty, extra }) => {
+    let itemTotal = product.price * qty + (extra ? 3000 : 0);
+    total += itemTotal;
     const row = document.createElement('div');
     row.className = 'cart-item';
     row.innerHTML = `
       <div>
         <div class="title">${product.name}</div>
-        <div class="muted">${qty} × ${currency.format(product.price)}</div>
+        <div class="muted">${qty} × ${currency.format(product.price)}${extra ? ' + Agrandar $3.000' : ''}</div>
       </div>
       <div class="ops">
         <button data-id="${product.id}" data-op="-">−</button>
@@ -228,8 +229,8 @@ function buildWhatsAppMessage() {
   const notes = document.getElementById('customerNotes').value.trim();
 
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
-  entries.forEach(({ product, qty }) => lines.push(`• ${product.name} × ${qty} — ${currency.format(product.price*qty)}`));
-  const total = entries.reduce((acc,{product,qty})=>acc+product.price*qty,0);
+  entries.forEach(({ product, qty, extra }) => lines.push(`• ${product.name} × ${qty}${extra ? ' (Agrandado +$3.000)' : ''} — ${currency.format(product.price*qty + (extra?3000:0))}`));
+  const total = entries.reduce((acc,{product,qty,extra})=>acc+product.price*qty + (extra?3000:0),0);
   lines.push('',`*Total:* ${currency.format(total)}`);
   if(name) lines.push(`*Nombre:* ${name}`);
   if(addr) lines.push(`*Dirección:* ${addr}`);
@@ -261,6 +262,7 @@ onSnapshot(collection(db,"productos"), snapshot => {
   snapshot.forEach(doc => {
     const p = doc.data();
     const id = doc.id;
+    const isBurger = p.category === 'hamburguesa';
     const card = document.createElement('div');
     card.className = 'card product';
     card.innerHTML = `
@@ -276,7 +278,8 @@ onSnapshot(collection(db,"productos"), snapshot => {
           <span id="qty-${id}">0</span>
           <button data-id="${id}" data-op="+">＋</button>
         </div>
-      </div>`;
+      </div>
+      ${isBurger ? `<div style="margin-top:8px;"><label><input type="checkbox" id="extra-${id}"> Agrandar Pedido +$3.000</label></div>` : ''}`;
     
     let containerId;
     switch(p.category) {
@@ -294,7 +297,7 @@ onSnapshot(collection(db,"productos"), snapshot => {
       btn.addEventListener('click', () => {
         const op = btn.getAttribute('data-op');
         const pid = btn.getAttribute('data-id');
-        if(!state.cart[pid]) state.cart[pid] = { product: {...p, id: pid}, qty: 0 };
+        if(!state.cart[pid]) state.cart[pid] = { product: {...p, id: pid}, qty: 0, extra: false };
         const item = state.cart[pid];
         item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
         if(item.qty===0) delete state.cart[pid]; else state.cart[pid]=item;
@@ -302,6 +305,15 @@ onSnapshot(collection(db,"productos"), snapshot => {
         renderCart();
       });
     });
+
+    if(isBurger){
+      const chk = card.querySelector(`#extra-${id}`);
+      chk.addEventListener('change', (e) => {
+        if(!state.cart[id]) state.cart[id] = { product: {...p, id: id}, qty: 0, extra: false };
+        state.cart[id].extra = e.target.checked;
+        renderCart();
+      });
+    }
   });
 });
 
