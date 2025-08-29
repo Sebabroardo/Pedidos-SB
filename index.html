@@ -244,8 +244,11 @@ function buildWhatsAppMessage() {
   const notes = document.getElementById('customerNotes').value.trim();
 
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
-  entries.forEach(({ product, qty, extra }) => lines.push(`• ${product.name} × ${qty}${extra ? ' (Agrandado +$3.000)' : ''} — ${currency.format(product.price*qty + (extra?3000:0))}`));
-  const total = entries.reduce((acc,{product,qty,extra})=>acc+product.price*qty + (extra?3000:0),0);
+  entries.forEach(({ product, qty, extra }) => {
+    const lineTotal = product.price * qty + (extra ? 3000 : 0);
+    lines.push(`• ${product.name}${extra ? ' (Agrandado)' : ''} × ${qty} — ${currency.format(lineTotal)}`);
+  });
+  const total = entries.reduce((acc,{product,qty,extra})=>acc+product.price*qty+(extra?3000:0),0);
   lines.push('',`*Total:* ${currency.format(total)}`);
   if(name) lines.push(`*Nombre:* ${name}`);
   if(addr) lines.push(`*Dirección:* ${addr}`);
@@ -277,7 +280,6 @@ onSnapshot(collection(db,"productos"), snapshot => {
   snapshot.forEach(doc => {
     const p = doc.data();
     const id = doc.id;
-    const isBurger = p.category === 'hamburguesa';
     const card = document.createElement('div');
     card.className = 'card product';
     card.innerHTML = `
@@ -293,8 +295,7 @@ onSnapshot(collection(db,"productos"), snapshot => {
           <span id="qty-${id}">0</span>
           <button data-id="${id}" data-op="+">＋</button>
         </div>
-      </div>
-      ${isBurger ? `<div style="margin-top:8px;"><label><input type="checkbox" id="extra-${id}"> Agrandar Pedido +$3.000</label></div>` : ''}`;
+      </div>`;
     
     let containerId;
     switch(p.category) {
@@ -320,15 +321,6 @@ onSnapshot(collection(db,"productos"), snapshot => {
         renderCart();
       });
     });
-
-    if(isBurger){
-      const chk = card.querySelector(`#extra-${id}`);
-      chk.addEventListener('change', (e) => {
-        if(!state.cart[id]) state.cart[id] = { product: {...p, id: id}, qty: 0, extra: false };
-        state.cart[id].extra = e.target.checked;
-        renderCart();
-      });
-    }
   });
 });
 
