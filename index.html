@@ -192,31 +192,46 @@ function renderCart() {
   Object.values(state.cart).forEach(({ product, qty, extra }) => {
     let itemTotal = product.price * qty + (extra ? 3000 : 0);
     total += itemTotal;
+
     const row = document.createElement('div');
     row.className = 'cart-item';
     row.innerHTML = `
       <div>
         <div class="title">${product.name}</div>
-        <div class="muted">${qty} × ${currency.format(product.price)}${extra ? ' + Agrandar $3.000' : ''}</div>
+        <div class="muted">${qty} × ${currency.format(product.price)}</div>
+        ${product.category === 'hamburguesa' ? `<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${product.id}" ${extra ? 'checked' : ''}> Agrandar Pedido +$3.000</label>` : ''}
       </div>
       <div class="ops">
         <button data-id="${product.id}" data-op="-">−</button>
         <span>${qty}</span>
         <button data-id="${product.id}" data-op="+">＋</button>
       </div>`;
+
     list.appendChild(row);
   });
 
+  // Manejo de botones +/-
   list.onclick = (e) => {
-    if(e.target.tagName !== 'BUTTON') return;
-    const id = e.target.getAttribute('data-id');
-    const op = e.target.getAttribute('data-op');
-    const item = state.cart[id];
-    if(!item) return;
-    item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
-    if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
-    renderCart();
+    if(e.target.tagName === 'BUTTON') {
+      const id = e.target.getAttribute('data-id');
+      const op = e.target.getAttribute('data-op');
+      const item = state.cart[id];
+      if(!item) return;
+      item.qty = Math.max(0, item.qty + (op==='+'?1:-1));
+      if(item.qty===0) delete state.cart[id]; else state.cart[id]=item;
+      renderCart();
+    }
   };
+
+  // Manejo de checkboxes “Agrandar Pedido”
+  list.querySelectorAll('.extra-checkbox').forEach(chk => {
+    chk.addEventListener('change', (e) => {
+      const id = e.target.getAttribute('data-id');
+      if(!state.cart[id]) return;
+      state.cart[id].extra = e.target.checked;
+      renderCart();
+    });
+  });
 
   document.getElementById('total').textContent = currency.format(total);
 }
