@@ -139,7 +139,50 @@ footer {
   padding: 10px;
   border-radius: 12px;
 }
-  
+  <style>
+  /* TODO tu CSS actual aquí ... */
+
+  footer {
+    margin-top: 22px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    background: rgba(255,255,255,0.9);
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  /* ---- AQUI VA LA MEDIA QUERY PARA MÓVILES ---- */
+  @media (max-width: 600px) {
+    header {
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+      gap: 12px;
+    }
+    .brand-wrapper {
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+    .logo { 
+      width: 48px; 
+      height: 48px; 
+    }
+    .brand-text h1 { 
+      font-size: 18px; 
+      text-align: center; 
+    }
+    .brand-text .tag a { 
+      font-size: 14px; 
+      text-align: center; 
+    }
+    .pill { 
+      font-size: 12px; 
+      padding: 6px 10px; 
+      text-align: center; 
+    }
+  }
 </style>
 </head>
 <body>
