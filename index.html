@@ -219,39 +219,83 @@ const db = getFirestore(app);
 const state = { cart: {} };
 const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
 
-// --- CART RENDER ---
+// --- RENDER DEL CARRITO ---
 function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
   let total = 0;
-  Object.values(state.cart).forEach(({ product, extra, uid }) => {
-    const lineTotal = product.price + (extra ? 3000 : 0);
+
+  Object.values(state.cart).forEach(({ uid, product, quantity, extra }) => {
+    const lineTotal = product.price * (quantity || 1) + ((extra && product.category==='hamburguesa') ? 3000 : 0);
     total += lineTotal;
+
     const row = document.createElement('div');
     row.className = 'cart-item';
-    row.innerHTML = `
-      <div>
-        <div class="title">${product.name} — ${currency.format(product.price)}</div>
-        ${product.category==='hamburguesa'?`<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra?'checked':''}> Agrandar Pedido +$3.000</label>`:''}
-      </div>
-      <button class="remove-btn" data-id="${uid}">X</button>
-    `;
+
+    if(product.category==='hamburguesa') {
+      // Cada hamburguesa como línea individual
+      row.innerHTML = `
+        <div>
+          <div class="title">${product.name} — ${currency.format(product.price)}</div>
+          <label style="font-size:12px;">
+            <input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra?'checked':''}> Agrandar Pedido +$3.000
+          </label>
+        </div>
+        <button class="remove-btn" data-id="${uid}">X</button>
+      `;
+    } else {
+      // Productos normales con cantidad
+      row.innerHTML = `
+        <div>
+          <div class="title">${product.name} — ${currency.format(product.price)}</div>
+          <div class="qty">
+            <button class="qty-btn-minus" data-id="${uid}">-</button>
+            <span>${quantity}</span>
+            <button class="qty-btn-plus" data-id="${uid}">+</button>
+          </div>
+        </div>
+        <button class="remove-btn" data-id="${uid}">X</button>
+      `;
+    }
+
     list.appendChild(row);
   });
 
+  // Checkbox hamburguesa
   list.querySelectorAll('.extra-checkbox').forEach(chk => {
-    chk.addEventListener('change', (e) => {
+    chk.addEventListener('change', e => {
       const uid = e.target.getAttribute('data-id');
       if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
       renderCart();
     });
   });
 
+  // Botón eliminar
   list.querySelectorAll('.remove-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', e => {
       const uid = e.target.getAttribute('data-id');
       delete state.cart[uid];
       renderCart();
+    });
+  });
+
+  // Botones cantidad para productos normales
+  list.querySelectorAll('.qty-btn-minus').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const uid = e.target.dataset.id;
+      if(state.cart[uid]) {
+        state.cart[uid].quantity = Math.max(1, state.cart[uid].quantity-1);
+        renderCart();
+      }
+    });
+  });
+  list.querySelectorAll('.qty-btn-plus').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const uid = e.target.dataset.id;
+      if(state.cart[uid]) {
+        state.cart[uid].quantity += 1;
+        renderCart();
+      }
     });
   });
 
@@ -266,11 +310,20 @@ function buildWhatsAppMessage() {
   const notes = document.getElementById('customerNotes').value.trim();
 
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
-  entries.forEach(({ product, extra })=>{
-    const lineTotal = product.price + (extra ? 3000 : 0);
-    lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}`);
+  entries.forEach(({ product, quantity, extra })=>{
+    const count = quantity || 1;
+    const lineTotal = product.price * (quantity || 1) + ((extra && product.category==='hamburguesa') ? 3000 : 0);
+    if(product.category==='hamburguesa') {
+      lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(product.price + (extra?3000:0))}`);
+    } else {
+      lines.push(`• ${product.name} x${count} — ${currency.format(lineTotal)}`);
+    }
   });
-  const total = entries.reduce((acc,{product,extra})=>acc+product.price+(extra?3000:0),0);
+
+  const total = entries.reduce((acc,{product,quantity,extra})=>{
+    return acc + (product.price * (quantity || 1)) + ((extra && product.category==='hamburguesa') ? 3000 : 0);
+  },0);
+
   lines.push('',`*Total:* ${currency.format(total)}`);
   lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
   if(name) lines.push(`*Nombre:* ${name}`);
@@ -330,19 +383,45 @@ onSnapshot(productsRef, snapshot=>{
         <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
         <h3>${product.name}</h3>
         <p class="price">${currency.format(product.price)}</p>
-        <div class="actions"><button class="btn" data-id="${uid}">Agregar</button></div>
+        <div class="actions qty-controls">
+          <button class="btn-minus" data-id="${uid}">-</button>
+          <span class="qty-display" data-id="${uid}">0</span>
+          <button class="btn-plus" data-id="${uid}">+</button>
+        </div>
       `;
       grid.appendChild(card);
     });
   }
 
-  // Botones agregar al carrito
-  document.querySelectorAll('.card .btn').forEach(btn=>{
+  // Eventos + / - para agregar al carrito
+  document.querySelectorAll('.card .btn-plus').forEach(btn=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
       const product = snapshot.docs.find(d=>d.id===uid).data();
-      state.cart[uid] = { uid, product, extra:false };
+      if(product.category==='hamburguesa'){
+        const uniqueId = uid+'-'+Date.now();
+        state.cart[uniqueId] = { uid: uniqueId, product, extra:false };
+      } else {
+        if(state.cart[uid]){
+          state.cart[uid].quantity += 1;
+        } else {
+          state.cart[uid] = { uid, product, quantity:1 };
+        }
+      }
       renderCart();
+    });
+  });
+
+  document.querySelectorAll('.card .btn-minus').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const uid = e.target.dataset.id;
+      const product = snapshot.docs.find(d=>d.id===uid).data();
+      if(product.category!=='hamburguesa'){
+        if(state.cart[uid]){
+          state.cart[uid].quantity = Math.max(1,state.cart[uid].quantity-1);
+          renderCart();
+        }
+      }
     });
   });
 });
