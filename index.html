@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Santa Rotisería — Pedidos por WhatsApp</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
@@ -82,7 +82,6 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
       <h1>Santa</h1>
       <div class="tag">
         <a href="https://www.instagram.com/santa.roti" target="_blank">
-          <svg viewBox="0 0 448 512"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9S160.5 370.8 224.1 370.8 339 319.5 339 255.9 287.7 141 224.1 141zm0 186c-39.6 0-71.8-32.2-71.8-71.8s32.2-71.8 71.8-71.8 71.8 32.2 71.8 71.8-32.2 71.8-71.8 71.8zm146.4-194.3c0 14.9-12.1 27-27 27s-27-12.1-27-27 12.1-27 27-27 27 12.1 27 27zM398.8 80c-8.2-19.6-24.3-35.7-43.9-43.9C332.6 32 224 32 224 32S115.4 32 93.1 36.1c-19.6 8.2-35.7 24.3-43.9 43.9C32 115.4 32 224 32 224s0 108.6 17.1 131c8.2 19.6 24.3 35.7 43.9 43.9 22.3 4.1 130.9 4.1 130.9 4.1s108.6 0 131-17.1c19.6-8.2 35.7-24.3 43.9-43.9 4.1-22.3 4.1-130.9 4.1-130.9s0-108.6-17.1-131zM224 338c-45.5 0-82.4-36.9-82.4-82.4S178.5 173.2 224 173.2 306.4 210.1 306.4 255.6 269.5 338 224 338z"/></svg>
           Nuestro Instagram - Santa Rotisería
         </a>
       </div>
@@ -160,37 +159,22 @@ function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
   let total = 0;
-  Object.values(state.cart).forEach(({ uid, product, extra }) => {
-    const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
-    total += lineTotal;
+  Object.values(state.cart).forEach(({ uid, product }) => {
+    total += product.price;
     const row = document.createElement('div');
     row.className='cart-item';
     row.innerHTML=`
-      <div>
-        <div class="title">${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}</div>
-        ${product.category==='hamburguesa'?`<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra?'checked':''}> Agrandar Pedido +$3.000</label>`:''}
-      </div>
+      <div class="title">${product.name} — ${currency.format(product.price)}</div>
       <button class="remove-btn" data-id="${uid}">X</button>
     `;
     list.appendChild(row);
   });
 
-  list.querySelectorAll('.extra-checkbox').forEach(chk=>{
-    chk.addEventListener('change', e=>{
-      const uid = e.target.dataset.id;
-      if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
-      renderCart();
-      if(state.cart[uid]) updateCardQty(state.cart[uid].idOriginal);
-    });
-  });
-
   list.querySelectorAll('.remove-btn').forEach(btn=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
-      const prodId = state.cart[uid]?.idOriginal;
       delete state.cart[uid];
       renderCart();
-      if(prodId) updateCardQty(prodId);
     });
   });
 
@@ -203,11 +187,10 @@ function buildWhatsAppMessage() {
   const name = document.getElementById('customerName').value.trim();
   const notes = document.getElementById('customerNotes').value.trim();
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
-  entries.forEach(({ product, extra })=>{
-    const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
-    lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}`);
+  entries.forEach(({ product })=>{
+    lines.push(`• ${product.name} — ${currency.format(product.price)}`);
   });
-  const total = entries.reduce((acc,{product,extra})=>acc + product.price + ((extra && product.category==='hamburguesa')?3000:0),0);
+  const total = entries.reduce((acc,{product})=>acc + product.price,0);
   lines.push('',`*Total:* ${currency.format(total)}`);
   lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
   if(name) lines.push(`*Nombre:* ${name}`);
@@ -262,55 +245,47 @@ onSnapshot(productsRef, snapshot => {
     if(wasOpen) grid.classList.add('show');
 
     categories[cat].forEach(product => {
-      const uid = product.id;
+      const uid = product.id + '-' + Date.now() + Math.random();
       const card = document.createElement('div');
       card.className = 'card product';
       card.innerHTML = `
         <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
         <h3>${product.name}</h3>
+        <p>${product.desc}</p>
         <p class="price">${currency.format(product.price)}</p>
         <div class="actions">
-          <button class="btn-minus" data-id="${uid}">-</button>
-          <span class="qty-display" data-id="${uid}">0</span>
-          <button class="btn-plus" data-id="${uid}">+</button>
+          <button class="btn-plus" data-id="${product.id}">+</button>
+          <button class="btn-minus" data-id="${product.id}">-</button>
         </div>
       `;
       grid.appendChild(card);
     });
   }
 
-  // Delegación de eventos para todos los botones + y -
-  document.querySelector('.col-9').addEventListener('click', e => {
+  // Delegación de eventos para botones + y -
+  document.querySelector('.col-9').addEventListener('click', e=>{
     const productId = e.target.dataset.id;
     if(!productId) return;
 
+    const productDoc = snapshot.docs.find(d => d.id === productId);
+    if(!productDoc) return;
+    const product = productDoc.data();
+
     if(e.target.classList.contains('btn-plus')){
-      const productDoc = snapshot.docs.find(d => d.id === productId);
-      if(!productDoc) return;
-      const product = productDoc.data();
-      const uniqueId = productId + '-' + Date.now();
-      state.cart[uniqueId] = { uid: uniqueId, product, idOriginal: productId, extra: false };
+      const uniqueId = productId + '-' + Date.now() + Math.random();
+      state.cart[uniqueId] = { uid: uniqueId, product };
       renderCart();
-      updateCardQty(productId);
     }
 
     if(e.target.classList.contains('btn-minus')){
-      const cartKey = Object.keys(state.cart).find(k => state.cart[k].idOriginal === productId);
+      const cartKey = Object.keys(state.cart).find(k => state.cart[k].product.id === productId);
       if(cartKey){
         delete state.cart[cartKey];
         renderCart();
-        updateCardQty(productId);
       }
     }
   });
 });
-
-// --- ACTUALIZACIÓN DE CONTADOR ---
-function updateCardQty(uid){
-  const count = Object.values(state.cart).filter(item => item.idOriginal === uid).length;
-  const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
-  if(span) span.textContent = count;
-}
 
 document.getElementById('year').textContent = new Date().getFullYear();
 </script>
