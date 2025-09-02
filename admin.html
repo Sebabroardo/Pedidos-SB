@@ -7,7 +7,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -124,6 +124,31 @@ searchInput.addEventListener('input', () => {
     });
   });
 });
+
+// --- PANEL DE DESCUENTOS ---
+const discountRadios = document.querySelectorAll('input[name="discount"]');
+const discountDocRef = doc(db, "settings", "discount");
+
+// Escuchar cambios y guardar en Firestore
+discountRadios.forEach(radio => {
+  radio.addEventListener('change', async () => {
+    const value = parseInt(radio.value);
+    try {
+      await updateDoc(discountDocRef, { value });
+    } catch(err) {
+      await setDoc(discountDocRef, { value });
+    }
+    alert(`Descuento aplicado: ${value}%`);
+  });
+});
+
+// Cargar valor actual al abrir Admin
+onSnapshot(discountDocRef, snapshot => {
+  if(snapshot.exists()){
+    const val = snapshot.data().value || 0;
+    discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
+  }
+});
 </script>
 
 <style>
@@ -141,6 +166,8 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
+.discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; }
+.discount-panel label { display:block; margin-bottom:6px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -164,7 +191,6 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 </form>
 
 <h2>Productos existentes</h2>
-
 <input type="text" id="searchInput" placeholder="Buscar producto por nombre...">
 
 <div id="productLists">
@@ -189,12 +215,14 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
     <ul id="extrasList"></ul>
   </div>
 </div>
-  <div class="discount-panel">
+
+<div class="discount-panel">
   <h3>Descuentos</h3>
   <label><input type="radio" name="discount" value="0" checked> Sin descuento</label>
   <label><input type="radio" name="discount" value="10"> 10%</label>
   <label><input type="radio" name="discount" value="20"> 20%</label>
   <label><input type="radio" name="discount" value="30"> 30%</label>
 </div>
+
 </body>
 </html>
