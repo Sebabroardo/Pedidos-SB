@@ -5,8 +5,126 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — Santa’s</title>
 
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+  authDomain: "santa-roti.firebaseapp.com",
+  projectId: "santa-roti",
+  storageBucket: "santa-roti.appspot.com",
+  messagingSenderId: "66221970620",
+  appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const form = document.getElementById('productForm');
+const imgInput = document.getElementById('img');
+const imgPreview = document.getElementById('imgPreview');
+let editId = null;
+
+// Vista previa de imagen
+imgInput.addEventListener('input', () => {
+  const url = imgInput.value.trim();
+  imgPreview.src = url || "https://via.placeholder.com/150x100?text=Sin+imagen";
+});
+
+// Guardar producto (nuevo o editado)
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('name').value.trim();
+  const desc = document.getElementById('desc').value.trim();
+  const price = parseInt(document.getElementById('price').value);
+  const img = document.getElementById('img').value.trim();
+  const category = document.getElementById('category').value;
+
+  if(!name || !desc || !price || !category) return alert('Todos los campos son obligatorios');
+  if(price <= 0) return alert('El precio debe ser mayor a 0');
+
+  try {
+    if(editId) {
+      await updateDoc(doc(db, "productos", editId), { name, desc, price, img: img || "", category });
+      alert('Producto actualizado correctamente');
+      editId = null;
+      form.querySelector('button').textContent = "Guardar producto";
+    } else {
+      await addDoc(collection(db, "productos"), { name, desc, price, img: img || "", category });
+      alert('Producto agregado correctamente');
+    }
+    form.reset();
+    imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+  } catch(err) {
+    console.error(err);
+    alert('Error al guardar producto');
+  }
+});
+
+// Listar productos por categoría en tiempo real
+const productLists = {
+  pizza: document.getElementById('pizzaList'),
+  hamburguesa: document.getElementById('hamburguesaList'),
+  papas: document.getElementById('papasList'),
+  "menu especial": document.getElementById('menuEspecialList'),
+  extras: document.getElementById('extrasList')
+};
+
+onSnapshot(collection(db, "productos"), snapshot => {
+  Object.values(productLists).forEach(ul => ul.innerHTML = '');
+
+  snapshot.forEach(d => {
+    const data = d.data();
+    const li = document.createElement('li');
+    li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
+
+    // Botón editar
+    const btnEdit = document.createElement('button');
+    btnEdit.textContent = 'Editar';
+    btnEdit.className = 'btn-edit';
+    btnEdit.addEventListener('click', () => {
+      document.getElementById('name').value = data.name;
+      document.getElementById('desc').value = data.desc;
+      document.getElementById('price').value = data.price;
+      document.getElementById('img').value = data.img;
+      document.getElementById('category').value = data.category;
+      imgPreview.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
+      editId = d.id;
+      form.querySelector('button').textContent = "Actualizar producto";
+    });
+
+    // Botón borrar
+    const btnDelete = document.createElement('button');
+    btnDelete.textContent = 'Borrar';
+    btnDelete.className = 'btn-delete';
+    btnDelete.addEventListener('click', async () => {
+      if(confirm(`¿Eliminar ${data.name}?`)) {
+        await deleteDoc(doc(db, "productos", d.id));
+      }
+    });
+
+    li.appendChild(btnEdit);
+    li.appendChild(btnDelete);
+
+    const cat = data.category?.trim().toLowerCase();
+    if(productLists[cat]) productLists[cat].appendChild(li);
+  });
+});
+
+// Buscador dinámico por NOMBRE de producto solamente
+const searchInput = document.getElementById('searchInput');
+searchInput.addEventListener('input', () => {
+  const query = searchInput.value.trim().toLowerCase();
+  Object.values(productLists).forEach(ul => {
+    Array.from(ul.children).forEach(li => {
+      const spanText = li.querySelector('span').textContent;
+      const productName = spanText.split('—')[0].trim().toLowerCase(); // Solo nombre
+      li.style.display = productName.includes(query) ? 'flex' : 'none';
+    });
+  });
+});
+</script>
 
 <style>
 body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
@@ -22,6 +140,7 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 .btn-edit { background:#3b82f6; color:#fff; }
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
+#imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
 </style>
 </head>
 <body>
@@ -32,6 +151,7 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
   <input type="text" id="desc" placeholder="Descripción" required>
   <input type="number" id="price" placeholder="Precio" required>
   <input type="text" id="img" placeholder="URL de imagen (opcional)">
+  <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
   <select id="category" required>
     <option value="">Seleccionar categoría</option>
     <option value="pizza">Pizza</option>
@@ -69,127 +189,5 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
     <ul id="extrasList"></ul>
   </div>
 </div>
-
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
-  authDomain: "santa-roti.firebaseapp.com",
-  projectId: "santa-roti",
-  storageBucket: "santa-roti.appspot.com",
-  messagingSenderId: "66221970620",
-  appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-const form = document.getElementById('productForm');
-let editId = null;
-
-// Guardar producto (nuevo o editado)
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('name').value.trim();
-  const desc = document.getElementById('desc').value.trim();
-  const price = parseInt(document.getElementById('price').value);
-  const img = document.getElementById('img').value.trim();
-  const category = document.getElementById('category').value;
-
-  if(!name || !desc || !price || !category) return alert('Todos los campos son obligatorios');
-
-  try {
-    if(editId) {
-      await db.collection('productos').doc(editId).update({ name, desc, price, img: img || "", category });
-      alert('Producto actualizado correctamente');
-      editId = null;
-      form.querySelector('button').textContent = "Guardar producto";
-    } else {
-      await db.collection('productos').add({ name, desc, price, img: img || "", category });
-      alert('Producto agregado correctamente');
-    }
-    form.reset();
-  } catch(err) {
-    console.error(err);
-    alert('Error al guardar producto');
-  }
-});
-
-// Listar productos por categoría en tiempo real
-db.collection('productos').onSnapshot(snapshot => {
-  const lists = ['pizzaList','hamburguesaList','papasList','menuEspecialList','extrasList'];
-  lists.forEach(id => document.getElementById(id).innerHTML = '');
-
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    const li = document.createElement('li');
-    li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
-
-    // Botón editar
-    const btnEdit = document.createElement('button');
-    btnEdit.textContent = 'Editar';
-    btnEdit.className = 'btn-edit';
-    btnEdit.addEventListener('click', () => {
-      document.getElementById('name').value = data.name;
-      document.getElementById('desc').value = data.desc;
-      document.getElementById('price').value = data.price;
-      document.getElementById('img').value = data.img;
-      document.getElementById('category').value = data.category;
-      editId = doc.id;
-      form.querySelector('button').textContent = "Actualizar producto";
-    });
-
-    // Botón borrar
-    const btnDelete = document.createElement('button');
-    btnDelete.textContent = 'Borrar';
-    btnDelete.className = 'btn-delete';
-    btnDelete.addEventListener('click', async () => {
-      if(confirm(`¿Eliminar ${data.name}?`)) {
-        await db.collection('productos').doc(doc.id).delete();
-      }
-    });
-
-    li.appendChild(btnEdit);
-    li.appendChild(btnDelete);
-
-    const categoryNormalized = data.category?.trim().toLowerCase();
-    switch(categoryNormalized) {
-      case 'pizza':
-        document.getElementById('pizzaList').appendChild(li);
-        break;
-      case 'hamburguesa':
-        document.getElementById('hamburguesaList').appendChild(li);
-        break;
-      case 'papas':
-        document.getElementById('papasList').appendChild(li);
-        break;
-      case 'menu especial':
-        document.getElementById('menuEspecialList').appendChild(li);
-        break;
-      case 'extras':
-        document.getElementById('extrasList').appendChild(li);
-        break;
-      default:
-        console.warn(`Categoría desconocida: ${data.category}`);
-        break;
-    }
-  });
-});
-
-// Buscador dinámico por NOMBRE de producto solamente
-const searchInput = document.getElementById('searchInput');
-searchInput.addEventListener('input', () => {
-  const query = searchInput.value.trim().toLowerCase();
-  const allLists = ['pizzaList','hamburguesaList','papasList','menuEspecialList','extrasList'];
-
-  allLists.forEach(listId => {
-    const ul = document.getElementById(listId);
-    Array.from(ul.children).forEach(li => {
-      const spanText = li.querySelector('span').textContent;
-      const productName = spanText.split('—')[0].trim().toLowerCase(); // Solo nombre
-      li.style.display = productName.includes(query) ? 'flex' : 'none';
-    });
-  });
-});
-</script>
 </body>
 </html>
