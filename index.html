@@ -248,22 +248,21 @@ onSnapshot(productsRef,snapshot=>{
     if(!gridId) continue;
     const grid = document.getElementById(gridId);
     grid.innerHTML='';
-    categories[cat].forEach(product=>{
-      const uid = product.id;
-      const card = document.createElement('div');
-      card.className='card product';
-      card.innerHTML=`
-        <div class="img"><img src="${product.img||'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
-        <h3>${product.name}</h3>
-        <p class="price">${currency.format(product.price)}</p>
-        <div class="actions">
-          <button class="btn-minus" data-id="${uid}">-</button>
-          <span class="qty-display" data-id="${uid}">0</span>
-          <button class="btn-plus" data-id="${uid}">+</button>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
+ categories[cat].forEach(product=>{
+  const uid = product.id;
+  const card = document.createElement('div');
+  card.className='card product';
+  card.innerHTML=`
+    <div class="img"><img src="${product.img||'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
+    <h3>${product.name}</h3>
+    <p class="price">${currency.format(product.price)}</p>
+    <div class="actions">
+      <span class="qty-display" data-id="${uid}">0</span>
+      <button class="btn-plus" data-id="${uid}">+</button>
+    </div>
+  `;
+  grid.appendChild(card);
+});
   }
 
   document.querySelectorAll('.card .btn-plus').forEach(btn=>{
@@ -274,18 +273,6 @@ onSnapshot(productsRef,snapshot=>{
       state.cart[uniqueId] = { uid: uniqueId, product, extra:false };
       renderCart();
       updateCardQty(uid);
-    });
-  });
-
-  document.querySelectorAll('.card .btn-minus').forEach(btn=>{
-    btn.addEventListener('click', e=>{
-      const uid = e.target.dataset.id;
-      const firstKey = Object.keys(state.cart).find(k=>state.cart[k].product.id===uid);
-      if(firstKey){
-        delete state.cart[firstKey];
-        renderCart();
-        updateCardQty(uid);
-      }
     });
   });
 });
