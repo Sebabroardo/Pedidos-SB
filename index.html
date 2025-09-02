@@ -41,10 +41,9 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .product h3{margin:0;font-size:16px}
 .product p{margin:0;color:var(--muted);font-size:13px}
 .price{font-weight:700}
-.actions { display: flex; gap:8px; justify-content:center; align-items:center; margin-top:auto; }
-.actions span { font-weight:600; font-size:14px; }
-.actions button { width:32px; height:32px; border-radius:50%; border:none; background: var(--primary); color:#fff; font-size:18px; font-weight:bold; cursor:pointer; transition: background 0.2s ease; }
-.actions button:hover { background:#16a34a; }
+.actions { display: flex; gap:6px; justify-content:flex-end; align-items:center; margin-top:auto; }
+.actions button{width:28px;height:28px;border-radius:8px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text);cursor:pointer;}
+.actions span{min-width:20px;text-align:center;display:inline-block;}
 .category-btn{ cursor:pointer; font-size:18px; margin:12px 0; display:flex; align-items:center; gap:6px; color:var(--text); font-weight:600; border:1px solid var(--ring); background: rgba(255,255,255,0.9); padding:8px 12px; border-radius:10px; transition: background 0.2s ease;}
 .category-btn:hover{background:rgba(255,255,255,1)}
 .col-9{grid-column:span 9}
@@ -180,6 +179,7 @@ function renderCart() {
       const uid = e.target.dataset.id;
       if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
       renderCart();
+      // Actualizamos el contador de la card si es hamburguesa
       if(state.cart[uid]) updateCardQty(state.cart[uid].product.id);
     });
   });
@@ -187,10 +187,9 @@ function renderCart() {
   list.querySelectorAll('.remove-btn').forEach(btn=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
-      const productId = state.cart[uid].product.id;
       delete state.cart[uid];
       renderCart();
-      updateCardQty(productId);
+      updateCardQty(uid.split('-')[0]); // actualizamos contador
     });
   });
 
@@ -250,31 +249,52 @@ onSnapshot(productsRef,snapshot=>{
     const grid = document.getElementById(gridId);
     grid.innerHTML='';
     categories[cat].forEach(product=>{
-  const uid = product.id;
-  const card = document.createElement('div');
-  card.className='card product';
-  card.innerHTML=`
-    <div class="img"><img src="${product.img||'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
-    <h3>${product.name}</h3>
-    <p class="price">${currency.format(product.price)}</p>
-    <div class="actions">
-      <button class="btn-plus" data-id="${uid}">+</button>
-    </div>
-  `;
-  grid.appendChild(card);
-});
+      const uid = product.id;
+      const card = document.createElement('div');
+      card.className='card product';
+      card.innerHTML=`
+        <div class="img"><img src="${product.img||'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
+        <h3>${product.name}</h3>
+        <p class="price">${currency.format(product.price)}</p>
+        <div class="actions">
+          <button class="btn-minus" data-id="${uid}">-</button>
+          <span class="qty-display" data-id="${uid}">0</span>
+          <button class="btn-plus" data-id="${uid}">+</button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
   }
 
   document.querySelectorAll('.card .btn-plus').forEach(btn=>{
-  btn.addEventListener('click', e=>{
-    const uid = e.target.dataset.id;
-    const product = snapshot.docs.find(d=>d.id===uid).data();
-    const uniqueId = uid+'-'+Date.now();
-    state.cart[uniqueId] = { uid: uniqueId, product, extra:false };
-    renderCart();
+    btn.addEventListener('click', e=>{
+      const uid = e.target.dataset.id;
+      const product = snapshot.docs.find(d=>d.id===uid).data();
+      const uniqueId = uid+'-'+Date.now();
+      state.cart[uniqueId] = { uid: uniqueId, product, extra:false };
+      renderCart();
+      updateCardQty(uid);
+    });
+  });
+
+  document.querySelectorAll('.card .btn-minus').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const uid = e.target.dataset.id;
+      const firstKey = Object.keys(state.cart).find(k=>state.cart[k].product.id===uid);
+      if(firstKey){
+        delete state.cart[firstKey];
+        renderCart();
+        updateCardQty(uid);
+      }
+    });
   });
 });
-});
+
+function updateCardQty(uid){
+  const count = Object.values(state.cart).filter(item=>item.product.id===uid).length;
+  const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
+  if(span) span.textContent = count;
+}
 
 document.getElementById('year').textContent = new Date().getFullYear();
 </script>
