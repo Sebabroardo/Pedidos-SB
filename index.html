@@ -265,29 +265,23 @@ onSnapshot(productsRef,snapshot=>{
       grid.appendChild(card);
     });
   }
-
-  // Botón +
-document.querySelectorAll('.card .btn-plus').forEach(btn=>{
-  btn.addEventListener('click', e=>{
+  // Delegación de eventos para todos los botones + y - dentro del grid
+document.querySelectorAll('.grid').forEach(grid => {
+  grid.addEventListener('click', e => {
     const uid = e.target.dataset.id;
-    const product = snapshot.docs.find(d=>d.id===uid).data();
-    const uniqueId = uid+'-'+Date.now();
-    state.cart[uniqueId] = { uid: uniqueId, product, extra:false };
-    renderCart();
-    updateCardQty(uid);
-  });
-});
-
-// Botón -
-document.querySelectorAll('.card .btn-minus').forEach(btn=>{
-  btn.addEventListener('click', e=>{
-    const uid = e.target.dataset.id;
-    // Buscar la primera instancia del producto en el carrito
-    const cartKey = Object.keys(state.cart).find(k=>state.cart[k].product.id===uid);
-    if(cartKey){
-      delete state.cart[cartKey];
+    if(e.target.classList.contains('btn-plus')){
+      const product = snapshot.docs.find(d=>d.id===uid).data();
+      const uniqueId = uid+'-'+Date.now();
+      state.cart[uniqueId] = { uid: uniqueId, product, extra:false };
       renderCart();
       updateCardQty(uid);
+    } else if(e.target.classList.contains('btn-minus')){
+      const cartKey = Object.keys(state.cart).find(k=>state.cart[k].product.id===uid);
+      if(cartKey){
+        delete state.cart[cartKey];
+        renderCart();
+        updateCardQty(uid);
+      }
     }
   });
 });
