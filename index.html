@@ -155,6 +155,7 @@ const db = getFirestore(app);
 const state = { cart: {} };
 const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
 
+// --- FUNCIONES DEL CARRITO ---
 function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
@@ -179,14 +180,14 @@ function renderCart() {
       const uid = e.target.dataset.id;
       if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
       renderCart();
-      if(state.cart[uid]) updateCardQty(state.cart[uid].product.id);
+      if(state.cart[uid]) updateCardQty(state.cart[uid].idOriginal);
     });
   });
 
   list.querySelectorAll('.remove-btn').forEach(btn=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
-      const prodId = state.cart[uid]?.product.id;
+      const prodId = state.cart[uid]?.idOriginal;
       delete state.cart[uid];
       renderCart();
       if(prodId) updateCardQty(prodId);
@@ -222,6 +223,7 @@ document.getElementById('whatsBtn').addEventListener('click', ()=>{
   window.open(url,'_blank');
 });
 
+// --- BOTONES DE CATEGORÍA ---
 document.querySelectorAll('.category-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     const targetId = btn.getAttribute('data-target');
@@ -231,29 +233,40 @@ document.querySelectorAll('.category-btn').forEach(btn=>{
   });
 });
 
+// --- FIRESTORE Y RENDERIZADO DE PRODUCTOS ---
 const productsRef = collection(db,'productos');
-onSnapshot(productsRef,snapshot=>{
+onSnapshot(productsRef, snapshot => {
   const categories = {};
-  snapshot.docs.forEach(doc=>{
+  snapshot.docs.forEach(doc => {
     const data = doc.data();
     const id = doc.id;
     const catKey = data.category?.trim().toLowerCase();
-    if(!categories[catKey]) categories[catKey]=[];
-    categories[catKey].push({id,...data});
+    if(!categories[catKey]) categories[catKey] = [];
+    categories[catKey].push({ id, ...data });
   });
 
-  const categoryMap = {'pizza':'pizzas','hamburguesa':'hamburguesas','papas':'papas','menu especial':'menuEspecial','extras':'extras'};
+  const categoryMap = {
+    'pizza': 'pizzas',
+    'hamburguesa': 'hamburguesas',
+    'papas': 'papas',
+    'menu especial': 'menuEspecial',
+    'extras': 'extras'
+  };
+
   for(const cat in categories){
     const gridId = categoryMap[cat];
     if(!gridId) continue;
     const grid = document.getElementById(gridId);
-    grid.innerHTML='';
-    categories[cat].forEach(product=>{
+    const wasOpen = grid.classList.contains('show');
+    grid.innerHTML = '';
+    if(wasOpen) grid.classList.add('show');
+
+    categories[cat].forEach(product => {
       const uid = product.id;
       const card = document.createElement('div');
-      card.className='card product';
-      card.innerHTML=`
-        <div class="img"><img src="${product.img||'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
+      card.className = 'card product';
+      card.innerHTML = `
+        <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
         <h3>${product.name}</h3>
         <p class="price">${currency.format(product.price)}</p>
         <div class="actions">
@@ -266,34 +279,35 @@ onSnapshot(productsRef,snapshot=>{
     });
   }
 
-  // Delegación de eventos para todos los botones + y - dentro del grid
-document.querySelector('.col-9').addEventListener('click', e => {
-  const productId = e.target.dataset.id;
-  if(!productId) return;
+  // Delegación de eventos para todos los botones + y -
+  document.querySelector('.col-9').addEventListener('click', e => {
+    const productId = e.target.dataset.id;
+    if(!productId) return;
 
-  if(e.target.classList.contains('btn-plus')){
-    const productDoc = snapshot.docs.find(d => d.id === productId);
-    if(!productDoc) return;
-    const product = productDoc.data();
-    const uniqueId = productId + '-' + Date.now();
-    state.cart[uniqueId] = { uid: uniqueId, product, idOriginal: productId, extra: false };
-    renderCart();
-    updateCardQty(productId);
-  }
-
-  if(e.target.classList.contains('btn-minus')){
-    // buscamos la primera instancia del producto con idOriginal igual
-    const cartKey = Object.keys(state.cart).find(k => state.cart[k].idOriginal === productId);
-    if(cartKey){
-      delete state.cart[cartKey];
+    if(e.target.classList.contains('btn-plus')){
+      const productDoc = snapshot.docs.find(d => d.id === productId);
+      if(!productDoc) return;
+      const product = productDoc.data();
+      const uniqueId = productId + '-' + Date.now();
+      state.cart[uniqueId] = { uid: uniqueId, product, idOriginal: productId, extra: false };
       renderCart();
       updateCardQty(productId);
     }
-  }
+
+    if(e.target.classList.contains('btn-minus')){
+      const cartKey = Object.keys(state.cart).find(k => state.cart[k].idOriginal === productId);
+      if(cartKey){
+        delete state.cart[cartKey];
+        renderCart();
+        updateCardQty(productId);
+      }
+    }
+  });
 });
 
+// --- ACTUALIZACIÓN DE CONTADOR ---
 function updateCardQty(uid){
-  const count = Object.values(state.cart).filter(item=>item.product.id===uid).length;
+  const count = Object.values(state.cart).filter(item => item.idOriginal === uid).length;
   const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
   if(span) span.textContent = count;
 }
