@@ -168,6 +168,24 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
 .discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; }
 .discount-panel label { display:block; margin-bottom:6px; cursor:pointer; }
+  .discount-panel {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 20px;
+  background: #fff;      /* fondo blanco */
+  color: #000;           /* texto negro para legibilidad */
+  border-radius: 12px;
+  width: 200px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  z-index: 1000;
+}
+.discount-panel label {
+  display: block;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
 </style>
 </head>
 <body>
