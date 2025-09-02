@@ -139,7 +139,7 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -149,11 +149,23 @@ const firebaseConfig = {
   messagingSenderId: "66221970620",
   appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const state = { cart: {} };
 const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
+
+let discount = 0; // porcentaje de descuento
+
+// Referencia al documento de descuento
+const discountDocRef = doc(db, "settings", "discount");
+
+// Escuchar cambios en tiempo real
+onSnapshot(discountDocRef, snapshot => {
+  if (snapshot.exists()) {
+    discount = snapshot.data().value || 0;
+    renderCart(); // re-renderiza el carrito si cambia el descuento
+  }
+});
 
 // --- FUNCIONES DEL CARRITO ---
 function renderCart() {
@@ -194,7 +206,11 @@ function renderCart() {
     });
   });
 
-  document.getElementById('total').textContent = currency.format(total);
+  let discountedTotal = total;
+if(discount > 0){
+  discountedTotal = Math.round(total * (1 - discount / 100));
+}
+document.getElementById('total').textContent = currency.format(discountedTotal);
 }
 
 function buildWhatsAppMessage() {
@@ -207,7 +223,13 @@ function buildWhatsAppMessage() {
     const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
     lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}`);
   });
-  const total = entries.reduce((acc,{product,extra})=>acc + product.price + ((extra && product.category==='hamburguesa')?3000:0),0);
+ let total = entries.reduce((acc,{product,extra})=>acc + product.price + ((extra && product.category==='hamburguesa')?3000:0),0);
+  
+let discountedTotal = total;
+if(discount > 0){
+  discountedTotal = Math.round(total * (1 - discount / 100));
+}
+lines.push('',`*Total:* ${currency.format(discountedTotal)}`);
   lines.push('',`*Total:* ${currency.format(total)}`);
   lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
   if(name) lines.push(`*Nombre:* ${name}`);
