@@ -230,7 +230,6 @@ if(discount > 0){
   discountedTotal = Math.round(total * (1 - discount / 100));
 }
 lines.push('',`*Total:* ${currency.format(discountedTotal)}`);
-  lines.push('',`*Total:* ${currency.format(total)}`);
   lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
   if(name) lines.push(`*Nombre:* ${name}`);
   if(notes) lines.push(`*Notas:* ${notes}`);
