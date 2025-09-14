@@ -1,1 +1,269 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Backdoor / Admin — Editor visual (Santa Rotisería)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#fff; --text:#111 }
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Arial; margin:18px; background:#f3f4f6;color:var(--text)}
+    .card{background:#fff;border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(15,23,42,0.06);max-width:1100px;margin:14px auto}
+    h1{margin:0 0 8px;font-size:18px}
+    label{display:block;font-size:13px;margin:8px 0 4px}
+    input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid #e5e7eb}
+    textarea{min-height:220px;font-family:monospace}
+    .row{display:grid;grid-template-columns:1fr 320px;gap:12px}
+    .actions{display:flex;gap:8px;margin-top:10px}
+    button{padding:10px 12px;border-radius:8px;border:none;cursor:pointer}
+    .btn-primary{background:#16a34a;color:#fff}
+    .btn-ghost{background:#fff;border:1px solid #d1d5db}
+    .muted{color:#6b7280;font-size:13px}
+    .hidden{display:none}
+    .preview-iframe{width:100%;height:640px;border:1px solid #e5e7eb;border-radius:8px}
+    .login{max-width:420px;margin:0 auto}
+    .small{font-size:12px;color:#374151}
+    .inline{display:inline-block}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Editor visual — Admin</h1>
+    <div class="muted">Usa este panel para modificar el CSS global (o variables) que luego verán todos los visitantes. Autenticación por Firebase necesaria.</div>
+  </div>
 
+  <div id="authCard" class="card login">
+    <h2 style="font-size:16px;margin-bottom:6px">Iniciar sesión</h2>
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="admin@ejemplo.com" />
+    <label for="password">Contraseña</label>
+    <input id="password" type="password" placeholder="tu contraseña" />
+    <div class="actions">
+      <button id="signInBtn" class="btn-primary">Iniciar sesión</button>
+      <button id="goAnon" class="btn-ghost">Probar sin auth (local)</button>
+    </div>
+    <p class="small">Este ejemplo usa Email/Password con Firebase Auth. Si aún no tenés un usuario admin creado, podés crear uno desde la consola Firebase.</p>
+  </div>
+
+  <div id="editorCard" class="card hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px">
+      <div>
+        <strong id="currentUser"></strong>
+        <div class="small muted">Documento Firestore: <code>settings/theme</code></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="signOutBtn" class="btn-ghost">Cerrar sesión</button>
+        <button id="openIndex" class="btn-ghost">Abrir index</button>
+        <button id="saveBtn" class="btn-primary">Guardar y publicar</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="modeSelect">Modo</label>
+        <select id="modeSelect">
+          <option value="css">Editar CSS completo (customCSS)</option>
+          <option value="vars">Editar variables (JSON)</option>
+        </select>
+
+        <div id="cssEditorWrap">
+          <label for="cssEditor">CSS (se inyecta en &lt;head&gt; como customCSS)</label>
+          <textarea id="cssEditor">/* Escribe CSS aquí. Ej: :root{ --bg:#fff; --text:#111 } */</textarea>
+        </div>
+
+        <div id="varsEditorWrap" class="hidden">
+          <label for="varsEditor">Variables (JSON) — ej: {"bg":"#fff","text":"#111","primary":"#22c55e"}</label>
+          <textarea id="varsEditor">{
+  "bg": "#ffffff",
+  "text": "#000000",
+  "primary": "#22c55e"
+}</textarea>
+          <div class="small muted">Este modo aplica las variables como <code>document.documentElement.style.setProperty('--key', value)</code></div>
+        </div>
+
+        <div style="margin-top:8px">
+          <label for="notes">Notas (opcional)</label>
+          <input id="notes" placeholder="¿Qué cambiaste?" />
+        </div>
+      </div>
+
+      <div>
+        <label>Vista previa rápida</label>
+        <iframe id="preview" class="preview-iframe" src="index.html"></iframe>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="applyPreview" class="btn-ghost">Aplicar solo en esta pestaña</button>
+          <button id="revertPreview" class="btn-ghost">Revertir preview</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="muted">Historial / cambios</div>
+      <div id="status" class="small muted">— no hay cambios —</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+
+    // --- CONFIG: pega la misma config que usás en index.html ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+      authDomain: "santa-roti.firebaseapp.com",
+      projectId: "santa-roti",
+      storageBucket: "santa-roti.firebasestorage.app",
+      messagingSenderId: "66221970620",
+      appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Referencia al doc que usaremos
+    const themeRef = doc(db, "settings", "theme");
+
+    // UI
+    const authCard = document.getElementById('authCard');
+    const editorCard = document.getElementById('editorCard');
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const signInBtn = document.getElementById('signInBtn');
+    const signOutBtn = document.getElementById('signOutBtn');
+    const currentUser = document.getElementById('currentUser');
+    const cssEditor = document.getElementById('cssEditor');
+    const varsEditor = document.getElementById('varsEditor');
+    const modeSelect = document.getElementById('modeSelect');
+    const cssWrap = document.getElementById('cssEditorWrap');
+    const varsWrap = document.getElementById('varsEditorWrap');
+    const saveBtn = document.getElementById('saveBtn');
+    const preview = document.getElementById('preview');
+    const applyPreview = document.getElementById('applyPreview');
+    const revertPreview = document.getElementById('revertPreview');
+    const status = document.getElementById('status');
+    const notes = document.getElementById('notes');
+    const openIndex = document.getElementById('openIndex');
+    const goAnon = document.getElementById('goAnon');
+
+    // --- AUTH ---
+    signInBtn.addEventListener('click', async ()=>{
+      try{
+        const u = await signInWithEmailAndPassword(auth, email.value.trim(), password.value);
+        onLogin(u.user.email);
+      }catch(err){
+        alert('Error al iniciar sesión: ' + err.message);
+      }
+    });
+
+    signOutBtn.addEventListener('click', async ()=>{
+      await signOut(auth);
+      location.reload();
+    });
+
+    function onLogin(emailStr){
+      authCard.classList.add('hidden');
+      editorCard.classList.remove('hidden');
+      currentUser.textContent = emailStr;
+      // empezar a escuchar el doc
+      setupThemeListener();
+    }
+
+    // Opción de demo (sin auth) — útil para pruebas locales
+    goAnon.addEventListener('click', ()=>{
+      authCard.classList.add('hidden');
+      editorCard.classList.remove('hidden');
+      currentUser.textContent = 'modo-demo (local)';
+      setupThemeListener();
+    });
+
+    openIndex.addEventListener('click', ()=>{
+      window.open('index.html','_blank');
+    });
+
+    // --- FUNCS ---
+    let latestServer = null;
+    async function setupThemeListener(){
+      // leer el doc una vez
+      const snap = await getDoc(themeRef).catch(()=>null);
+      if(snap && snap.exists()){
+        latestServer = snap.data();
+        cssEditor.value = latestServer.customCSS || '';
+        varsEditor.value = JSON.stringify(latestServer.vars || {}, null, 2);
+        status.textContent = 'Cargado tema desde el servidor';
+      } else {
+        status.textContent = 'No existe tema en servidor — se puede crear uno';
+      }
+
+      // escuchar cambios en tiempo real (opcional)
+      onSnapshot(themeRef, s => {
+        if(s.exists()){
+          latestServer = s.data();
+          cssEditor.value = latestServer.customCSS || '';
+          varsEditor.value = JSON.stringify(latestServer.vars || {}, null, 2);
+          status.textContent = 'Tema actualizado en servidor';
+        }
+      });
+    }
+
+    // Guardar
+    saveBtn.addEventListener('click', async ()=>{
+      try{
+        const mode = modeSelect.value;
+        const payload = { updatedAt: Date.now(), notes: notes.value || '' };
+        if(mode === 'css'){
+          payload.customCSS = cssEditor.value || '';
+          // opcional: vaciar vars
+        } else {
+          try{
+            payload.vars = JSON.parse(varsEditor.value || '{}');
+          }catch(e){ alert('JSON inválido en variables'); return; }
+          // opcional: keep customCSS
+        }
+        await setDoc(themeRef, payload, { merge:true });
+        status.textContent = 'Guardado OK — publicado';
+      }catch(err){
+        alert('Error al guardar: ' + err.message);
+      }
+    });
+
+    // Modo select
+    modeSelect.addEventListener('change', ()=>{
+      if(modeSelect.value === 'css'){ cssWrap.classList.remove('hidden'); varsWrap.classList.add('hidden') }
+      else { cssWrap.classList.add('hidden'); varsWrap.classList.remove('hidden') }
+    });
+
+    // Preview: aplicar solo en el iframe (inyectar css / vars)
+    applyPreview.addEventListener('click', ()=>{
+      const mode = modeSelect.value;
+      preview.contentWindow.postMessage({ type:'apply-theme', mode, css: cssEditor.value, vars: (mode==='vars'? JSON.parse(varsEditor.value||'{}') : null) }, '*');
+    });
+    revertPreview.addEventListener('click', ()=>{
+      preview.contentWindow.postMessage({ type:'revert-theme' }, '*');
+    });
+
+    // Listener para mensajes desde iframe (si necesitás respuesta)
+    window.addEventListener('message', e => {
+      // no hacer supuestos de origen en este ejemplo; en producción validar e.origin
+      // console.log('msg from iframe', e.data);
+    });
+
+    // Inyectar un pequeño script en index.html para que responda a postMessage
+    // (Alternativa: index.html ya puede suscribirse a firestore y aplicar customCSS — ese es el método recomendado)
+
+    // --- END ---
+  </script>
+  
+  <div class="card" style="max-width:1100px;margin:18px auto">
+    <h3 style="margin:0 0 8px">Notas de seguridad y despliegue</h3>
+    <ul>
+      <li class="small">Configurar Firebase Authentication y crear una cuenta admin; no uses este panel público sin auth.</li>
+      <li class="small">Reglas Firestore: permitir lectura pública si querés (index puede leer), pero solo permitir write a usuarios autenticados y con un claim/UID específico.</li>
+      <li class="small">En producción, fuerza HTTPS y revisa qué CSS permitís (un CSS arbitrario puede romper la página).</li>
+      <li class="small">Si querés versionado, cada save puede agregarse a una colección <code>settings/theme_history</code> en lugar de sobreescribir.</li>
+    </ul>
+  </div>
+</body>
+</html>
