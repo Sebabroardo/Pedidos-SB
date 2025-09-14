@@ -171,6 +171,88 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// --- BLOQUE DE TEMA EN TIEMPO REAL ---
+const themeRef = doc(db, "settings", "theme");
+
+let customStyleEl = document.getElementById('custom-style');
+if(!customStyleEl){
+  customStyleEl = document.createElement('style');
+  customStyleEl.id = 'custom-style';
+  document.head.appendChild(customStyleEl);
+}
+
+const originalVars = {};
+function snapshotCurrentVars(){
+  const styles = getComputedStyle(document.documentElement);
+  ['bg','card','muted','text','primary','accent','ring','fontSize','radius','blur'].forEach(k=>{
+    const v = styles.getPropertyValue(`--${k}`).trim();
+    if(v) originalVars[k]=v;
+  });
+}
+snapshotCurrentVars();
+
+function applyVars(varsObj){
+  if(!varsObj) return;
+  Object.keys(varsObj).forEach(k=>{
+    const val = varsObj[k];
+    if(val === null) return;
+    if(k === 'fontSize') {
+      document.documentElement.style.fontSize = (parseInt(val)||16) + 'px';
+      return;
+    }
+    if(k === 'font'){
+      document.documentElement.style.setProperty('font-family', val + ', sans-serif');
+      return;
+    }
+    if(k === 'bgImage'){
+      if(val){
+        document.documentElement.style.backgroundImage = `url('${val}')`;
+        document.documentElement.style.backgroundRepeat = 'no-repeat';
+        document.documentElement.style.backgroundPosition = 'center center';
+        document.documentElement.style.backgroundSize = 'cover';
+      } else {
+        document.documentElement.style.backgroundImage = '';
+      }
+      return;
+    }
+    document.documentElement.style.setProperty(`--${k}`, val);
+  });
+}
+
+function applyCustomCSS(cssText){
+  customStyleEl.textContent = cssText || '';
+}
+
+let lastPublished = null;
+onSnapshot(themeRef, snap => {
+  if(!snap.exists()) return;
+  const data = snap.data();
+  if(data.customCSS) applyCustomCSS(data.customCSS);
+  if(data.vars) applyVars(data.vars);
+  lastPublished = data;
+});
+
+window.addEventListener('message', e => {
+  const msg = e.data || {};
+  if(msg.type === 'apply-vars' && msg.vars){
+    applyVars(msg.vars);
+  }
+  if(msg.type === 'revert-vars'){
+    if(lastPublished){
+      applyCustomCSS(lastPublished.customCSS || '');
+      applyVars(lastPublished.vars || {});
+    } else {
+      Object.keys(originalVars).forEach(k => {
+        document.documentElement.style.setProperty(`--${k}`, originalVars[k]);
+      });
+    }
+  }
+});
+
+getDoc(themeRef).then(snap => {
+  if(snap && snap.exists()) lastPublished = snap.data();
+});  
 const state = { cart: {} };
 const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
 
