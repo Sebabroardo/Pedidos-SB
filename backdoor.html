@@ -38,6 +38,7 @@
     <div class="muted">Panel simplificado para usuarios sin experiencia en código. Cambios guardados en Firestore (<code>settings/theme</code>), modo variables.</div>
   </div>
 
+  <!-- LOGIN -->
   <div id="authCard" class="card login">
     <h2 style="font-size:16px;margin-bottom:6px">Iniciar sesión</h2>
     <label for="email">Email</label>
@@ -51,6 +52,7 @@
     <p class="small">Usá Email/Password con Firebase Auth. Si no tenés usuario, crealo en la consola Firebase.</p>
   </div>
 
+  <!-- EDITOR -->
   <div id="editorCard" class="card hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px">
       <div>
@@ -60,7 +62,7 @@
       <div style="display:flex;gap:8px;align-items:center">
         <button id="signOutBtn" class="btn-ghost">Cerrar sesión</button>
         <button id="openIndex" class="btn-ghost">Abrir index</button>
-        <button id="saveBtn" class="btn-primary">Guardar y publicar</button>
+        <button id="publishVars" class="btn-primary">Guardar y publicar</button>
       </div>
     </div>
 
@@ -121,7 +123,6 @@
           <label for="notes">Notas (opcional)</label>
           <input id="notes" placeholder="¿Qué cambiaste?" />
         </div>
-
       </div>
 
       <div>
@@ -129,7 +130,6 @@
         <iframe id="preview" class="preview-iframe" src="index.html"></iframe>
         <div style="margin-top:8px;display:flex;gap:8px">
           <button id="applyPreview" class="btn-ghost">Aplicar solo en esta pestaña</button>
-          <button id="publishVars" class="btn-primary">Publicar variables</button>
           <button id="revertPreview" class="btn-ghost">Revertir preview</button>
         </div>
       </div>
@@ -177,7 +177,6 @@
     const goAnon = document.getElementById('goAnon');
     const publishVars = document.getElementById('publishVars');
 
-    // controls
     const bgColor = document.getElementById('bgColor');
     const textColor = document.getElementById('textColor');
     const primaryColor = document.getElementById('primaryColor');
@@ -193,68 +192,20 @@
     const blurLabel = document.getElementById('blurLabel');
     const bgImageUrl = document.getElementById('bgImageUrl');
 
-    // botones
-    signInBtn.addEventListener('click', async () => {
-      try {
-        const u = await signInWithEmailAndPassword(auth, email.value.trim(), password.value);
-        onLogin(u.user.email);
-      } catch(err) {
-        alert('Error al iniciar sesión: ' + err.message);
-      }
-    });
-
-    signOutBtn.addEventListener('click', async () => {
-      await signOut(auth);
-      authCard.classList.remove('hidden');
-      editorCard.classList.add('hidden');
-      currentUser.textContent = '';
-    });
-
-    goAnon.addEventListener('click', () => {
-      authCard.classList.add('hidden');
-      editorCard.classList.remove('hidden');
-      currentUser.textContent = 'modo-demo (local)';
-      loadTheme();
-    });
-
-    openIndex.addEventListener('click', () => window.open('index.html','_blank'));
-
-    function onLogin(emailStr){
-      authCard.classList.add('hidden');
-      editorCard.classList.remove('hidden');
-      currentUser.textContent = emailStr;
-      loadTheme();
+    function showStatus(msg, success=true){
+      status.textContent = msg;
+      status.style.color = success ? '#16a34a' : '#dc2626';
+      setTimeout(()=> {
+        status.textContent = '— no hay cambios —';
+        status.style.color = '#6b7280';
+      }, 3000);
     }
 
-    // detecta sesión activa
-    onAuthStateChanged(auth, user => {
-      if(user){
-        onLogin(user.email);
-      } else {
-        authCard.classList.remove('hidden');
-        editorCard.classList.add('hidden');
-      }
-    });
-
-    // actualizar labels
-    fontSize.addEventListener('input', ()=> fontSizeLabel.textContent = fontSize.value + 'px');
-    radius.addEventListener('input', ()=> radiusLabel.textContent = radius.value + 'px');
-    blur.addEventListener('input', ()=> blurLabel.textContent = blur.value + 'px');
-
-    // preview
-    applyPreview.addEventListener('click', ()=>{
-      const vars = collectVarsFromControls();
-      preview.contentWindow.postMessage({ type:'apply-vars', vars }, '*');
-    });
-    revertPreview.addEventListener('click', ()=>{ preview.contentWindow.postMessage({ type:'revert-vars' }, '*'); });
-
-    publishVars.addEventListener('click', async ()=>{
-      try{
-        const vars = collectVarsFromControls();
-        await setDoc(themeRef, { vars, updatedAt: Date.now(), notes: notes.value || '' }, { merge:true });
-        status.textContent = 'Variables publicadas correctamente';
-      }catch(err){ alert('Error al publicar: '+err.message); }
-    });
+    function flashButton(btn, success=true){
+      const originalBg = btn.style.backgroundColor;
+      btn.style.backgroundColor = success ? '#16a34a' : '#dc2626';
+      setTimeout(()=> { btn.style.backgroundColor = originalBg; }, 500);
+    }
 
     function collectVarsFromControls(){
       return {
@@ -275,8 +226,7 @@
     async function loadTheme(){
       const snap = await getDoc(themeRef).catch(()=>null);
       if(snap && snap.exists()){
-        const latestServer = snap.data();
-        const vars = latestServer.vars || {};
+        const vars = snap.data().vars || {};
         bgColor.value = vars.bg || '#ffffff';
         textColor.value = vars.text || '#000000';
         primaryColor.value = vars.primary || '#22c55e';
@@ -293,6 +243,73 @@
         status.textContent = 'No hay tema en servidor — valores por defecto';
       }
     }
+
+    function onLogin(emailStr){
+      authCard.classList.add('hidden');
+      editorCard.classList.remove('hidden');
+      currentUser.textContent = emailStr;
+      loadTheme();
+    }
+
+    // AUTH LISTENERS
+    signInBtn.addEventListener('click', async () => {
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value);
+        onLogin(userCredential.user.email);
+      } catch(err) {
+        showStatus('Error al iniciar sesión: ' + err.message, false);
+      }
+    });
+
+    goAnon.addEventListener('click', () => {
+      authCard.classList.add('hidden');
+      editorCard.classList.remove('hidden');
+      currentUser.textContent = 'modo-demo (local)';
+      loadTheme();
+    });
+
+    signOutBtn.addEventListener('click', async () => {
+      await signOut(auth);
+      authCard.classList.remove('hidden');
+      editorCard.classList.add('hidden');
+      currentUser.textContent = '';
+    });
+
+    openIndex.addEventListener('click', () => window.open('index.html','_blank'));
+
+    publishVars.addEventListener('click', async ()=>{
+      try{
+        const vars = collectVarsFromControls();
+        await setDoc(themeRef, { vars, updatedAt: Date.now(), notes: notes.value || '' }, { merge:true });
+        showStatus('Guardado correctamente ✅', true);
+        flashButton(publishVars, true);
+      }catch(err){
+        showStatus('Error al guardar: ' + err.message, false);
+        flashButton(publishVars, false);
+      }
+    });
+
+    onAuthStateChanged(auth, user => {
+      if(user){
+        onLogin(user.email);
+      } else {
+        authCard.classList.remove('hidden');
+        editorCard.classList.add('hidden');
+      }
+    });
+
+    fontSize.addEventListener('input', ()=> fontSizeLabel.textContent = fontSize.value + 'px');
+    radius.addEventListener('input', ()=> radiusLabel.textContent = radius.value + 'px');
+    blur.addEventListener('input', ()=> blurLabel.textContent = blur.value + 'px');
+
+    applyPreview.addEventListener('click', ()=>{
+      const vars = collectVarsFromControls();
+      preview.contentWindow.postMessage({ type:'apply-vars', vars }, '*');
+    });
+
+    revertPreview.addEventListener('click', ()=>{
+      preview.contentWindow.postMessage({ type:'revert-vars' }, '*');
+    });
   </script>
 </body>
 </html>
