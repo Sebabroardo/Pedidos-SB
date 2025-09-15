@@ -33,7 +33,7 @@
     // Función para mostrar login
     function showLogin() {
       dashboardDiv.style.display = "none";
-      loginDiv.style.display = "block";
+      loginDiv.style.display = "flex";
     }
 
     // Listener global: si ya está logueado lo mostramos en dashboard
@@ -76,119 +76,120 @@
 
   <style>
     /* Body general */
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f0f0f0;
-  color: #000;
-  min-height: 100vh;
-}
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #ffffff; /* fondo blanco */
+      color: #000;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-/* Contenedor principal de cada “pantalla” */
-#loginDiv, #dashboardDiv {
-  width: 100%;
-  height: 100vh; /* ocupar toda la ventana */
-  display: flex;
-  flex-direction: column;
-  justify-content: center; /* centrar vertical */
-  align-items: center;     /* centrar horizontal */
-  background: #f0f0f0;
-}
+    /* Header fijo arriba */
+    header {
+      width: 100%;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      background: #ffffff;
+      border-bottom: 1px solid #ccc;
+    }
 
-/* Header fijo arriba del dashboard */
-#dashboardDiv header {
-  width: 100%;
-  padding: 20px;
-  text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  position: relative;
-  background: #ffffff;
-  border-bottom: 1px solid #ccc;
-}
+    /* Contenedor principal del login */
+    #loginDiv {
+      flex: 1;
+      display: flex;
+      justify-content: center; /* centrar horizontal */
+      align-items: center;     /* centrar vertical */
+    }
 
-/* Botón cerrar sesión */
-#logoutBtn {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: #f43f5e; /* rojo */
-  color: #fff;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-}
-#logoutBtn:hover {
-  background: #d32f45;
-}
+    /* Formulario del login */
+    .form-container {
+      background: #171a21;      /* panel oscuro */
+      padding: 20px;
+      border-radius: 12px;
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      color: #fff;
+      align-items: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* efecto panel */
+    }
 
-/* Contenedor del login */
-.form-container {
-  background: #171a21;
-  padding: 20px;
-  border-radius: 12px;
-  width: 300px;           /* ancho fijo para panel */
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  color: #fff;
-  align-items: center;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* efecto panel */
-}
+    /* Inputs y labels */
+    input {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      width: 100%;
+    }
+    label {
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-/* Inputs y labels */
-input {
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  font-size: 14px;
-  width: 100%;
-}
-label {
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
+    /* Botón login */
+    button {
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #22c55e;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+    }
 
-/* Botón login */
-button {
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  background: #22c55e;
-  color: #fff;
-  font-weight: bold;
-  cursor: pointer;
-  width: 100%;
-}
+    /* Dashboard */
+    #dashboardDiv {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+    }
 
-/* Dashboard */
-main {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 20px;
-  width: 100%;
-  min-height: calc(100vh - 80px); /* altura restante después del header */
-  background: #ffffff;
-  text-align: center;
-  padding: 20px;
-  box-sizing: border-box;
-}
+    #dashboardDiv main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+      width: 100%;
+      padding: 20px;
+      box-sizing: border-box;
+      background: #ffffff;
+      text-align: center;
+    }
 
-/* Ocultar dashboard al inicio */
-#dashboardDiv {
-  display: none;
-}
+    /* Botón cerrar sesión */
+    #logoutBtn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #f43f5e; /* rojo */
+      color: #fff;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #logoutBtn:hover {
+      background: #d32f45;
+    }
   </style>
 </head>
 <body>
+  <!-- Header general arriba -->
+  <header>Gestor de Locales/Usuarios</header>
+
+  <!-- Login centrado -->
   <div id="loginDiv">
-    <header>Gestor de Locales/Usuarios</header>
     <form id="loginForm" class="form-container">
       <input type="email" id="email" placeholder="Correo electrónico" required>
       <input type="password" id="password" placeholder="Contraseña" required>
@@ -197,6 +198,7 @@ main {
     </form>
   </div>
 
+  <!-- Dashboard oculto al inicio -->
   <div id="dashboardDiv">
     <header>
       Gestor de Locales/Usuarios
