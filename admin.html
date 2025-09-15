@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Santa’s MultiLocal</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<title>Admin — Santa’s</title>
 <style>
-body { font-family: Inter, Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
-h1,h2,h3 { margin-bottom:20px; }
+body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
+h1, h2, h3 { margin-bottom:20px;}
 form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
 input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
 button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
@@ -20,28 +19,39 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
-.discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; }
-.discount-panel label { display:block; margin-bottom:6px; cursor:pointer; }
-.login-card { background:#171a21; padding:20px; border-radius:12px; display:flex; flex-direction:column; gap:10px; width:320px; }
-.hidden { display:none; }
+.discount-panel {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 20px;
+  background: #fff;
+  color: #000;
+  border-radius: 12px;
+  width: 200px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  z-index: 1000;
+}
+.discount-panel label { display: block; margin-bottom: 6px; cursor: pointer; }
+.login-card { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px; margin-bottom:20px;}
+.login-card input { width:100%; padding:10px; border-radius:8px; border:none; font-size:14px;}
+.login-card button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold; }
 </style>
 </head>
 <body>
 
-<h1>Admin — Gestión de Productos MultiLocal</h1>
+<h1>Admin — Santa’s</h1>
 
+<!-- LOGIN -->
 <div id="loginCard" class="login-card">
   <h2>Iniciar sesión</h2>
-  <input type="email" id="loginEmail" placeholder="Email">
-  <input type="password" id="loginPassword" placeholder="Contraseña">
+  <input type="email" id="email" placeholder="Email" />
+  <input type="password" id="password" placeholder="Contraseña" />
   <button id="loginBtn">Iniciar sesión</button>
-  <p id="loginMsg" style="color:#f43f5e;"></p>
 </div>
 
-<div id="adminCard" class="hidden">
-
-  <h2 id="localNameHeader"></h2>
-
+<!-- ADMIN PANEL -->
+<div id="adminCard" style="display:none;">
+  <h2>Agregar / Editar Producto</h2>
   <form id="productForm">
     <input type="text" id="name" placeholder="Nombre del producto" required>
     <input type="text" id="desc" placeholder="Descripción" required>
@@ -59,32 +69,47 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
     <button type="submit">Guardar producto</button>
   </form>
 
+  <h2>Productos existentes</h2>
   <input type="text" id="searchInput" placeholder="Buscar producto por nombre...">
 
   <div id="productLists">
-    <div class="category-section"><h3>Pizzas</h3><ul id="pizzaList"></ul></div>
-    <div class="category-section"><h3>Hamburguesas</h3><ul id="hamburguesaList"></ul></div>
-    <div class="category-section"><h3>Papas</h3><ul id="papasList"></ul></div>
-    <div class="category-section"><h3>Menú Especial</h3><ul id="menuEspecialList"></ul></div>
-    <div class="category-section"><h3>Extras</h3><ul id="extrasList"></ul></div>
+    <div class="category-section">
+      <h3>Pizzas</h3>
+      <ul id="pizzaList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Hamburguesas</h3>
+      <ul id="hamburguesaList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Papas</h3>
+      <ul id="papasList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Menú Especial</h3>
+      <ul id="menuEspecialList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Extras</h3>
+      <ul id="extrasList"></ul>
+    </div>
   </div>
 
   <div class="discount-panel">
     <h3>Descuentos</h3>
-    <label><input type="radio" name="discount" value="0"> Sin descuento</label>
+    <label><input type="radio" name="discount" value="0" checked> Sin descuento</label>
     <label><input type="radio" name="discount" value="10"> 10%</label>
     <label><input type="radio" name="discount" value="20"> 20%</label>
     <label><input type="radio" name="discount" value="30"> 30%</label>
   </div>
-
-  <button id="logoutBtn" style="margin-top:20px; background:#f43f5e;">Cerrar sesión</button>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
+// --- CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
   authDomain: "santa-roti.firebaseapp.com",
@@ -93,165 +118,171 @@ const firebaseConfig = {
   messagingSenderId: "66221970620",
   appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-let localId = null;
-let editId = null;
-
-// UI refs
+// --- UI ELEMENTS ---
 const loginCard = document.getElementById('loginCard');
 const adminCard = document.getElementById('adminCard');
-const loginEmail = document.getElementById('loginEmail');
-const loginPassword = document.getElementById('loginPassword');
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
 const loginBtn = document.getElementById('loginBtn');
-const loginMsg = document.getElementById('loginMsg');
-const logoutBtn = document.getElementById('logoutBtn');
-const localNameHeader = document.getElementById('localNameHeader');
 
 const form = document.getElementById('productForm');
 const imgInput = document.getElementById('img');
 const imgPreview = document.getElementById('imgPreview');
-
-const productLists = {
-  pizza: document.getElementById('pizzaList'),
-  hamburguesa: document.getElementById('hamburguesaList'),
-  papas: document.getElementById('papasList'),
-  "menu especial": document.getElementById('menuEspecialList'),
-  extras: document.getElementById('extrasList')
-};
-
-const searchInput = document.getElementById('searchInput');
-const discountRadios = document.querySelectorAll('input[name="discount"]');
-
-imgInput.addEventListener('input', () => {
-  imgPreview.src = imgInput.value.trim() || "https://via.placeholder.com/150x100?text=Sin+imagen";
-});
+let editId = null;
+let currentLocalId = null;
 
 // --- LOGIN ---
-loginBtn.addEventListener('click', async () => {
-  loginMsg.textContent = '';
+loginBtn.addEventListener('click', async ()=>{
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+  if(!email || !password) return alert("Email y contraseña obligatorios");
+
   try{
-    const userCred = await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
-    const uid = userCred.user.uid;
-    const userDoc = await getDoc(doc(db,"usuarios",uid));
-    if(!userDoc.exists()){
-      alert("Usuario no registrado en Firestore.");
-      return;
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    const userDocRef = doc(db,"usuarios",user.uid);
+    const docSnap = await getDoc(userDocRef);
+    
+    if(!docSnap.exists()){
+      // Primer login -> pide nombre del local
+      const localName = prompt("Ingrese nombre del local:");
+      const localId = localName.trim().toLowerCase().replace(/\s+/g,"-");
+      await setDoc(userDocRef,{localName, localId, createdAt: Date.now()});
+      currentLocalId = localId;
+      alert(`Local "${localName}" creado`);
+    } else {
+      currentLocalId = docSnap.data().localId;
     }
-    localId = userDoc.data().localId;
-    localNameHeader.textContent = `Local: ${userDoc.data().nombre}`;
-    loginCard.classList.add('hidden');
-    adminCard.classList.remove('hidden');
-    loadLocalData();
+
+    initAdmin();
   } catch(err){
-    loginMsg.textContent = "Error de login: "+err.message;
+    console.error(err);
+    alert("Error al iniciar sesión: "+err.message);
   }
 });
 
-logoutBtn.addEventListener('click', async () => {
-  await signOut(auth);
-  loginCard.classList.remove('hidden');
-  adminCard.classList.add('hidden');
-  localId = null;
-});
+// --- PANEL ADMIN ---
+function initAdmin(){
+  loginCard.style.display = "none";
+  adminCard.style.display = "block";
 
-// --- CARGAR PRODUCTOS Y DESCUENTO ---
-async function loadLocalData(){
-  if(!localId) return;
-  // Productos
-  onSnapshot(collection(db,"productos",localId,"items"), snapshot => {
-    Object.values(productLists).forEach(ul => ul.innerHTML='');
-    snapshot.forEach(d => {
+  // --- IMAGEN PREVIEW ---
+  imgInput.addEventListener('input',()=>{
+    const url = imgInput.value.trim();
+    imgPreview.src = url || "https://via.placeholder.com/150x100?text=Sin+imagen";
+  });
+
+  // --- GUARDAR PRODUCTO ---
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const name = document.getElementById('name').value.trim();
+    const desc = document.getElementById('desc').value.trim();
+    const price = parseInt(document.getElementById('price').value);
+    const img = document.getElementById('img').value.trim();
+    const category = document.getElementById('category').value;
+
+    if(!name||!desc||!price||!category) return alert('Todos los campos son obligatorios');
+    if(price<=0) return alert('El precio debe ser mayor a 0');
+
+    try{
+      const productData = { name, desc, price, img: img||"", category, localId: currentLocalId };
+      if(editId){
+        await updateDoc(doc(db,"productos",editId), productData);
+        alert('Producto actualizado correctamente');
+        editId=null;
+        form.querySelector('button').textContent = "Guardar producto";
+      } else {
+        await addDoc(collection(db,"productos"), productData);
+        alert('Producto agregado correctamente');
+      }
+      form.reset();
+      imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+    }catch(err){ console.error(err); alert('Error al guardar producto'); }
+  });
+
+  // --- LISTAR PRODUCTOS ---
+  const productLists = {
+    pizza: document.getElementById('pizzaList'),
+    hamburguesa: document.getElementById('hamburguesaList'),
+    papas: document.getElementById('papasList'),
+    "menu especial": document.getElementById('menuEspecialList'),
+    extras: document.getElementById('extrasList')
+  };
+
+  onSnapshot(collection(db,"productos"), snapshot=>{
+    Object.values(productLists).forEach(ul=>ul.innerHTML='');
+    snapshot.forEach(d=>{
       const data = d.data();
+      if(data.localId !== currentLocalId) return; // solo del local logueado
       const li = document.createElement('li');
       li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
+
+      // editar
       const btnEdit = document.createElement('button');
-      btnEdit.textContent='Editar'; btnEdit.className='btn-edit';
+      btnEdit.textContent = 'Editar';
+      btnEdit.className='btn-edit';
       btnEdit.addEventListener('click', ()=>{
-        document.getElementById('name').value = data.name;
-        document.getElementById('desc').value = data.desc;
-        document.getElementById('price').value = data.price;
-        document.getElementById('img').value = data.img;
-        document.getElementById('category').value = data.category;
-        imgPreview.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
-        editId = d.id;
-        form.querySelector('button').textContent = "Actualizar producto";
+        document.getElementById('name').value=data.name;
+        document.getElementById('desc').value=data.desc;
+        document.getElementById('price').value=data.price;
+        document.getElementById('img').value=data.img;
+        document.getElementById('category').value=data.category;
+        imgPreview.src=data.img||"https://via.placeholder.com/150x100?text=Sin+imagen";
+        editId=d.id;
+        form.querySelector('button').textContent="Actualizar producto";
       });
+
+      // borrar
       const btnDelete = document.createElement('button');
-      btnDelete.textContent='Borrar'; btnDelete.className='btn-delete';
-      btnDelete.addEventListener('click', async ()=>{
-        if(confirm(`¿Eliminar ${data.name}?`)){
-          await deleteDoc(doc(db,"productos",localId,"items",d.id));
-        }
+      btnDelete.textContent='Borrar';
+      btnDelete.className='btn-delete';
+      btnDelete.addEventListener('click', async()=>{
+        if(confirm(`¿Eliminar ${data.name}?`)) await deleteDoc(doc(db,"productos",d.id));
       });
+
       li.appendChild(btnEdit);
       li.appendChild(btnDelete);
-      const cat = data.category?.trim().toLowerCase();
+
+      const cat=data.category?.trim().toLowerCase();
       if(productLists[cat]) productLists[cat].appendChild(li);
     });
   });
 
-  // Descuento
-  const discountRef = doc(db,"settings",localId);
-  onSnapshot(discountRef, snap=>{
-    if(snap.exists()){
-      const val = snap.data().discount || 0;
-      discountRadios.forEach(r => r.checked = (parseInt(r.value)===val));
+  // --- BUSCADOR ---
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input',()=>{
+    const query=searchInput.value.trim().toLowerCase();
+    Object.values(productLists).forEach(ul=>{
+      Array.from(ul.children).forEach(li=>{
+        const spanText=li.querySelector('span').textContent;
+        const productName=spanText.split('—')[0].trim().toLowerCase();
+        li.style.display=productName.includes(query)?'flex':'none';
+      });
+    });
+  });
+
+  // --- DESCUENTOS ---
+  const discountRadios = document.querySelectorAll('input[name="discount"]');
+  const discountDocRef = doc(db,"settings","discount");
+  discountRadios.forEach(radio=>{
+    radio.addEventListener('change', async()=>{
+      const value=parseInt(radio.value);
+      try{ await updateDoc(discountDocRef,{value}); }catch(err){ await setDoc(discountDocRef,{value}); }
+      alert(`Descuento aplicado: ${value}%`);
+    });
+  });
+  onSnapshot(discountDocRef, snapshot=>{
+    if(snapshot.exists()){
+      const val = snapshot.data().value||0;
+      discountRadios.forEach(r=>r.checked=(parseInt(r.value)===val));
     }
   });
 }
-
-// --- GUARDAR PRODUCTO ---
-form.addEventListener('submit', async e=>{
-  e.preventDefault();
-  if(!localId) return alert("No hay local seleccionado");
-  const name = document.getElementById('name').value.trim();
-  const desc = document.getElementById('desc').value.trim();
-  const price = parseInt(document.getElementById('price').value);
-  const img = document.getElementById('img').value.trim();
-  const category = document.getElementById('category').value;
-  if(!name || !desc || !price || !category) return alert("Todos los campos son obligatorios");
-  try{
-    if(editId){
-      await updateDoc(doc(db,"productos",localId,"items",editId), {name,desc,price,img,img:img||"",category});
-      editId=null; form.querySelector('button').textContent="Guardar producto";
-      alert("Producto actualizado");
-    } else {
-      await addDoc(collection(db,"productos",localId,"items"), {name,desc,price,img:img||"",category});
-      alert("Producto agregado");
-    }
-    form.reset(); imgPreview.src="https://via.placeholder.com/150x100?text=Sin+imagen";
-  }catch(err){ console.error(err); alert("Error al guardar producto: "+err.message);}
-});
-
-// --- BUSCADOR ---
-searchInput.addEventListener('input', ()=>{
-  const query = searchInput.value.trim().toLowerCase();
-  Object.values(productLists).forEach(ul=>{
-    Array.from(ul.children).forEach(li=>{
-      const spanText = li.querySelector('span').textContent;
-      const productName = spanText.split('—')[0].trim().toLowerCase();
-      li.style.display = productName.includes(query)?'flex':'none';
-    });
-  });
-});
-
-// --- DESCUENTOS ---
-discountRadios.forEach(radio=>{
-  radio.addEventListener('change', async ()=>{
-    if(!localId) return;
-    const val = parseInt(radio.value);
-    const discountRef = doc(db,"settings",localId);
-    try{
-      await setDoc(discountRef,{discount:val},{merge:true});
-      alert(`Descuento aplicado: ${val}%`);
-    }catch(err){ console.error(err);}
-  });
-});
-
 </script>
+
 </body>
 </html>
