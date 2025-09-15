@@ -172,7 +172,6 @@ button{
   overflow-x:hidden;
 }
 
-/* Sidebar */
 #sidebar{
   position:fixed;
   top:0;
@@ -183,18 +182,31 @@ button{
   color:#fff;
   display:flex;
   flex-direction:column;
-  justify-content:space-between;
+  justify-content:space-between; /* empuja el logout al final */
   box-shadow:2px 0 5px rgba(0,0,0,0.2);
   padding:0;
   transition: width 0.3s;
+  overflow:hidden;
 }
 
-#sidebar.collapsed{
-  width:60px;
+#sidebarTop{
+  display:flex;
+  justify-content:flex-end;
+  padding:10px;
+}
+
+#toggleSidebarBtn{
+  background:#22c55e;
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  padding:6px 10px;
+  cursor:pointer;
+  font-weight:bold;
 }
 
 #sidebarMenu{
-  margin-top:100px;
+  margin-top:20px;
 }
 
 #sidebarMenu ul{
@@ -220,6 +232,29 @@ button{
 #sidebarMenu ul li.active{
   border-left:4px solid #22c55e;
   background:#1f222a;
+}
+
+/* Sidebar colapsado */
+#sidebar.collapsed{
+  width:60px;
+}
+
+#sidebar.collapsed #sidebarMenu {
+  margin-top:10px;
+}
+
+#sidebar.collapsed #sidebarMenu li{
+  text-align:center;
+  padding:12px 0;
+}
+
+#sidebar.collapsed #sidebarTop{
+  justify-content:center;
+}
+
+#sidebar.collapsed #toggleSidebarBtn{
+  padding:6px 8px;
+  margin:0;
 }
 
 #mainContent{
@@ -251,18 +286,6 @@ button{
 #logoutBtn:hover{
   background:#d32f45;
 }
-
-/* Botón toggle */
-#toggleSidebarBtn{
-  background:#22c55e;
-  color:#fff;
-  border:none;
-  border-radius:6px;
-  padding:8px 12px;
-  cursor:pointer;
-  font-weight:bold;
-  margin:10px;
-}
 </style>
 </head>
 
@@ -285,7 +308,9 @@ button{
 
 <div id="dashboardDiv">
   <div id="sidebar">
-    <button id="toggleSidebarBtn">☰</button>
+    <div id="sidebarTop">
+      <button id="toggleSidebarBtn">☰</button>
+    </div>
     <div id="sidebarMenu">
       <ul>
         <li data-section="Crear Usuarios" class="active">Creación de Usuarios</li>
