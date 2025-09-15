@@ -71,22 +71,8 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
   .brand-text .tag a {font-size:16px; text-align:center;}
   .pill {font-size:12px; padding:6px 10px; text-align:center;}
 }
-  #discountInfo {
-  display: none;
-  font-size: 14px;
-  font-weight: 600;
-  color: #16a34a; /* verde llamativo */
-  background: #d1fae5; /* verde muy suave de fondo */
-  padding: 6px 10px;
-  border-radius: 8px;
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-#discountInfo::before {
-  content: "💸";
-}
+#discountInfo { display: none; font-size: 14px; font-weight: 600; color: #16a34a; background: #d1fae5; padding: 6px 10px; border-radius: 8px; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+#discountInfo::before { content: "💸"; }
 </style>
 </head>
 <body>
@@ -140,10 +126,10 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
     <h3>🛒 Tu pedido</h3>
     <div class="cart-list" id="cartList"></div>
     <div class="tot">
-  <span>Total</span>
-  <span id="total">$0</span>
-</div>
-<div id="discountInfo" class="muted" style="font-size:12px;display:none;"></div>
+      <span>Total</span>
+      <span id="total">$0</span>
+    </div>
+    <div id="discountInfo" class="muted"></div>
     <div class="inputs">
       <input id="customerName" placeholder="Tu nombre"/>
       <textarea id="customerNotes" placeholder="Notas para la cocina (sin mayonesa, más ketchup, etc.)"></textarea>
@@ -159,7 +145,7 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, doc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, query, where, onSnapshot, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -172,30 +158,38 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const localId = "local_santa";
 
-const localId = "local_santa"; // esto sale del login del usuario
+// Función para normalizar categorías (minúsculas y sin tildes)
+function normalizeCat(str){
+  return str?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")?.trim();
+}
 
-// Filtrar productos por local
-const productsRef = collection(db, "productos");
+const categoryMap = {
+  'pizza': 'pizzas',
+  'hamburguesa': 'hamburguesas',
+  'papas': 'papas',
+  'menu especial': 'menuEspecial',
+  'extras': 'extras'
+};
+
+// --- RENDERIZADO DE PRODUCTOS ---
+const productsRef = collection(db,'productos');
 const localQuery = query(productsRef, where("localId", "==", localId));
+
+const state = { cart:{} };
+const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
+let discount = 0;
 
 onSnapshot(localQuery, snapshot => {
   const categories = {};
-  snapshot.docs.forEach(doc => {
-    const data = doc.data();
-    const id = doc.id;
-    const catKey = data.category?.trim().toLowerCase();
+  snapshot.docs.forEach(docSnap => {
+    const data = docSnap.data();
+    const id = docSnap.id;
+    const catKey = normalizeCat(data.category);
     if(!categories[catKey]) categories[catKey] = [];
     categories[catKey].push({ id, ...data });
   });
-
-  const categoryMap = {
-    'pizza': 'pizzas',
-    'hamburguesa': 'hamburguesas',
-    'papas': 'papas',
-    'menu especial': 'menuEspecial',
-    'extras': 'extras'
-  };
 
   for(const cat in categories){
     const gridId = categoryMap[cat];
@@ -212,7 +206,7 @@ onSnapshot(localQuery, snapshot => {
       card.innerHTML = `
         <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
         <h3>${product.name}</h3>
-        <p class="price">${product.price.toLocaleString('es-AR', {style:'currency', currency:'ARS', maximumFractionDigits:0})}</p>
+        <p class="price">${currency.format(product.price)}</p>
         <div class="actions">
           <button class="btn-minus" data-id="${uid}">-</button>
           <span class="qty-display" data-id="${uid}">0</span>
@@ -223,109 +217,39 @@ onSnapshot(localQuery, snapshot => {
     });
   }
 });
-// --- BLOQUE DE TEMA EN TIEMPO REAL ---
-const themeRef = doc(db, "settings", "theme");
 
-let customStyleEl = document.getElementById('custom-style');
-if(!customStyleEl){
-  customStyleEl = document.createElement('style');
-  customStyleEl.id = 'custom-style';
-  document.head.appendChild(customStyleEl);
-}
+// --- BOTONES + Y - CON DELEGACIÓN ---
+document.querySelector('.col-9').addEventListener('click', e=>{
+  const productId = e.target.dataset.id;
+  if(!productId) return;
 
-const originalVars = {};
-function snapshotCurrentVars(){
-  const styles = getComputedStyle(document.documentElement);
-  ['bg','card','muted','text','primary','accent','ring','fontSize','radius','blur'].forEach(k=>{
-    const v = styles.getPropertyValue(`--${k}`).trim();
-    if(v) originalVars[k]=v;
-  });
-}
-snapshotCurrentVars();
-
-function applyVars(varsObj){
-  if(!varsObj) return;
-  Object.keys(varsObj).forEach(k=>{
-    const val = varsObj[k];
-    if(val === null) return;
-    if(k === 'fontSize') {
-      document.documentElement.style.fontSize = (parseInt(val)||16) + 'px';
-      return;
-    }
-    if(k === 'font'){
-      document.documentElement.style.setProperty('font-family', val + ', sans-serif');
-      return;
-    }
-    if(k === 'bgImage'){
-      if(val){
-        document.documentElement.style.backgroundImage = `url('${val}')`;
-        document.documentElement.style.backgroundRepeat = 'no-repeat';
-        document.documentElement.style.backgroundPosition = 'center center';
-        document.documentElement.style.backgroundSize = 'cover';
-      } else {
-        document.documentElement.style.backgroundImage = '';
-      }
-      return;
-    }
-    document.documentElement.style.setProperty(`--${k}`, val);
-  });
-}
-
-function applyCustomCSS(cssText){
-  customStyleEl.textContent = cssText || '';
-}
-
-let lastPublished = null;
-onSnapshot(themeRef, snap => {
-  if(!snap.exists()) return;
-  const data = snap.data();
-  if(data.customCSS) applyCustomCSS(data.customCSS);
-  if(data.vars) applyVars(data.vars);
-  lastPublished = data;
-});
-
-window.addEventListener('message', e => {
-  const msg = e.data || {};
-  if(msg.type === 'apply-vars' && msg.vars){
-    applyVars(msg.vars);
+  if(e.target.classList.contains('btn-plus')){
+    getDoc(doc(db,'productos',productId)).then(productSnap=>{
+      if(!productSnap.exists()) return;
+      const product = productSnap.data();
+      const uniqueId = productId + '-' + Date.now();
+      state.cart[uniqueId] = { uid: uniqueId, product, idOriginal: productId, extra:false };
+      renderCart();
+      updateCardQty(productId);
+    });
   }
-  if(msg.type === 'revert-vars'){
-    if(lastPublished){
-      applyCustomCSS(lastPublished.customCSS || '');
-      applyVars(lastPublished.vars || {});
-    } else {
-      Object.keys(originalVars).forEach(k => {
-        document.documentElement.style.setProperty(`--${k}`, originalVars[k]);
-      });
+
+  if(e.target.classList.contains('btn-minus')){
+    const cartKey = Object.keys(state.cart).find(k=>state.cart[k].idOriginal===productId);
+    if(cartKey){
+      delete state.cart[cartKey];
+      renderCart();
+      updateCardQty(productId);
     }
-  }
-});
-
-getDoc(themeRef).then(snap => {
-  if(snap && snap.exists()) lastPublished = snap.data();
-});  
-const state = { cart: {} };
-const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
-
-let discount = 0; // porcentaje de descuento
-
-// Referencia al documento de descuento
-const discountDocRef = doc(db, "settings", "discount");
-
-// Escuchar cambios en tiempo real
-onSnapshot(discountDocRef, snapshot => {
-  if (snapshot.exists()) {
-    discount = snapshot.data().value || 0;
-    renderCart(); // re-renderiza el carrito si cambia el descuento
   }
 });
 
 // --- FUNCIONES DEL CARRITO ---
-function renderCart() {
+function renderCart(){
   const list = document.getElementById('cartList');
   list.innerHTML = '';
   let total = 0;
-  Object.values(state.cart).forEach(({ uid, product, extra }) => {
+  Object.values(state.cart).forEach(({ uid, product, extra })=>{
     const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
     total += lineTotal;
     const row = document.createElement('div');
@@ -360,19 +284,25 @@ function renderCart() {
   });
 
   let discountedTotal = total;
-if(discount > 0){
-  discountedTotal = Math.round(total * (1 - discount / 100));
-  const discountAmount = total - discountedTotal;
-  const discountInfo = document.getElementById('discountInfo');
-  discountInfo.style.display = 'block';
-  discountInfo.textContent = `¡Descuento del ${discount}% aplicado! Ahorrás ${currency.format(discountAmount)}.`;
-} else {
-  document.getElementById('discountInfo').style.display = 'none';
-}
-document.getElementById('total').textContent = currency.format(discountedTotal);
+  if(discount>0){
+    discountedTotal = Math.round(total*(1-discount/100));
+    const discountAmount = total-discountedTotal;
+    const discountInfo = document.getElementById('discountInfo');
+    discountInfo.style.display = 'block';
+    discountInfo.textContent = `¡Descuento del ${discount}% aplicado! Ahorrás ${currency.format(discountAmount)}.`;
+  } else {
+    document.getElementById('discountInfo').style.display = 'none';
+  }
+  document.getElementById('total').textContent = currency.format(discountedTotal);
 }
 
-function buildWhatsAppMessage() {
+function updateCardQty(uid){
+  const count = Object.values(state.cart).filter(item=>item.idOriginal===uid).length;
+  const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
+  if(span) span.textContent = count;
+}
+
+function buildWhatsAppMessage(){
   const entries = Object.values(state.cart);
   if(entries.length===0){ alert('Agregá al menos 1 producto al carrito.'); return null; }
   const name = document.getElementById('customerName').value.trim();
@@ -382,18 +312,16 @@ function buildWhatsAppMessage() {
     const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
     lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}`);
   });
- let total = entries.reduce((acc,{product,extra})=>acc + product.price + ((extra && product.category==='hamburguesa')?3000:0),0);
-  
-let discountedTotal = total;
-if(discount > 0){
-  discountedTotal = Math.round(total * (1 - discount / 100));
-}
-lines.push('');
-if(discount > 0){
-  const discountAmount = total - discountedTotal;
-  lines.push(`*Descuento:* ${discount}% — Ahorrás ${currency.format(discountAmount)}`);
-}
-lines.push(`*Total:* ${currency.format(discountedTotal)}`);
+
+  let total = entries.reduce((acc,{product,extra})=>acc+product.price + ((extra && product.category==='hamburguesa')?3000:0),0);
+  let discountedTotal = discount>0 ? Math.round(total*(1-discount/100)) : total;
+
+  lines.push('');
+  if(discount>0){
+    const discountAmount = total - discountedTotal;
+    lines.push(`*Descuento:* ${discount}% — Ahorrás ${currency.format(discountAmount)}`);
+  }
+  lines.push(`*Total:* ${currency.format(discountedTotal)}`);
   lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
   if(name) lines.push(`*Nombre:* ${name}`);
   if(notes) lines.push(`*Notas:* ${notes}`);
@@ -417,85 +345,6 @@ document.querySelectorAll('.category-btn').forEach(btn=>{
     btn.textContent = btn.textContent.includes('▸')?btn.textContent.replace('▸','▾'):btn.textContent.replace('▾','▸');
   });
 });
-
-// --- FIRESTORE Y RENDERIZADO DE PRODUCTOS ---
-const productsRef = collection(db,'productos');
-onSnapshot(productsRef, snapshot => {
-  const categories = {};
-  snapshot.docs.forEach(doc => {
-    const data = doc.data();
-    const id = doc.id;
-    const catKey = data.category?.trim().toLowerCase();
-    if(!categories[catKey]) categories[catKey] = [];
-    categories[catKey].push({ id, ...data });
-  });
-
-  const categoryMap = {
-    'pizza': 'pizzas',
-    'hamburguesa': 'hamburguesas',
-    'papas': 'papas',
-    'menu especial': 'menuEspecial',
-    'extras': 'extras'
-  };
-
-  for(const cat in categories){
-    const gridId = categoryMap[cat];
-    if(!gridId) continue;
-    const grid = document.getElementById(gridId);
-    const wasOpen = grid.classList.contains('show');
-    grid.innerHTML = '';
-    if(wasOpen) grid.classList.add('show');
-
-    categories[cat].forEach(product => {
-      const uid = product.id;
-      const card = document.createElement('div');
-      card.className = 'card product';
-      card.innerHTML = `
-        <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
-        <h3>${product.name}</h3>
-        <p class="price">${currency.format(product.price)}</p>
-        <div class="actions">
-          <button class="btn-minus" data-id="${uid}">-</button>
-          <span class="qty-display" data-id="${uid}">0</span>
-          <button class="btn-plus" data-id="${uid}">+</button>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
-  }
-
-  // Delegación de eventos para todos los botones + y -
-  document.querySelector('.col-9').addEventListener('click', e => {
-    const productId = e.target.dataset.id;
-    if(!productId) return;
-
-    if(e.target.classList.contains('btn-plus')){
-      const productDoc = snapshot.docs.find(d => d.id === productId);
-      if(!productDoc) return;
-      const product = productDoc.data();
-      const uniqueId = productId + '-' + Date.now();
-      state.cart[uniqueId] = { uid: uniqueId, product, idOriginal: productId, extra: false };
-      renderCart();
-      updateCardQty(productId);
-    }
-
-    if(e.target.classList.contains('btn-minus')){
-      const cartKey = Object.keys(state.cart).find(k => state.cart[k].idOriginal === productId);
-      if(cartKey){
-        delete state.cart[cartKey];
-        renderCart();
-        updateCardQty(productId);
-      }
-    }
-  });
-});
-
-// --- ACTUALIZACIÓN DE CONTADOR ---
-function updateCardQty(uid){
-  const count = Object.values(state.cart).filter(item => item.idOriginal === uid).length;
-  const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
-  if(span) span.textContent = count;
-}
 
 document.getElementById('year').textContent = new Date().getFullYear();
 </script>
