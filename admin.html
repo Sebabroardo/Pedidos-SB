@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Santa’s MultiLocal</title>
-
+<title>Admin — Santa’s</title>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
+// --- Configuración Firebase ---
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
   authDomain: "santa-roti.firebaseapp.com",
@@ -23,112 +23,24 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
+let currentLocal = null;
+
 // --- ELEMENTOS DOM ---
 const loginCard = document.getElementById('loginCard');
 const adminCard = document.getElementById('adminCard');
-const emailInput = document.getElementById('email');
+const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
-const localInput = document.getElementById('localName');
+const localInput = document.getElementById('local');
 const loginBtn = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const currentLocalSpan = document.getElementById('currentLocal');
+const rememberCheckbox = document.getElementById('rememberMe');
+const signOutBtn = document.getElementById('signOutBtn');
+const currentUserSpan = document.getElementById('currentUser');
 
-// --- PRODUCTOS ---
 const form = document.getElementById('productForm');
 const imgInput = document.getElementById('img');
 const imgPreview = document.getElementById('imgPreview');
 let editId = null;
-let currentLocal = null;
 
-// --- LOGIN / REGISTRO ---
-loginBtn.addEventListener('click', async () => {
-  const email = emailInput.value.trim();
-  const password = passwordInput.value.trim();
-  const localName = localInput.value.trim();
-
-  if(!email || !password || !localName) return alert("Completa todos los campos");
-
-  try {
-    // Intentar login
-    await signInWithEmailAndPassword(auth, email, password);
-  } catch(err) {
-    if(err.code === 'auth/user-not-found') {
-      // Crear usuario nuevo si no existe
-      await createUserWithEmailAndPassword(auth, email, password);
-    } else {
-      return alert("Error de login: " + err.message);
-    }
-  }
-
-  // Guardar local en Firestore si no existe
-  const localRef = doc(db, "locales", localName);
-  const snap = await getDoc(localRef);
-  if(!snap.exists()) {
-    await setDoc(localRef, { createdAt: Date.now() });
-  }
-});
-
-// Detectar sesión activa
-onAuthStateChanged(auth, async user => {
-  if(user){
-    loginCard.style.display = 'none';
-    adminCard.style.display = 'block';
-    
-    // Tomar el local del input
-    currentLocal = localInput.value.trim() || currentLocal;
-    currentLocalSpan.textContent = currentLocal;
-
-    // Cargar productos del local
-    loadProducts();
-  } else {
-    loginCard.style.display = 'block';
-    adminCard.style.display = 'none';
-  }
-});
-
-logoutBtn.addEventListener('click', async ()=>{
-  await signOut(auth);
-  location.reload();
-});
-
-// --- PRODUCTOS ---
-imgInput.addEventListener('input', () => {
-  const url = imgInput.value.trim();
-  imgPreview.src = url || "https://via.placeholder.com/150x100?text=Sin+imagen";
-});
-
-form.addEventListener('submit', async e=>{
-  e.preventDefault();
-  const name = document.getElementById('name').value.trim();
-  const desc = document.getElementById('desc').value.trim();
-  const price = parseInt(document.getElementById('price').value);
-  const img = imgInput.value.trim();
-  const category = document.getElementById('category').value;
-
-  if(!name || !desc || !price || !category) return alert('Todos los campos son obligatorios');
-  if(price <= 0) return alert('El precio debe ser mayor a 0');
-
-  const productosRef = collection(db, "locales", currentLocal, "productos");
-
-  try {
-    if(editId){
-      await updateDoc(doc(productosRef, editId), { name, desc, price, img, category });
-      alert("Producto actualizado correctamente");
-      editId = null;
-      form.querySelector('button').textContent = "Guardar producto";
-    } else {
-      await addDoc(productosRef, { name, desc, price, img, category });
-      alert("Producto agregado correctamente");
-    }
-    form.reset();
-    imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-  } catch(err){
-    console.error(err);
-    alert("Error al guardar producto: " + err.message);
-  }
-});
-
-// --- LISTAR PRODUCTOS ---
 const productLists = {
   pizza: document.getElementById('pizzaList'),
   hamburguesa: document.getElementById('hamburguesaList'),
@@ -137,42 +49,135 @@ const productLists = {
   extras: document.getElementById('extrasList')
 };
 
-function loadProducts(){
-  const productosRef = collection(db, "locales", currentLocal, "productos");
-  onSnapshot(productosRef, snapshot=>{
-    Object.values(productLists).forEach(ul=>ul.innerHTML='');
+const searchInput = document.getElementById('searchInput');
+const discountRadios = document.querySelectorAll('input[name="discount"]');
 
+// --- FUNCIONES DE LOGIN ---
+function saveLocalCredentials(){
+  if(rememberCheckbox.checked){
+    localStorage.setItem('admin_username', usernameInput.value);
+    localStorage.setItem('admin_password', passwordInput.value);
+    localStorage.setItem('admin_local', localInput.value);
+  } else {
+    localStorage.removeItem('admin_username');
+    localStorage.removeItem('admin_password');
+    localStorage.removeItem('admin_local');
+  }
+}
+
+function loadLocalCredentials(){
+  const u = localStorage.getItem('admin_username');
+  const p = localStorage.getItem('admin_password');
+  const l = localStorage.getItem('admin_local');
+  if(u) usernameInput.value = u;
+  if(p) passwordInput.value = p;
+  if(l) localInput.value = l;
+  if(u || p || l) rememberCheckbox.checked = true;
+}
+
+loginBtn.addEventListener('click', async ()=>{
+  const user = usernameInput.value.trim();
+  const pass = passwordInput.value.trim();
+  const localName = localInput.value.trim();
+  if(!user || !pass || !localName) return alert("Completa todos los campos");
+  
+  try{
+    const cred = await signInWithEmailAndPassword(auth, user, pass);
+    currentLocal = localName;
+    onLogin(cred.user.email);
+    saveLocalCredentials();
+  }catch(err){
+    console.error(err);
+    alert("Error de login: " + err.message);
+  }
+});
+
+signOutBtn.addEventListener('click', async ()=>{
+  await signOut(auth);
+  currentLocal = null;
+  adminCard.classList.add('hidden');
+  loginCard.classList.remove('hidden');
+});
+
+// Mantener sesión
+onAuthStateChanged(auth, user => {
+  if(user && currentLocal){
+    onLogin(user.email);
+  }
+});
+
+function onLogin(email){
+  currentUserSpan.textContent = `${email} — ${currentLocal}`;
+  loginCard.classList.add('hidden');
+  adminCard.classList.remove('hidden');
+  loadProducts();
+  loadDiscount();
+}
+
+// --- PRODUCTOS ---
+imgInput.addEventListener('input', () => {
+  const url = imgInput.value.trim();
+  imgPreview.src = url || "https://via.placeholder.com/150x100?text=Sin+imagen";
+});
+
+form.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  if(!currentLocal) return alert("No hay local seleccionado");
+  const name = document.getElementById('name').value.trim();
+  const desc = document.getElementById('desc').value.trim();
+  const price = parseInt(document.getElementById('price').value);
+  const img = imgInput.value.trim();
+  const category = document.getElementById('category').value;
+  if(!name || !desc || !price || !category) return alert('Completa todos los campos');
+  const productsCol = collection(db, "locales", currentLocal, "productos");
+  try{
+    if(editId){
+      await updateDoc(doc(productsCol, editId), { name, desc, price, img, category });
+      editId = null;
+      form.querySelector('button').textContent = "Guardar producto";
+    } else {
+      await addDoc(productsCol, { name, desc, price, img, category });
+    }
+    form.reset();
+    imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+  }catch(err){
+    console.error(err);
+    alert("Error al guardar producto");
+  }
+});
+
+function loadProducts(){
+  if(!currentLocal) return;
+  const productsCol = collection(db, "locales", currentLocal, "productos");
+  onSnapshot(productsCol, snapshot=>{
+    Object.values(productLists).forEach(ul=>ul.innerHTML='');
     snapshot.forEach(d=>{
       const data = d.data();
       const li = document.createElement('li');
       li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
-
       const btnEdit = document.createElement('button');
       btnEdit.textContent = 'Editar';
-      btnEdit.className = 'btn-edit';
+      btnEdit.className='btn-edit';
       btnEdit.addEventListener('click', ()=>{
         document.getElementById('name').value = data.name;
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
         imgInput.value = data.img;
-        document.getElementById('category').value = data.category;
         imgPreview.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
+        document.getElementById('category').value = data.category;
         editId = d.id;
         form.querySelector('button').textContent = "Actualizar producto";
       });
-
       const btnDelete = document.createElement('button');
       btnDelete.textContent = 'Borrar';
-      btnDelete.className = 'btn-delete';
+      btnDelete.className='btn-delete';
       btnDelete.addEventListener('click', async ()=>{
-        if(confirm(`¿Eliminar ${data.name}?`)){
-          await deleteDoc(doc(productosRef, d.id));
+        if(confirm(`Eliminar ${data.name}?`)){
+          await deleteDoc(doc(productsCol, d.id));
         }
       });
-
       li.appendChild(btnEdit);
       li.appendChild(btnDelete);
-
       const cat = data.category?.trim().toLowerCase();
       if(productLists[cat]) productLists[cat].appendChild(li);
     });
@@ -180,48 +185,82 @@ function loadProducts(){
 }
 
 // --- BUSCADOR ---
-const searchInput = document.getElementById('searchInput');
-searchInput.addEventListener('input', () => {
+searchInput.addEventListener('input', ()=>{
   const query = searchInput.value.trim().toLowerCase();
-  Object.values(productLists).forEach(ul => {
-    Array.from(ul.children).forEach(li => {
-      const spanText = li.querySelector('span').textContent;
-      const productName = spanText.split('—')[0].trim().toLowerCase();
-      li.style.display = productName.includes(query) ? 'flex' : 'none';
+  Object.values(productLists).forEach(ul=>{
+    Array.from(ul.children).forEach(li=>{
+      const productName = li.querySelector('span').textContent.split('—')[0].trim().toLowerCase();
+      li.style.display = productName.includes(query)?'flex':'none';
     });
   });
 });
+
+// --- DESCUENTOS ---
+async function saveDiscount(value){
+  if(!currentLocal) return;
+  const discountRef = doc(db, "locales", currentLocal, "discounts", "current");
+  try{
+    await setDoc(discountRef, { value });
+    alert(`Descuento aplicado: ${value}%`);
+  }catch(err){ console.error(err); }
+}
+
+discountRadios.forEach(radio=>{
+  radio.addEventListener('change', ()=> saveDiscount(parseInt(radio.value)));
+});
+
+function loadDiscount(){
+  if(!currentLocal) return;
+  const discountRef = doc(db, "locales", currentLocal, "discounts", "current");
+  onSnapshot(discountRef, snap=>{
+    if(snap.exists()){
+      const val = snap.data().value || 0;
+      discountRadios.forEach(r=>r.checked=(parseInt(r.value)===val));
+    }
+  });
+}
 </script>
 
 <style>
-body { font-family: Arial,sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
-form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px; }
-input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px; }
-button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold; }
-ul { list-style:none; padding:0; margin-top:10px; width:100%; max-width:500px; }
-li { display:flex; justify-content:space-between; background:#171a21; padding:10px; border-radius:8px; margin-bottom:8px; align-items:center; gap:10px; }
-li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; font-size:13px; }
+body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
+h1,h2,h3 { margin-bottom:20px; }
+form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
+input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
+button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
+ul { list-style:none; padding:0; margin-top:10px; width:100%; max-width:500px;}
+li { display:flex; justify-content:space-between; background:#171a21; padding:10px; border-radius:8px; margin-bottom:8px; align-items:center; gap:10px;}
+li span { flex:1; }
+li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; font-size:13px;}
 .btn-delete { background:#f43f5e; color:#fff; }
 .btn-edit { background:#3b82f6; color:#fff; }
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
 #searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
-.login-card, #adminCard { width:100%; max-width:500px; margin-bottom:20px; }
+
+/* Panel de descuentos */
+.discount-panel { position: fixed; top: 20px; left: 20px; padding: 20px; background: #fff; color:#000; border-radius:12px; width:200px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index:1000;}
+.discount-panel label { display:block; margin-bottom:6px; cursor:pointer; }
+
+/* Login card */
+#loginCard { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
+#adminCard.hidden { display:none;}
 </style>
 </head>
 <body>
 
-<div id="loginCard" class="login-card">
-  <h1>Login Local</h1>
-  <input type="email" id="email" placeholder="Email">
+<!-- LOGIN -->
+<div id="loginCard">
+  <h1>Login Admin — Local</h1>
+  <input type="email" id="username" placeholder="Usuario (email)">
   <input type="password" id="password" placeholder="Contraseña">
-  <input type="text" id="localName" placeholder="Nombre del local">
-  <button id="loginBtn">Ingresar / Registrar</button>
+  <input type="text" id="local" placeholder="Nombre del local">
+  <label><input type="checkbox" id="rememberMe"> Recordar usuario/contraseña/local</label>
+  <button id="loginBtn">Iniciar sesión</button>
 </div>
 
-<div id="adminCard" style="display:none;">
-  <h1>Admin — <span id="currentLocal"></span></h1>
-  <button id="logoutBtn" style="margin-bottom:20px;">Cerrar sesión</button>
+<!-- ADMIN -->
+<div id="adminCard" class="hidden">
+  <h1>Admin — <span id="currentUser"></span></h1>
 
   <form id="productForm">
     <input type="text" id="name" placeholder="Nombre del producto" required>
@@ -242,12 +281,37 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 
   <input type="text" id="searchInput" placeholder="Buscar producto por nombre...">
 
-  <div class="category-section"><h3>Pizzas</h3><ul id="pizzaList"></ul></div>
-  <div class="category-section"><h3>Hamburguesas</h3><ul id="hamburguesaList"></ul></div>
-  <div class="category-section"><h3>Papas</h3><ul id="papasList"></ul></div>
-  <div class="category-section"><h3>Menú Especial</h3><ul id="menuEspecialList"></ul></div>
-  <div class="category-section"><h3>Extras</h3><ul id="extrasList"></ul></div>
-</div>
+  <div id="productLists">
+    <div class="category-section">
+      <h3>Pizzas</h3>
+      <ul id="pizzaList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Hamburguesas</h3>
+      <ul id="hamburguesaList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Papas</h3>
+      <ul id="papasList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Menú Especial</h3>
+      <ul id="menuEspecialList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Extras</h3>
+      <ul id="extrasList"></ul>
+    </div>
+  </div>
 
+  <button id="signOutBtn">Cerrar sesión</button>
+
+  <div class="discount-panel">
+    <h3>Descuentos</h3>
+    <label><input type="radio" name="discount" value="0" checked> Sin descuento</label>
+    <label><input type="radio" name="discount" value="10"> 10%</label>
+    <label><input type="radio" name="discount" value="20"> 20%</label>
+    <label><input type="radio" name="discount" value="30"> 30%</label>
+  </div>
 </body>
 </html>
