@@ -234,14 +234,6 @@ button{
   background:#1f222a;
 }
 
-/* Íconos de ejemplo (puedes reemplazar por SVG o font-awesome) */
-#sidebarMenu ul li::before{
-  content:"📄"; /* ícono por defecto */
-  display:inline-block;
-  width:20px;
-  text-align:center;
-}
-
 /* Sidebar colapsado */
 #sidebar.collapsed{
   width:60px;
@@ -253,7 +245,7 @@ button{
 }
 
 #sidebar.collapsed #sidebarMenu li span{
-  display:none;
+  display:none; /* oculta texto, solo queda el ícono */
 }
 
 #sidebar.collapsed #sidebarTop{
@@ -310,7 +302,6 @@ button{
   padding:12px 0;
 }
 
-/* Oculta texto cuando colapsa */
 .menu-text{
   display:inline;
 }
