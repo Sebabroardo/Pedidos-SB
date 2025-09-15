@@ -23,17 +23,23 @@ const auth = getAuth(app);
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
+const welcomeMessage = document.getElementById("welcomeMessage");
+
+// Inicialmente ocultar la bienvenida
+welcomeMessage.style.display = "none";
 
 // Mostrar dashboard
 function showDashboard(user){
   loginDiv.style.display = "none";
   dashboardDiv.style.display = "flex";
+  welcomeMessage.style.display = "block"; // mostrar bienvenida
 }
 
 // Mostrar login
 function showLogin(){
   dashboardDiv.style.display = "none";
   loginDiv.style.display = "flex";
+  welcomeMessage.style.display = "none"; // ocultar durante login
 }
 
 // Listener global
