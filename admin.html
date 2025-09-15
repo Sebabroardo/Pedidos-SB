@@ -7,7 +7,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, doc, getDoc, collection, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, onSnapshot, updateDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -26,41 +26,50 @@ const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
 const discountPanel = document.querySelector('.discount-panel');
-
+const form = document.getElementById('productForm');
+const imgInput = document.getElementById('img');
+const imgPreview = document.getElementById('imgPreview');
+let editId = null;
 let currentUserLocal = null;
 
-// Función para mostrar dashboard
-function showDashboard(username, local){
-  loginDiv.style.display = "none";
-  dashboardDiv.style.display = "flex";
-  welcomeMessage.style.display = "block";
-  discountPanel.style.display = "block";
-  logoutBtn.style.display = "block";
-  welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
-  currentUserLocal = local;
-  filterProductsByLocal();
-}
-
-// Función para ocultar dashboard
-function hideDashboard(){
-  loginDiv.style.display = "flex";
-  dashboardDiv.style.display = "none";
-  welcomeMessage.style.display = "none";
-  discountPanel.style.display = "none";
-  logoutBtn.style.display = "none";
-  currentUserLocal = null;
-}
+// Ocultar dashboard al inicio
+dashboardDiv.style.display = "none";
+discountPanel.style.display = "none";
+logoutBtn.style.display = "none";
+welcomeMessage.style.display = "none";
 
 // Revisa sesión guardada
 document.addEventListener("DOMContentLoaded", ()=>{
-  const session = localStorage.getItem("session");
+  const session = localStorage.getItem("session") || sessionStorage.getItem("session");
   if(session){
     const data = JSON.parse(session);
     showDashboard(data.username, data.local);
   }
 });
 
-// Login
+// Función para mostrar dashboard
+function showDashboard(username, local){
+  loginDiv.style.display = "none";
+  dashboardDiv.style.display = "flex";
+  discountPanel.style.display = "block";
+  logoutBtn.style.display = "block";
+  welcomeMessage.style.display = "block";
+  welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
+  currentUserLocal = local;
+  filterProductsByLocal();
+}
+
+// Ocultar dashboard
+function hideDashboard(){
+  loginDiv.style.display = "flex";
+  dashboardDiv.style.display = "none";
+  discountPanel.style.display = "none";
+  logoutBtn.style.display = "none";
+  welcomeMessage.style.display = "none";
+  currentUserLocal = null;
+}
+
+// LOGIN
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const username = document.getElementById("username").value.trim();
@@ -76,7 +85,6 @@ document.getElementById("loginForm").addEventListener("submit", async (e)=>{
     const data = userSnap.data();
     if(data.password !== password) return alert("Contraseña incorrecta");
 
-    // Guardar sesión
     if(rememberMe) localStorage.setItem("session", JSON.stringify({username, local: data.local}));
     else sessionStorage.setItem("session", JSON.stringify({username, local: data.local}));
 
@@ -88,14 +96,14 @@ document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   }
 });
 
-// Logout
+// LOGOUT
 logoutBtn.addEventListener("click", ()=>{
   localStorage.removeItem("session");
   sessionStorage.removeItem("session");
   hideDashboard();
 });
 
-// --- Función para filtrar productos por local ---
+// --- Filtrar productos por local ---
 function filterProductsByLocal(){
   const productLists = {
     pizza: document.getElementById('pizzaList'),
@@ -122,7 +130,9 @@ function filterProductsByLocal(){
         document.getElementById('price').value = data.price;
         document.getElementById('img').value = data.img;
         document.getElementById('category').value = data.category;
+        imgPreview.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
         editId = d.id;
+        form.querySelector('button').textContent = "Actualizar producto";
       });
 
       const btnDelete = document.createElement('button');
@@ -176,6 +186,7 @@ li span { flex:1; }
 
 <div id="dashboardDiv">
 <h1>Panel Admin — Agregar / Editar Producto</h1>
+<p id="welcomeMessage"></p>
 
 <form id="productForm">
   <input type="text" id="name" placeholder="Nombre del producto" required>
