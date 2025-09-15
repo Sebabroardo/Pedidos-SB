@@ -7,7 +7,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -20,68 +21,69 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
+// Elementos del DOM
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
-
-let currentLocal = null;
-let currentUser = null;
-
-// --- LOGIN VISUAL ---
-async function loginUser() {
-  loginDiv.style.display = "flex";
-  dashboardDiv.style.display = "none";
-
-  const loginForm = document.getElementById("loginForm");
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const username = document.getElementById("loginUsername").value.trim();
-    const password = document.getElementById("loginPassword").value.trim();
-
-    if(!username || !password) return alert("Usuario y contraseña son requeridos");
-
-    try {
-      const q = query(collection(db, "Users"), where("username", "==", username), where("password", "==", password));
-      const snapshot = await getDocs(q);
-      if(snapshot.empty) {
-        alert("Usuario o contraseña incorrectos");
-        return;
-      }
-      const userDoc = snapshot.docs[0];
-      currentLocal = userDoc.data().local;
-      currentUser = username;
-
-      loginDiv.style.display = "none";
-      dashboardDiv.style.display = "flex";
-
-      loadProductsForLocal(currentLocal);
-    } catch(err) {
-      console.error(err);
-      alert("Error al iniciar sesión");
-    }
-  });
-}
-
-// --- CERRAR SESIÓN ---
-logoutBtn.addEventListener("click", () => {
-  currentLocal = null;
-  currentUser = null;
-  dashboardDiv.style.display = "none";
-  loginDiv.style.display = "flex";
-});
-
-// --- PRODUCTOS ---
+const welcomeMessage = document.getElementById("welcomeMessage");
+const discountPanel = document.querySelector('.discount-panel');
 const form = document.getElementById('productForm');
 const imgInput = document.getElementById('img');
 const imgPreview = document.getElementById('imgPreview');
 let editId = null;
 
+// Ocultar dashboard y paneles al inicio
+dashboardDiv.style.display = "none";
+discountPanel.style.display = "none";
+welcomeMessage.style.display = "none";
+
+// Login
+document.getElementById("loginForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const rememberMe = document.getElementById("rememberMe").checked;
+  try {
+    await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+    await signInWithEmailAndPassword(auth,email,password);
+  } catch(err){
+    alert("Error: "+err.message);
+  }
+});
+
+// Cerrar sesión
+logoutBtn.addEventListener("click", async ()=>{
+  try{
+    await signOut(auth);
+  }catch(err){
+    alert("Error al cerrar sesión: "+err.message);
+  }
+});
+
+// Detectar cambios de estado
+onAuthStateChanged(auth, user=>{
+  if(user){
+    loginDiv.style.display = "none";
+    dashboardDiv.style.display = "flex";
+    welcomeMessage.style.display = "block";
+    discountPanel.style.display = "block";
+  }else{
+    loginDiv.style.display = "flex";
+    dashboardDiv.style.display = "none";
+    welcomeMessage.style.display = "none";
+    discountPanel.style.display = "none";
+  }
+});
+
+// Vista previa de imagen
 imgInput.addEventListener('input', () => {
   const url = imgInput.value.trim();
   imgPreview.src = url || "https://via.placeholder.com/150x100?text=Sin+imagen";
 });
 
+// Guardar producto (nuevo o editado)
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('name').value.trim();
@@ -95,23 +97,23 @@ form.addEventListener('submit', async (e) => {
 
   try {
     if(editId) {
-      await updateDoc(doc(db, "productos", editId), { name, desc, price, img: img || "", category, local: currentLocal });
+      await updateDoc(doc(db, "productos", editId), { name, desc, price, img: img || "", category });
       alert('Producto actualizado correctamente');
       editId = null;
       form.querySelector('button').textContent = "Guardar producto";
     } else {
-      await addDoc(collection(db, "productos"), { name, desc, price, img: img || "", category, local: currentLocal });
+      await addDoc(collection(db, "productos"), { name, desc, price, img: img || "", category });
       alert('Producto agregado correctamente');
     }
     form.reset();
     imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-    loadProductsForLocal(currentLocal);
   } catch(err) {
     console.error(err);
     alert('Error al guardar producto');
   }
 });
 
+// Listar productos por categoría en tiempo real
 const productLists = {
   pizza: document.getElementById('pizzaList'),
   hamburguesa: document.getElementById('hamburguesaList'),
@@ -120,13 +122,11 @@ const productLists = {
   extras: document.getElementById('extrasList')
 };
 
-async function loadProductsForLocal(local) {
-  const snapshot = await getDocs(collection(db, "productos"));
+onSnapshot(collection(db, "productos"), snapshot => {
   Object.values(productLists).forEach(ul => ul.innerHTML = '');
+
   snapshot.forEach(d => {
     const data = d.data();
-    if(data.local !== local) return;
-
     const li = document.createElement('li');
     li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
 
@@ -150,7 +150,6 @@ async function loadProductsForLocal(local) {
     btnDelete.addEventListener('click', async () => {
       if(confirm(`¿Eliminar ${data.name}?`)) {
         await deleteDoc(doc(db, "productos", d.id));
-        loadProductsForLocal(local);
       }
     });
 
@@ -160,9 +159,9 @@ async function loadProductsForLocal(local) {
     const cat = data.category?.trim().toLowerCase();
     if(productLists[cat]) productLists[cat].appendChild(li);
   });
-}
+});
 
-// --- BUSCADOR ---
+// Buscador dinámico por NOMBRE de producto solamente
 const searchInput = document.getElementById('searchInput');
 searchInput.addEventListener('input', () => {
   const query = searchInput.value.trim().toLowerCase();
@@ -175,7 +174,7 @@ searchInput.addEventListener('input', () => {
   });
 });
 
-// --- DESCUENTOS ---
+// --- PANEL DE DESCUENTOS ---
 const discountRadios = document.querySelectorAll('input[name="discount"]');
 const discountDocRef = doc(db, "settings", "discount");
 
@@ -197,10 +196,6 @@ onSnapshot(discountDocRef, snapshot => {
     discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
   }
 });
-
-// --- INICIAR LOGIN VISUAL ---
-loginUser();
-
 </script>
 
 <style>
@@ -218,57 +213,23 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
-
-#loginDiv { display:flex; justify-content:center; align-items:flex-start; width:100%; min-height:80vh; }
-#loginForm { display:flex; flex-direction:column; gap:12px; background:#171a21; padding:20px; border-radius:12px; width:300px; color:#fff; box-shadow:0 4px 15px rgba(0,0,0,0.3);}
-#loginForm input { width:100%; }
-
-.discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; }
-.discount-panel {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  padding: 20px;
-  background: #fff;      
-  color: #000;           
-  border-radius: 12px;
-  width: 200px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-  z-index: 1000;
-}
-.discount-panel label {
-  display: block;
-  margin-bottom: 6px;
-  cursor: pointer;
-}
-
-/* BOTÓN CERRAR SESIÓN */
-#logoutBtn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background:#f43f5e;
-  color:#fff;
-  border:none;
-  padding:12px 25px;
-  border-radius:6px;
-  cursor:pointer;
-  font-weight:bold;
-}
+.discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; display:flex; flex-direction:column;}
+.discount-panel label { display:block; margin-bottom:6px; cursor:pointer; }
+#logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none;}
 </style>
+
 </head>
 <body>
-
 <div id="loginDiv">
-  <form id="loginForm">
-    <h2>Iniciar sesión</h2>
-    <input type="text" id="loginUsername" placeholder="Nombre de usuario" required>
-    <input type="password" id="loginPassword" placeholder="Contraseña" required>
+  <form id="loginForm" class="form-container">
+    <input type="text" id="email" placeholder="Nombre de usuario" required>
+    <input type="password" id="password" placeholder="Contraseña" required>
+    <label><input type="checkbox" id="rememberMe"> Recordar sesión</label>
     <button type="submit">Ingresar</button>
   </form>
 </div>
 
-<div id="dashboardDiv" style="display:none;">
+<div id="dashboardDiv">
 <h1>Panel Admin — Agregar / Editar Producto</h1>
 
 <form id="productForm">
@@ -314,9 +275,6 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
   </div>
 </div>
 
-<button id="logoutBtn">Cerrar sesión</button>
-</div>
-
 <div class="discount-panel">
   <h3>Descuentos</h3>
   <label><input type="radio" name="discount" value="0" checked> Sin descuento</label>
@@ -325,5 +283,7 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
   <label><input type="radio" name="discount" value="30"> 30%</label>
 </div>
 
+<button id="logoutBtn">Cerrar sesión</button>
+</div>
 </body>
 </html>
