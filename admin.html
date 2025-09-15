@@ -7,7 +7,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, doc, getDoc, collection, onSnapshot, updateDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, doc, getDocs, query, where, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -26,17 +26,63 @@ const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
 const discountPanel = document.querySelector('.discount-panel');
-const form = document.getElementById('productForm');
-const imgInput = document.getElementById('img');
-const imgPreview = document.getElementById('imgPreview');
-let editId = null;
 let currentUserLocal = null;
+let editId = null;
 
-// Ocultar dashboard al inicio
-dashboardDiv.style.display = "none";
-discountPanel.style.display = "none";
-logoutBtn.style.display = "none";
-welcomeMessage.style.display = "none";
+// Funciones para mostrar/ocultar dashboard
+function showDashboard(username, local){
+  loginDiv.style.display = "none";
+  dashboardDiv.style.display = "flex";
+  welcomeMessage.style.display = "block";
+  discountPanel.style.display = "block";
+  logoutBtn.style.display = "block";
+  welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
+  currentUserLocal = local;
+  filterProductsByLocal();
+}
+
+function hideDashboard(){
+  loginDiv.style.display = "flex";
+  dashboardDiv.style.display = "none";
+  welcomeMessage.style.display = "none";
+  discountPanel.style.display = "none";
+  logoutBtn.style.display = "none";
+  currentUserLocal = null;
+}
+
+// Login
+document.getElementById("loginForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const rememberMe = document.getElementById("rememberMe").checked;
+
+  if(!username || !password) return alert("Todos los campos son obligatorios");
+
+  try {
+    // Buscar usuario por campo username
+    const usersRef = collection(db, "Users");
+    const q = query(usersRef, where("username", "==", username));
+    const querySnapshot = await getDocs(q);
+
+    if(querySnapshot.empty) return alert("Usuario no encontrado");
+
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+
+    if(userData.password !== password) return alert("Contraseña incorrecta");
+
+    // Guardar sesión
+    if(rememberMe) localStorage.setItem("session", JSON.stringify({username, local: userData.local}));
+    else sessionStorage.setItem("session", JSON.stringify({username, local: userData.local}));
+
+    showDashboard(userData.username, userData.local);
+
+  } catch(err){
+    console.error(err);
+    alert("Error al iniciar sesión: "+err.message);
+  }
+});
 
 // Revisa sesión guardada
 document.addEventListener("DOMContentLoaded", ()=>{
@@ -47,63 +93,14 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 });
 
-// Función para mostrar dashboard
-function showDashboard(username, local){
-  loginDiv.style.display = "none";
-  dashboardDiv.style.display = "flex";
-  discountPanel.style.display = "block";
-  logoutBtn.style.display = "block";
-  welcomeMessage.style.display = "block";
-  welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
-  currentUserLocal = local;
-  filterProductsByLocal();
-}
-
-// Ocultar dashboard
-function hideDashboard(){
-  loginDiv.style.display = "flex";
-  dashboardDiv.style.display = "none";
-  discountPanel.style.display = "none";
-  logoutBtn.style.display = "none";
-  welcomeMessage.style.display = "none";
-  currentUserLocal = null;
-}
-
-// LOGIN
-document.getElementById("loginForm").addEventListener("submit", async (e)=>{
-  e.preventDefault();
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value;
-  const rememberMe = document.getElementById("rememberMe").checked;
-
-  if(!username || !password) return alert("Todos los campos son obligatorios");
-
-  try{
-    const userRef = doc(db, "Users", username);
-    const userSnap = await getDoc(userRef);
-    if(!userSnap.exists()) return alert("Usuario no encontrado");
-    const data = userSnap.data();
-    if(data.password !== password) return alert("Contraseña incorrecta");
-
-    if(rememberMe) localStorage.setItem("session", JSON.stringify({username, local: data.local}));
-    else sessionStorage.setItem("session", JSON.stringify({username, local: data.local}));
-
-    showDashboard(username, data.local);
-
-  }catch(err){
-    console.error(err);
-    alert("Error al iniciar sesión: "+err.message);
-  }
-});
-
-// LOGOUT
+// Logout
 logoutBtn.addEventListener("click", ()=>{
   localStorage.removeItem("session");
   sessionStorage.removeItem("session");
   hideDashboard();
 });
 
-// --- Filtrar productos por local ---
+// Filtrar productos por local
 function filterProductsByLocal(){
   const productLists = {
     pizza: document.getElementById('pizzaList'),
@@ -117,7 +114,8 @@ function filterProductsByLocal(){
     Object.values(productLists).forEach(ul => ul.innerHTML = '');
     snapshot.forEach(d=>{
       const data = d.data();
-      if(data.local !== currentUserLocal) return;
+      if(data.local !== currentUserLocal) return; // Solo productos del local del usuario
+
       const li = document.createElement('li');
       li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
 
@@ -130,9 +128,7 @@ function filterProductsByLocal(){
         document.getElementById('price').value = data.price;
         document.getElementById('img').value = data.img;
         document.getElementById('category').value = data.category;
-        imgPreview.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
         editId = d.id;
-        form.querySelector('button').textContent = "Actualizar producto";
       });
 
       const btnDelete = document.createElement('button');
@@ -168,7 +164,7 @@ li span { flex:1; }
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
-.discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; display:flex; flex-direction:column;}
+.discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; display:flex; flex-direction:column; display:none;}
 #logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none;}
 </style>
 
@@ -186,7 +182,6 @@ li span { flex:1; }
 
 <div id="dashboardDiv">
 <h1>Panel Admin — Agregar / Editar Producto</h1>
-<p id="welcomeMessage"></p>
 
 <form id="productForm">
   <input type="text" id="name" placeholder="Nombre del producto" required>
