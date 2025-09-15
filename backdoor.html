@@ -4,9 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Backdoor - Gestor de Locales/Usuarios</title>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -19,6 +21,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
@@ -40,12 +43,15 @@ function showLogin(){
   welcomeMessage.style.display = "none";
 }
 
+// Listener de estado de autenticación
 onAuthStateChanged(auth, (user) => {
   if(user) showDashboard(user);
   else showLogin();
 });
 
 document.addEventListener("DOMContentLoaded", () => {
+
+  // Login
   const loginForm = document.getElementById("loginForm");
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -61,6 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Logout
   logoutBtn.addEventListener("click", async ()=>{
     try{
       await signOut(auth);
@@ -69,21 +76,65 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Secciones del sidebar
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
   menuItems.forEach(item => {
     item.addEventListener("click", () => {
       menuItems.forEach(i => i.classList.remove("active"));
       item.classList.add("active");
       const section = item.getAttribute("data-section");
-      document.getElementById("mainContent").innerHTML = `<h2>${section}</h2><p>Contenido de la sección ${section} aquí.</p>`;
+
+      if(section === "Crear Usuarios"){
+        // Formulario de creación de usuarios
+        document.getElementById("mainContent").innerHTML = `
+          <h2>Creación de Usuarios</h2>
+          <form id="createUserForm" class="form-container" style="background:#f3f3f3; color:#000; width:400px;">
+            <input type="email" id="newUsername" placeholder="Correo del Usuario" required>
+            <input type="password" id="newPassword" placeholder="Contraseña" required>
+            <input type="text" id="newLocal" placeholder="Nombre del Local" required>
+            <input type="text" id="creationDate" value="${new Date().toLocaleDateString()}" readonly>
+            <button type="submit">Guardar Usuario</button>
+          </form>
+        `;
+
+        const createUserForm = document.getElementById("createUserForm");
+        createUserForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const username = document.getElementById("newUsername").value;
+          const password = document.getElementById("newPassword").value;
+          const local = document.getElementById("newLocal").value;
+
+          try {
+            // Crear usuario en Firebase Authentication
+            const userCredential = await createUserWithEmailAndPassword(auth, username, password);
+            const user = userCredential.user;
+
+            // Guardar en Firestore
+            await setDoc(doc(db, "Users", user.uid), {
+              username: username,
+              local: local,
+              createdAt: serverTimestamp()
+            });
+
+            alert(`Usuario ${username} creado correctamente con local ${local}!`);
+            createUserForm.reset();
+          } catch(err){
+            alert("Error al crear usuario: "+err.message);
+          }
+        });
+
+      } else {
+        document.getElementById("mainContent").innerHTML = `<h2>${section}</h2><p>Contenido de la sección ${section} aquí.</p>`;
+      }
     });
   });
 
-  // Toggle sidebar solo en dashboard
+  // Toggle sidebar
   const toggleBtn = document.getElementById("toggleSidebarBtn");
   toggleBtn.addEventListener("click", () => {
     sidebar.classList.toggle("collapsed");
   });
+
 });
 </script>
 
@@ -186,7 +237,6 @@ button{
   box-shadow:2px 0 5px rgba(0,0,0,0.2);
   padding:0;
   transition: width 0.3s;
-  overflow:hidden;
 }
 
 #sidebarTop{
@@ -220,9 +270,9 @@ button{
   cursor:pointer;
   transition:0.2s;
   border-left:4px solid transparent;
-  display:flex;
-  align-items:center;
-  gap:10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #sidebarMenu ul li:hover{
@@ -240,12 +290,8 @@ button{
 }
 
 #sidebar.collapsed #sidebarMenu li{
-  justify-content:center;
-  padding:12px 0;
-}
-
-#sidebar.collapsed #sidebarMenu li span{
-  display:none; /* oculta texto, solo queda el ícono */
+  text-align:center;
+  padding:15px 0;
 }
 
 #sidebar.collapsed #sidebarTop{
@@ -253,11 +299,10 @@ button{
 }
 
 #sidebar.collapsed #toggleSidebarBtn{
-  padding:6px 8px;
   margin:0;
+  padding:6px 8px;
 }
 
-/* Main content */
 #mainContent{
   flex:1;
   margin-left:220px;
@@ -271,7 +316,6 @@ button{
   margin-left:60px;
 }
 
-/* Logout */
 #logoutBtn{
   background:#f43f5e;
   color:#fff;
@@ -283,36 +327,14 @@ button{
   width:auto;
   min-width:50px;
   margin:20px auto;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:5px;
 }
 
-#logoutBtn::before{
-  content:"🚪";
+#logoutBtn:hover{
+  background:#d32f45;
 }
-
-#sidebar.collapsed #logoutBtn span{
-  display:none;
-}
-
-#sidebar.collapsed #logoutBtn{
-  width:40px;
-  padding:12px 0;
-}
-
-.menu-text{
-  display:inline;
-}
-
-#sidebar.collapsed .menu-text{
-  display:none;
-}
-
 </style>
-</head>
 
+</head>
 <body>
 <header>
   <div class="header-title">Gestor de Locales/Usuarios</div>
@@ -337,12 +359,12 @@ button{
     </div>
     <div id="sidebarMenu">
       <ul>
-        <li data-section="Crear Usuarios">📄<span class="menu-text">Creación de Usuarios</span></li>
-        <li data-section="Gestión de Locales">🏢<span class="menu-text">Gestión Visual de Locales</span></li>
-        <li data-section="Otra Sección">⚙️<span class="menu-text">Otra Sección</span></li>
+        <li data-section="Crear Usuarios" class="active">Creación de Usuarios</li>
+        <li data-section="Gestión de Locales">Gestión Visual de Locales</li>
+        <li data-section="Otra Sección">Otra Sección</li>
       </ul>
     </div>
-    <button id="logoutBtn"><span>Cerrar sesión</span></button>
+    <button id="logoutBtn">Cerrar sesión</button>
   </div>
 
   <div id="mainContent">
