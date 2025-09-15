@@ -192,10 +192,11 @@ button{
   flex-direction:column;
   padding-top:100px;
   box-shadow:2px 0 5px rgba(0,0,0,0.2);
+  justify-content: space-between; /* empuja el botón al final */
 }
 
 #sidebar ul{
-  list-style:none;
+  list-style: none;
   padding:0;
   margin:0;
 }
@@ -225,7 +226,7 @@ button{
   overflow-x:hidden;
 }
 
-/* Botón cerrar sesión en sidebar */
+/* Botón cerrar sesión */
 #logoutBtn{
   background:#f43f5e;
   color:#fff;
@@ -236,10 +237,7 @@ button{
   font-weight:bold;
   width:auto;
   min-width:120px;
-  position:absolute;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
+  margin:20px auto; /* centrado horizontal */
 }
 
 #logoutBtn:hover{
