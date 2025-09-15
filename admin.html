@@ -29,7 +29,6 @@ const discountPanel = document.querySelector('.discount-panel');
 let currentUserLocal = null;
 let editId = null;
 
-// Mostrar dashboard
 function showDashboard(username, local){
   loginDiv.style.display = "none";
   dashboardDiv.style.display = "flex";
@@ -41,7 +40,6 @@ function showDashboard(username, local){
   filterProductsByLocal();
 }
 
-// Ocultar dashboard
 function hideDashboard(){
   loginDiv.style.display = "flex";
   dashboardDiv.style.display = "none";
@@ -164,8 +162,10 @@ li span { flex:1; }
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
-.discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; display:none; flex-direction:column;}
+.discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; display:flex; flex-direction:column;}
 #logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none;}
+#loginDiv { display:flex; justify-content:center; align-items:center; height:100vh; }
+#dashboardDiv { display:none; flex-direction:column; align-items:center; width:100%; max-width:600px; }
 </style>
 
 </head>
@@ -235,7 +235,7 @@ li span { flex:1; }
 </div>
 
 <button id="logoutBtn">Cerrar sesión</button>
-</div>
 
+</div>
 </body>
 </html>
