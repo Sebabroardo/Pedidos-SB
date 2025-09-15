@@ -25,30 +25,25 @@ const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
 
-// Inicialmente ocultar la bienvenida
 welcomeMessage.style.display = "none";
 
-// Mostrar dashboard
 function showDashboard(user){
   loginDiv.style.display = "none";
   dashboardDiv.style.display = "flex";
-  welcomeMessage.style.display = "block"; // mostrar bienvenida
+  welcomeMessage.style.display = "block";
 }
 
-// Mostrar login
 function showLogin(){
   dashboardDiv.style.display = "none";
   loginDiv.style.display = "flex";
-  welcomeMessage.style.display = "none"; // ocultar durante login
+  welcomeMessage.style.display = "none";
 }
 
-// Listener global
 onAuthStateChanged(auth, (user) => {
   if(user) showDashboard(user);
   else showLogin();
 });
 
-// Login
 document.addEventListener("DOMContentLoaded", () => {
   const loginForm = document.getElementById("loginForm");
   loginForm.addEventListener("submit", async (e) => {
@@ -65,7 +60,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Cerrar sesión
   logoutBtn.addEventListener("click", async ()=>{
     try{
       await signOut(auth);
@@ -74,7 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Sidebar menu click
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
   menuItems.forEach(item => {
     item.addEventListener("click", () => {
@@ -96,10 +89,9 @@ body{
   min-height:100vh;
   display:flex;
   flex-direction:column;
-  overflow-x: hidden; /* evita scroll horizontal */
+  overflow-x: hidden;
 }
 
-/* Header */
 header{
   width:100%;
   padding:20px;
@@ -113,11 +105,6 @@ header{
   gap:8px;
 }
 
-.header-title{
-  font-size:24px;
-  font-weight:bold;
-}
-
 .header-subtitle{
   font-size:16px;
   font-weight:normal;
@@ -125,7 +112,6 @@ header{
   display:none;
 }
 
-/* Login */
 #loginDiv{
   flex:1;
   display:flex;
@@ -171,15 +157,13 @@ button{
   width:100%;
 }
 
-/* Dashboard */
 #dashboardDiv{
   display:none;
-  flex-direction:row; /* sidebar + contenido */
+  flex-direction:row;
   height:100vh;
   overflow-x:hidden;
 }
 
-/* Sidebar */
 #sidebar{
   position:fixed;
   top:0;
@@ -190,9 +174,13 @@ button{
   color:#fff;
   display:flex;
   flex-direction:column;
-  justify-content: space-between; /* empuja el botón al final */
+  justify-content:space-between; /* empuja botón al final */
   box-shadow:2px 0 5px rgba(0,0,0,0.2);
-  padding-top:100px;
+  padding:0;
+}
+
+#sidebarMenu{
+  margin-top:100px; /* separa el menú de la parte superior */
 }
 
 #sidebarMenu ul{
@@ -217,16 +205,14 @@ button{
   background:#1f222a;
 }
 
-/* Contenido principal */
 #mainContent{
   flex:1;
-  margin-left:220px; /* espacio para sidebar */
+  margin-left:220px;
   max-width:1000px;
   padding:20px;
   overflow-x:hidden;
 }
 
-/* Botón cerrar sesión */
 #logoutBtn{
   background:#f43f5e;
   color:#fff;
@@ -237,7 +223,7 @@ button{
   font-weight:bold;
   width:auto;
   min-width:120px;
-  margin:20px auto; /* centrado horizontal */
+  margin:20px auto;
 }
 
 #logoutBtn:hover{
@@ -276,9 +262,7 @@ button{
   </div>
 
   <div id="mainContent">
-    <!-- Aquí se mostrará el contenido según la sección seleccionada -->
   </div>
 </div>
-
 </body>
 </html>
