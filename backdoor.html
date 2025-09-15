@@ -1,210 +1,200 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Backdoor - Gestor de Locales/Usuarios</title>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backdoor - Gestor de Locales/Usuarios</title>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
-      authDomain: "santa-roti.firebaseapp.com",
-      projectId: "santa-roti",
-      storageBucket: "santa-roti.appspot.com",
-      messagingSenderId: "66221970620",
-      appId: "1:66221970620:web:53083ce7727ff85e6d2cb9"
-    };
+const firebaseConfig = {
+  apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+  authDomain: "santa-roti.firebaseapp.com",
+  projectId: "santa-roti",
+  storageBucket: "santa-roti.appspot.com",
+  messagingSenderId: "66221970620",
+  appId: "1:66221970620:web:53083ce7727ff85e6d2cb9"
+};
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-    const loginDiv = document.getElementById("loginDiv");
-    const dashboardDiv = document.getElementById("dashboardDiv");
-    const logoutBtn = document.getElementById("logoutBtn");
+const loginDiv = document.getElementById("loginDiv");
+const dashboardDiv = document.getElementById("dashboardDiv");
+const logoutBtn = document.getElementById("logoutBtn");
 
-    // Función para mostrar dashboard
-    function showDashboard(user) {
-      loginDiv.style.display = "none";
-      dashboardDiv.style.display = "flex";
+// Mostrar dashboard
+function showDashboard(user){
+  loginDiv.style.display = "none";
+  dashboardDiv.style.display = "flex";
+}
+
+// Mostrar login
+function showLogin(){
+  dashboardDiv.style.display = "none";
+  loginDiv.style.display = "flex";
+}
+
+// Listener global
+onAuthStateChanged(auth, (user) => {
+  if(user) showDashboard(user);
+  else showLogin();
+});
+
+// Login
+document.addEventListener("DOMContentLoaded", () => {
+  const loginForm = document.getElementById("loginForm");
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const rememberMe = document.getElementById("rememberMe").checked;
+
+    try {
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      await signInWithEmailAndPassword(auth,email,password);
+    } catch(err){
+      alert("Error: "+err.message);
     }
+  });
 
-    // Función para mostrar login
-    function showLogin() {
-      dashboardDiv.style.display = "none";
-      loginDiv.style.display = "flex";
+  // Cerrar sesión
+  logoutBtn.addEventListener("click", async ()=>{
+    try{
+      await signOut(auth);
+    }catch(err){
+      alert("Error al cerrar sesión: "+err.message);
     }
+  });
+});
+</script>
 
-    // Listener global: si ya está logueado lo mostramos en dashboard
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        showDashboard(user);
-      } else {
-        showLogin();
-      }
-    });
+<style>
+body{
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#ffffff;
+  color:#000;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
 
-    // Login
-    document.addEventListener("DOMContentLoaded", () => {
-      const loginForm = document.getElementById("loginForm");
-      loginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const email = document.getElementById("email").value;
-        const password = document.getElementById("password").value;
-        const rememberMe = document.getElementById("rememberMe").checked;
+/* Header arriba */
+header{
+  width:100%;
+  padding:20px;
+  text-align:center;
+  font-size:24px;
+  font-weight:bold;
+  background:#ffffff;
+  border-bottom:1px solid #ccc;
+}
 
-        try {
-          await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-          await signInWithEmailAndPassword(auth, email, password);
-        } catch (error) {
-          alert("Error: " + error.message);
-        }
-      });
+/* Login */
+#loginDiv{
+  flex:1;
+  display:flex;
+  justify-content:flex-start; /* cerca del header */
+  align-items:center;
+  padding-top:50px;
+}
 
-      // Cerrar sesión
-      logoutBtn.addEventListener("click", async () => {
-        try {
-          await signOut(auth);
-        } catch (error) {
-          alert("Error al cerrar sesión: " + error.message);
-        }
-      });
-    });
-  </script>
+.form-container{
+  background:#171a21;
+  padding:20px;
+  border-radius:12px;
+  width:300px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  color:#fff;
+  align-items:center;
+  box-shadow:0 4px 15px rgba(0,0,0,0.3);
+}
 
-  <style>
-    /* Body general */
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #ffffff; /* fondo blanco */
-      color: #000;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+input{
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  font-size:14px;
+  width:100%;
+}
+label{
+  font-size:14px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+button{
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:#22c55e;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer;
+  width:100%;
+}
 
-    /* Header fijo arriba */
-    header {
-      width: 100%;
-      padding: 20px;
-      text-align: center;
-      font-size: 24px;
-      font-weight: bold;
-      background: #ffffff;
-      border-bottom: 1px solid #ccc;
-    }
+/* Dashboard */
+#dashboardDiv{
+  display:none;
+  flex-direction:column;
+  height:100vh;
+  justify-content:center;
+  align-items:center;
+  position:relative;
+}
 
-    /* Contenedor principal del login */
-    #loginDiv {
-      flex: 1;
-      display: flex;
-      justify-content: flex-start; /* movemos hacia arriba */
-      align-items: center;         /* centrar horizontal */
-      padding-top: 50px;           /* espacio desde header */
-    }
+#dashboardDiv main{
+  font-size:20px;
+  width:100%;
+  max-width:600px;
+  padding:20px;
+  text-align:center;
+  box-sizing:border-box;
+}
 
-    /* Formulario del login */
-    .form-container {
-      background: #171a21;      
-      padding: 20px;
-      border-radius: 12px;
-      width: 300px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      color: #fff;
-      align-items: center;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-
-    /* Inputs y labels */
-    input {
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      font-size: 14px;
-      width: 100%;
-    }
-    label {
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* Botón login */
-    button {
-      padding: 10px;
-      border: none;
-      border-radius: 8px;
-      background: #22c55e;
-      color: #fff;
-      font-weight: bold;
-      cursor: pointer;
-      width: 100%;
-    }
-
-    /* Dashboard */
-    #dashboardDiv {
-      display: none;
-      flex-direction: column;
-      height: 100vh;
-      justify-content: center;
-      align-items: center;
-      position: relative;
-    }
-
-    #dashboardDiv main {
-      font-size: 20px;
-      width: 100%;
-      max-width: 600px;
-      padding: 20px;
-      text-align: center;
-      box-sizing: border-box;
-    }
-
-    /* Botón cerrar sesión en el medio abajo */
-    #logoutBtn {
-      position: absolute;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #f43f5e; /* rojo */
-      color: #fff;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    #logoutBtn:hover {
-      background: #d32f45;
-    }
-  </style>
+/* Botón cerrar sesión en centro abajo */
+#logoutBtn{
+  position:absolute;
+  bottom:40px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#f43f5e;
+  color:#fff;
+  border:none;
+  padding:12px 20px;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:bold;
+}
+#logoutBtn:hover{
+  background:#d32f45;
+}
+</style>
 </head>
+
 <body>
-  <!-- Header general arriba -->
-  <header>Gestor de Locales/Usuarios</header>
+<header>Gestor de Locales/Usuarios</header>
 
-  <!-- Login centrado arriba -->
-  <div id="loginDiv">
-    <form id="loginForm" class="form-container">
-      <input type="email" id="email" placeholder="Correo electrónico" required>
-      <input type="password" id="password" placeholder="Contraseña" required>
-      <label><input type="checkbox" id="rememberMe"> Recordar sesión</label>
-      <button type="submit">Ingresar</button>
-    </form>
-  </div>
+<div id="loginDiv">
+  <form id="loginForm" class="form-container">
+    <input type="email" id="email" placeholder="Correo electrónico" required>
+    <input type="password" id="password" placeholder="Contraseña" required>
+    <label><input type="checkbox" id="rememberMe"> Recordar sesión</label>
+    <button type="submit">Ingresar</button>
+  </form>
+</div>
 
-  <!-- Dashboard oculto al inicio -->
-  <div id="dashboardDiv">
-    <header>Gestor de Locales/Usuarios</header>
-    <main>
-      Bienvenido al Panel Backdoor. Aquí podrás gestionar usuarios y locales.
-    </main>
-    <button id="logoutBtn">Cerrar sesión</button>
-  </div>
+<div id="dashboardDiv">
+  <main>
+    Bienvenido al Panel Backdoor. Aquí podrás gestionar usuarios y locales.
+  </main>
+  <button id="logoutBtn">Cerrar sesión</button>
+</div>
+
 </body>
 </html>
