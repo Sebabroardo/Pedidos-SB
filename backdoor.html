@@ -75,17 +75,107 @@
   </script>
 
   <style>
-    body { margin: 0; font-family: Arial, sans-serif; background:#f0f0f0; color:#000; display:flex; flex-direction:column; align-items:center; min-height:100vh; }
-    header { width: 100%; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; position: relative; background: #ffffff; border-bottom:1px solid #ccc; }
-    #logoutBtn { position:absolute; top:20px; right:20px; background:#f43f5e; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold; }
-    #logoutBtn:hover { background:#d32f45; }
-    .form-container { background:#171a21; padding:20px; border-radius:12px; width:300px; display:flex; flex-direction:column; gap:12px; color:#fff; margin-top:50px; }
-    input { padding:10px; border-radius:8px; border:none; font-size:14px; }
-    label { font-size:14px; display:flex; align-items:center; gap:6px; }
-    button { padding:10px; border:none; border-radius:8px; background:#22c55e; color:#fff; font-weight:bold; cursor:pointer; }
-    main { flex:1; display:flex; justify-content:center; align-items:center; font-size:20px; margin-top:40px; }
-    /* Ocultar dashboard al inicio */
-    #dashboardDiv { display:none; width:100%; background:#ffffff; min-height:100vh; }
+    body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f0f0f0;
+  color: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+}
+
+/* Contenedor principal de cada “pantalla” */
+#loginDiv, #dashboardDiv {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Header fijo arriba */
+header {
+  width: 100%;
+  padding: 20px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  position: relative;
+  background: #ffffff;
+  border-bottom:1px solid #ccc;
+}
+
+/* Botón cerrar sesión */
+#logoutBtn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #f43f5e;
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+#logoutBtn:hover { background: #d32f45; }
+
+/* Contenedor del login */
+.form-container {
+  background: #171a21;
+  padding: 20px;
+  border-radius: 12px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #fff;
+  margin-top: 50px;
+  align-items: center;
+}
+
+/* Inputs y labels */
+input {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  width: 100%;
+}
+label {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Botón login */
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #22c55e;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* Dashboard */
+main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  width: 100%;
+  min-height: calc(100vh - 80px); /* resta header */
+  background: #ffffff;
+}
+
+/* Ocultar dashboard al inicio */
+#dashboardDiv { display: none; }
   </style>
 </head>
 <body>
