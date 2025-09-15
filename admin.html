@@ -7,8 +7,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -33,196 +33,139 @@ const form = document.getElementById('productForm');
 const imgInput = document.getElementById('img');
 const imgPreview = document.getElementById('imgPreview');
 let editId = null;
+let currentUserLocal = null;
 
 // Ocultar dashboard y paneles al inicio
 dashboardDiv.style.display = "none";
 discountPanel.style.display = "none";
 welcomeMessage.style.display = "none";
+logoutBtn.style.display = "none";
 
-// Login
+// LOGIN usando nombre de usuario
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
-  const email = document.getElementById("email").value;
+  const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value;
   const rememberMe = document.getElementById("rememberMe").checked;
+
+  if(!username || !password) return alert("Todos los campos son obligatorios");
+
   try {
-    await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-    await signInWithEmailAndPassword(auth,email,password);
+    // Buscar usuario en Firestore
+    const userRef = doc(db, "Users", username);
+    const userSnap = await getDoc(userRef);
+    if(!userSnap.exists()) return alert("Usuario no encontrado");
+    const userData = userSnap.data();
+    if(userData.password !== password) return alert("Contraseña incorrecta");
+
+    // Guardar local asignado
+    currentUserLocal = userData.local;
+
+    // Mostrar dashboard
+    loginDiv.style.display = "none";
+    dashboardDiv.style.display = "flex";
+    welcomeMessage.style.display = "block";
+    discountPanel.style.display = "block";
+    logoutBtn.style.display = "block";
+
+    welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${currentUserLocal}`;
+
+    // Filtrar productos por local
+    filterProductsByLocal();
+
   } catch(err){
-    alert("Error: "+err.message);
+    console.error(err);
+    alert("Error al iniciar sesión: "+err.message);
   }
 });
 
 // Cerrar sesión
 logoutBtn.addEventListener("click", async ()=>{
-  try{
-    await signOut(auth);
-  }catch(err){
-    alert("Error al cerrar sesión: "+err.message);
-  }
+  currentUserLocal = null;
+  loginDiv.style.display = "flex";
+  dashboardDiv.style.display = "none";
+  welcomeMessage.style.display = "none";
+  discountPanel.style.display = "none";
+  logoutBtn.style.display = "none";
 });
 
-// Detectar cambios de estado
-onAuthStateChanged(auth, user=>{
-  if(user){
-    loginDiv.style.display = "none";
-    dashboardDiv.style.display = "flex";
-    welcomeMessage.style.display = "block";
-    discountPanel.style.display = "block";
-  }else{
-    loginDiv.style.display = "flex";
-    dashboardDiv.style.display = "none";
-    welcomeMessage.style.display = "none";
-    discountPanel.style.display = "none";
-  }
-});
+// --- Función para filtrar productos por local ---
+function filterProductsByLocal(){
+  // Escuchar productos
+  const productLists = {
+    pizza: document.getElementById('pizzaList'),
+    hamburguesa: document.getElementById('hamburguesaList'),
+    papas: document.getElementById('papasList'),
+    "menu especial": document.getElementById('menuEspecialList'),
+    extras: document.getElementById('extrasList')
+  };
 
-// Vista previa de imagen
-imgInput.addEventListener('input', () => {
-  const url = imgInput.value.trim();
-  imgPreview.src = url || "https://via.placeholder.com/150x100?text=Sin+imagen";
-});
+  onSnapshot(collection(db, "productos"), snapshot => {
+    Object.values(productLists).forEach(ul => ul.innerHTML = '');
 
-// Guardar producto (nuevo o editado)
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('name').value.trim();
-  const desc = document.getElementById('desc').value.trim();
-  const price = parseInt(document.getElementById('price').value);
-  const img = document.getElementById('img').value.trim();
-  const category = document.getElementById('category').value;
+    snapshot.forEach(d => {
+      const data = d.data();
+      if(data.local !== currentUserLocal) return; // solo productos del local del usuario
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
 
-  if(!name || !desc || !price || !category) return alert('Todos los campos son obligatorios');
-  if(price <= 0) return alert('El precio debe ser mayor a 0');
+      const btnEdit = document.createElement('button');
+      btnEdit.textContent = 'Editar';
+      btnEdit.className = 'btn-edit';
+      btnEdit.addEventListener('click', () => {
+        document.getElementById('name').value = data.name;
+        document.getElementById('desc').value = data.desc;
+        document.getElementById('price').value = data.price;
+        document.getElementById('img').value = data.img;
+        document.getElementById('category').value = data.category;
+        imgPreview.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
+        editId = d.id;
+        form.querySelector('button').textContent = "Actualizar producto";
+      });
 
-  try {
-    if(editId) {
-      await updateDoc(doc(db, "productos", editId), { name, desc, price, img: img || "", category });
-      alert('Producto actualizado correctamente');
-      editId = null;
-      form.querySelector('button').textContent = "Guardar producto";
-    } else {
-      await addDoc(collection(db, "productos"), { name, desc, price, img: img || "", category });
-      alert('Producto agregado correctamente');
-    }
-    form.reset();
-    imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-  } catch(err) {
-    console.error(err);
-    alert('Error al guardar producto');
-  }
-});
+      const btnDelete = document.createElement('button');
+      btnDelete.textContent = 'Borrar';
+      btnDelete.className = 'btn-delete';
+      btnDelete.addEventListener('click', async () => {
+        if(confirm(`¿Eliminar ${data.name}?`)) {
+          await deleteDoc(doc(db, "productos", d.id));
+        }
+      });
 
-// Listar productos por categoría en tiempo real
-const productLists = {
-  pizza: document.getElementById('pizzaList'),
-  hamburguesa: document.getElementById('hamburguesaList'),
-  papas: document.getElementById('papasList'),
-  "menu especial": document.getElementById('menuEspecialList'),
-  extras: document.getElementById('extrasList')
-};
+      li.appendChild(btnEdit);
+      li.appendChild(btnDelete);
 
-onSnapshot(collection(db, "productos"), snapshot => {
-  Object.values(productLists).forEach(ul => ul.innerHTML = '');
-
-  snapshot.forEach(d => {
-    const data = d.data();
-    const li = document.createElement('li');
-    li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
-
-    const btnEdit = document.createElement('button');
-    btnEdit.textContent = 'Editar';
-    btnEdit.className = 'btn-edit';
-    btnEdit.addEventListener('click', () => {
-      document.getElementById('name').value = data.name;
-      document.getElementById('desc').value = data.desc;
-      document.getElementById('price').value = data.price;
-      document.getElementById('img').value = data.img;
-      document.getElementById('category').value = data.category;
-      imgPreview.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
-      editId = d.id;
-      form.querySelector('button').textContent = "Actualizar producto";
-    });
-
-    const btnDelete = document.createElement('button');
-    btnDelete.textContent = 'Borrar';
-    btnDelete.className = 'btn-delete';
-    btnDelete.addEventListener('click', async () => {
-      if(confirm(`¿Eliminar ${data.name}?`)) {
-        await deleteDoc(doc(db, "productos", d.id));
-      }
-    });
-
-    li.appendChild(btnEdit);
-    li.appendChild(btnDelete);
-
-    const cat = data.category?.trim().toLowerCase();
-    if(productLists[cat]) productLists[cat].appendChild(li);
-  });
-});
-
-// Buscador dinámico por NOMBRE de producto solamente
-const searchInput = document.getElementById('searchInput');
-searchInput.addEventListener('input', () => {
-  const query = searchInput.value.trim().toLowerCase();
-  Object.values(productLists).forEach(ul => {
-    Array.from(ul.children).forEach(li => {
-      const spanText = li.querySelector('span').textContent;
-      const productName = spanText.split('—')[0].trim().toLowerCase();
-      li.style.display = productName.includes(query) ? 'flex' : 'none';
+      const cat = data.category?.trim().toLowerCase();
+      if(productLists[cat]) productLists[cat].appendChild(li);
     });
   });
-});
-
-// --- PANEL DE DESCUENTOS ---
-const discountRadios = document.querySelectorAll('input[name="discount"]');
-const discountDocRef = doc(db, "settings", "discount");
-
-discountRadios.forEach(radio => {
-  radio.addEventListener('change', async () => {
-    const value = parseInt(radio.value);
-    try {
-      await updateDoc(discountDocRef, { value });
-    } catch(err) {
-      await setDoc(discountDocRef, { value });
-    }
-    alert(`Descuento aplicado: ${value}%`);
-  });
-});
-
-onSnapshot(discountDocRef, snapshot => {
-  if(snapshot.exists()){
-    const val = snapshot.data().value || 0;
-    discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
-  }
-});
+}
 </script>
 
 <style>
 body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
-h1, h2, h3 { margin-bottom:20px;}
+h1,h2,h3 { margin-bottom:20px; }
 form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
 input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
 button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
 ul { list-style:none; padding:0; margin-top:10px; width:100%; max-width:500px; }
 li { display:flex; justify-content:space-between; background:#171a21; padding:10px; border-radius:8px; margin-bottom:8px; align-items:center; gap:10px;}
 li span { flex:1; }
-li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; font-size:13px; }
 .btn-delete { background:#f43f5e; color:#fff; }
 .btn-edit { background:#3b82f6; color:#fff; }
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
 .discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; display:flex; flex-direction:column;}
-.discount-panel label { display:block; margin-bottom:6px; cursor:pointer; }
 #logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none;}
 </style>
 
 </head>
 <body>
+
 <div id="loginDiv">
   <form id="loginForm" class="form-container">
-    <input type="text" id="email" placeholder="Nombre de usuario" required>
+    <input type="text" id="username" placeholder="Nombre de usuario" required>
     <input type="password" id="password" placeholder="Contraseña" required>
     <label><input type="checkbox" id="rememberMe"> Recordar sesión</label>
     <button type="submit">Ingresar</button>
@@ -285,5 +228,6 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 
 <button id="logoutBtn">Cerrar sesión</button>
 </div>
+
 </body>
 </html>
