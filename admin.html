@@ -7,7 +7,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -21,18 +21,45 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// --- LOGIN DE USUARIO ---
+let currentLocal = null;
+
+async function loginUser() {
+  const username = prompt("Ingrese su nombre de usuario:");
+  const password = prompt("Ingrese su contraseña:");
+
+  if(!username || !password) return alert("Usuario y contraseña son requeridos");
+
+  try {
+    // Buscar usuario en colección 'Users'
+    const q = query(collection(db, "Users"), where("username", "==", username), where("password", "==", password));
+    const snapshot = await getDocs(q);
+    if(snapshot.empty) {
+      alert("Usuario o contraseña incorrectos");
+      return;
+    }
+    // Tomar el primer resultado
+    const userDoc = snapshot.docs[0];
+    currentLocal = userDoc.data().local;
+    alert(`Bienvenido, ${username}. Local asignado: ${currentLocal}`);
+    loadProductsForLocal(currentLocal); // Cargar productos del local
+  } catch(err) {
+    console.error(err);
+    alert("Error al iniciar sesión");
+  }
+}
+
+// --- PRODUCTOS ---
 const form = document.getElementById('productForm');
 const imgInput = document.getElementById('img');
 const imgPreview = document.getElementById('imgPreview');
 let editId = null;
 
-// Vista previa de imagen
 imgInput.addEventListener('input', () => {
   const url = imgInput.value.trim();
   imgPreview.src = url || "https://via.placeholder.com/150x100?text=Sin+imagen";
 });
 
-// Guardar producto (nuevo o editado)
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('name').value.trim();
@@ -46,23 +73,23 @@ form.addEventListener('submit', async (e) => {
 
   try {
     if(editId) {
-      await updateDoc(doc(db, "productos", editId), { name, desc, price, img: img || "", category });
+      await updateDoc(doc(db, "productos", editId), { name, desc, price, img: img || "", category, local: currentLocal });
       alert('Producto actualizado correctamente');
       editId = null;
       form.querySelector('button').textContent = "Guardar producto";
     } else {
-      await addDoc(collection(db, "productos"), { name, desc, price, img: img || "", category });
+      await addDoc(collection(db, "productos"), { name, desc, price, img: img || "", category, local: currentLocal });
       alert('Producto agregado correctamente');
     }
     form.reset();
     imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+    loadProductsForLocal(currentLocal);
   } catch(err) {
     console.error(err);
     alert('Error al guardar producto');
   }
 });
 
-// Listar productos por categoría en tiempo real
 const productLists = {
   pizza: document.getElementById('pizzaList'),
   hamburguesa: document.getElementById('hamburguesaList'),
@@ -71,15 +98,17 @@ const productLists = {
   extras: document.getElementById('extrasList')
 };
 
-onSnapshot(collection(db, "productos"), snapshot => {
+// --- CARGAR PRODUCTOS SEGÚN LOCAL ---
+async function loadProductsForLocal(local) {
+  const snapshot = await getDocs(collection(db, "productos"));
   Object.values(productLists).forEach(ul => ul.innerHTML = '');
-
   snapshot.forEach(d => {
     const data = d.data();
+    if(data.local !== local) return; // Mostrar solo productos del local asignado
+
     const li = document.createElement('li');
     li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
 
-    // Botón editar
     const btnEdit = document.createElement('button');
     btnEdit.textContent = 'Editar';
     btnEdit.className = 'btn-edit';
@@ -94,13 +123,13 @@ onSnapshot(collection(db, "productos"), snapshot => {
       form.querySelector('button').textContent = "Actualizar producto";
     });
 
-    // Botón borrar
     const btnDelete = document.createElement('button');
     btnDelete.textContent = 'Borrar';
     btnDelete.className = 'btn-delete';
     btnDelete.addEventListener('click', async () => {
       if(confirm(`¿Eliminar ${data.name}?`)) {
         await deleteDoc(doc(db, "productos", d.id));
+        loadProductsForLocal(local);
       }
     });
 
@@ -110,26 +139,25 @@ onSnapshot(collection(db, "productos"), snapshot => {
     const cat = data.category?.trim().toLowerCase();
     if(productLists[cat]) productLists[cat].appendChild(li);
   });
-});
+}
 
-// Buscador dinámico por NOMBRE de producto solamente
+// --- BUSCADOR ---
 const searchInput = document.getElementById('searchInput');
 searchInput.addEventListener('input', () => {
   const query = searchInput.value.trim().toLowerCase();
   Object.values(productLists).forEach(ul => {
     Array.from(ul.children).forEach(li => {
       const spanText = li.querySelector('span').textContent;
-      const productName = spanText.split('—')[0].trim().toLowerCase(); // Solo nombre
+      const productName = spanText.split('—')[0].trim().toLowerCase();
       li.style.display = productName.includes(query) ? 'flex' : 'none';
     });
   });
 });
 
-// --- PANEL DE DESCUENTOS ---
+// --- DESCUENTOS ---
 const discountRadios = document.querySelectorAll('input[name="discount"]');
 const discountDocRef = doc(db, "settings", "discount");
 
-// Escuchar cambios y guardar en Firestore
 discountRadios.forEach(radio => {
   radio.addEventListener('change', async () => {
     const value = parseInt(radio.value);
@@ -142,13 +170,16 @@ discountRadios.forEach(radio => {
   });
 });
 
-// Cargar valor actual al abrir Admin
 onSnapshot(discountDocRef, snapshot => {
   if(snapshot.exists()){
     const val = snapshot.data().value || 0;
     discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
   }
 });
+
+// --- INICIAR LOGIN AUTOMÁTICO ---
+loginUser();
+
 </script>
 
 <style>
@@ -168,13 +199,13 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
 .discount-panel { margin-top:30px; padding:20px; background:#171a21; border-radius:12px; width:320px; }
 .discount-panel label { display:block; margin-bottom:6px; cursor:pointer; }
-  .discount-panel {
+.discount-panel {
   position: fixed;
   top: 20px;
   left: 20px;
   padding: 20px;
-  background: #fff;      /* fondo blanco */
-  color: #000;           /* texto negro para legibilidad */
+  background: #fff;      
+  color: #000;           
   border-radius: 12px;
   width: 200px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
@@ -185,7 +216,6 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
   margin-bottom: 6px;
   cursor: pointer;
 }
-
 </style>
 </head>
 <body>
@@ -243,4 +273,4 @@ li button { border:none; border-radius:6px; cursor:pointer; padding:5px 10px; fo
 </div>
 
 </body>
-</html
+</html>
