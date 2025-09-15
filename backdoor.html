@@ -7,7 +7,6 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -20,7 +19,6 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 
 const loginDiv = document.getElementById("loginDiv");
@@ -31,7 +29,8 @@ const sidebar = document.getElementById("sidebar");
 
 welcomeMessage.style.display = "none";
 
-function showDashboard(user){
+// Funciones para mostrar login o dashboard
+function showDashboard(){
   loginDiv.style.display = "none";
   dashboardDiv.style.display = "flex";
   welcomeMessage.style.display = "block";
@@ -43,38 +42,10 @@ function showLogin(){
   welcomeMessage.style.display = "none";
 }
 
-// Listener de estado de autenticación
-onAuthStateChanged(auth, (user) => {
-  if(user) showDashboard(user);
-  else showLogin();
-});
+// Inicializamos la página mostrando el dashboard directamente (no autenticación)
+showDashboard();
 
 document.addEventListener("DOMContentLoaded", () => {
-
-  // Login
-  const loginForm = document.getElementById("loginForm");
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    const rememberMe = document.getElementById("rememberMe").checked;
-
-    try {
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-      await signInWithEmailAndPassword(auth,email,password);
-    } catch(err){
-      alert("Error: "+err.message);
-    }
-  });
-
-  // Logout
-  logoutBtn.addEventListener("click", async ()=>{
-    try{
-      await signOut(auth);
-    }catch(err){
-      alert("Error al cerrar sesión: "+err.message);
-    }
-  });
 
   // Secciones del sidebar
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
@@ -89,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("mainContent").innerHTML = `
           <h2>Creación de Usuarios</h2>
           <form id="createUserForm" class="form-container" style="background:#f3f3f3; color:#000; width:400px;">
-            <input type="email" id="newUsername" placeholder="Correo del Usuario" required>
+            <input type="text" id="newUsername" placeholder="Nombre de Usuario" required>
             <input type="password" id="newPassword" placeholder="Contraseña" required>
             <input type="text" id="newLocal" placeholder="Nombre del Local" required>
             <input type="text" id="creationDate" value="${new Date().toLocaleDateString()}" readonly>
@@ -105,13 +76,11 @@ document.addEventListener("DOMContentLoaded", () => {
           const local = document.getElementById("newLocal").value;
 
           try {
-            // Crear usuario en Firebase Authentication
-            const userCredential = await createUserWithEmailAndPassword(auth, username, password);
-            const user = userCredential.user;
-
-            // Guardar en Firestore
-            await setDoc(doc(db, "Users", user.uid), {
+            // Crear documento en Firestore con un ID automático
+            const docRef = doc(db, "Users", username); // Usamos nombre de usuario como ID
+            await setDoc(docRef, {
               username: username,
+              password: password,
               local: local,
               createdAt: serverTimestamp()
             });
@@ -217,7 +186,7 @@ button{
 
 /* Dashboard */
 #dashboardDiv{
-  display:none;
+  display:flex;
   flex-direction:row;
   height:100vh;
   overflow-x:hidden;
@@ -343,13 +312,8 @@ button{
   </div>
 </header>
 
-<div id="loginDiv">
-  <form id="loginForm" class="form-container">
-    <input type="email" id="email" placeholder="Correo electrónico" required>
-    <input type="password" id="password" placeholder="Contraseña" required>
-    <label><input type="checkbox" id="rememberMe"> Recordar sesión</label>
-    <button type="submit">Ingresar</button>
-  </form>
+<div id="loginDiv" style="display:none;">
+  <!-- No necesitamos login real -->
 </div>
 
 <div id="dashboardDiv">
