@@ -1,315 +1,108 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Backdoor / Admin — Editor visual (Santa Rotisería)</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Backdoor - Gestor de Locales/Usuarios</title>
   <style>
-    :root{ --bg:#fff; --text:#111 }
-    *{box-sizing:border-box}
-    body{font-family:Inter,system-ui,Arial; margin:18px; background:#f3f4f6;color:var(--text)}
-    .card{background:#fff;border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(15,23,42,0.06);max-width:1100px;margin:14px auto}
-    h1{margin:0 0 8px;font-size:18px}
-    label{display:block;font-size:13px;margin:8px 0 4px}
-    input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid #e5e7eb}
-    textarea{min-height:120px;font-family:monospace}
-    .row{display:grid;grid-template-columns:1fr 420px;gap:12px}
-    .actions{display:flex;gap:8px;margin-top:10px}
-    button{padding:10px 12px;border-radius:8px;border:none;cursor:pointer}
-    .btn-primary{background:#16a34a;color:#fff}
-    .btn-ghost{background:#fff;border:1px solid #d1d5db}
-    .muted{color:#6b7280;font-size:13px}
-    .hidden{display:none}
-    .preview-iframe{width:100%;height:640px;border:1px solid #e5e7eb;border-radius:8px}
-    .login{max-width:420px;margin:0 auto}
-    .small{font-size:12px;color:#374151}
-    .inline{display:inline-block}
-    .control-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-    .color-input{display:flex;gap:8px;align-items:center}
-    .preset-list{display:flex;gap:8px;flex-wrap:wrap}
-    .preset{padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer}
-    .file-note{font-size:12px;color:#6b7280}
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+    }
+    header {
+      width: 100%;
+      background: #1f2937;
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .login-box {
+      background: #fff;
+      margin-top: 50px;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    .login-box h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .login-box input {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .login-box button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 15px;
+      border: none;
+      background: #2563eb;
+      color: white;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .login-box button:hover {
+      background: #1d4ed8;
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Editor visual — Admin</h1>
-    <div class="muted">Panel simplificado para usuarios sin experiencia en código. Cambios guardados en Firestore (<code>settings/theme</code>), modo variables.</div>
+  <header>
+    Gestor de Locales/Usuarios
+  </header>
+
+  <div class="login-box">
+    <h2>Iniciar sesión</h2>
+    <input type="email" id="email" placeholder="Correo electrónico" />
+    <input type="password" id="password" placeholder="Contraseña" />
+    <button onclick="login()">Ingresar</button>
   </div>
 
-  <!-- LOGIN -->
-  <div id="authCard" class="card login">
-    <h2 style="font-size:16px;margin-bottom:6px">Iniciar sesión</h2>
-    <label for="email">Email</label>
-    <input id="email" type="email" placeholder="admin@ejemplo.com" />
-    <label for="password">Contraseña</label>
-    <input id="password" type="password" placeholder="tu contraseña" />
-    <div class="actions">
-      <button id="signInBtn" class="btn-primary">Iniciar sesión</button>
-      <button id="goAnon" class="btn-ghost">Probar sin auth (local)</button>
-    </div>
-    <p class="small">Usá Email/Password con Firebase Auth. Si no tenés usuario, crealo en la consola Firebase.</p>
-  </div>
-
-  <!-- EDITOR -->
-  <div id="editorCard" class="card hidden">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px">
-      <div>
-        <strong id="currentUser"></strong>
-        <div class="small muted">Documento Firestore: <code>settings/theme</code></div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button id="signOutBtn" class="btn-ghost">Cerrar sesión</button>
-        <button id="openIndex" class="btn-ghost">Abrir index</button>
-        <button id="publishVars" class="btn-primary">Guardar y publicar</button>
-      </div>
-    </div>
-
-    <div class="row">
-      <div>
-        <h3 style="margin:0 0 8px">Controles visuales (sin código)</h3>
-        <div class="muted">Cambios rápidos que aplican variables CSS. Recomendado para usuarios no técnicos.</div>
-
-        <label>Paleta de colores</label>
-        <div class="control-grid">
-          <div class="color-input"><input type="color" id="bgColor"><label class="small">Fondo</label></div>
-          <div class="color-input"><input type="color" id="textColor"><label class="small">Texto</label></div>
-          <div class="color-input"><input type="color" id="primaryColor"><label class="small">Primary (botones)</label></div>
-          <div class="color-input"><input type="color" id="accentColor"><label class="small">Accent</label></div>
-          <div class="color-input"><input type="color" id="cardColor"><label class="small">Cards</label></div>
-          <div class="color-input"><input type="color" id="ringColor"><label class="small">Borde / Ring</label></div>
-        </div>
-
-        <label style="margin-top:8px">Tipografía y tamaño</label>
-        <div class="control-grid">
-          <select id="fontSelect">
-            <option value="Inter">Inter (predeterminado)</option>
-            <option value="STAATLICHES">STAATLICHES</option>
-            <option value="Arial">Arial</option>
-            <option value="system-ui">System UI</option>
-          </select>
-          <div>
-            <label for="fontSize">Tamaño base: <span id="fontSizeLabel">16px</span></label>
-            <input id="fontSize" type="range" min="12" max="22" value="16">
-          </div>
-        </div>
-
-        <label style="margin-top:8px">Estética</label>
-        <div class="control-grid">
-          <div>
-            <label for="radius">Border radius: <span id="radiusLabel">12px</span></label>
-            <input id="radius" type="range" min="0" max="32" value="12">
-          </div>
-          <div>
-            <label for="blur">Backdrop blur: <span id="blurLabel">4px</span></label>
-            <input id="blur" type="range" min="0" max="20" value="4">
-          </div>
-        </div>
-
-        <label style="margin-top:8px">Fondo (imagen)</label>
-        <input id="bgImageUrl" placeholder="Pegá URL de imagen o dejalo vacío" />
-        <div class="file-note">También podés pegar URLs de Unsplash o Imgur. Si querés subir desde tu PC, avisame y agrego opción de Storage.</div>
-
-        <label style="margin-top:8px">Presets rápidos</label>
-        <div class="preset-list">
-          <div class="preset" data-preset="light">Light</div>
-          <div class="preset" data-preset="dark">Dark</div>
-          <div class="preset" data-preset="retro">Retro</div>
-          <div class="preset" data-preset="highcontrast">Alto contraste</div>
-        </div>
-
-        <div style="margin-top:10px">
-          <label for="notes">Notas (opcional)</label>
-          <input id="notes" placeholder="¿Qué cambiaste?" />
-        </div>
-      </div>
-
-      <div>
-        <label>Vista previa rápida</label>
-        <iframe id="preview" class="preview-iframe" src="index.html"></iframe>
-        <div style="margin-top:8px;display:flex;gap:8px">
-          <button id="applyPreview" class="btn-ghost">Aplicar solo en esta pestaña</button>
-          <button id="revertPreview" class="btn-ghost">Revertir preview</button>
-        </div>
-      </div>
-    </div>
-
-    <div style="margin-top:12px">
-      <div class="muted">Estado</div>
-      <div id="status" class="small muted">— no hay cambios —</div>
-    </div>
-  </div>
-
+  <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
+    // 🔹 Configuración de tu proyecto Firebase (reemplazar con la tuya)
     const firebaseConfig = {
-      apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
-      authDomain: "santa-roti.firebaseapp.com",
-      projectId: "santa-roti",
-      storageBucket: "santa-roti.firebasestorage.app",
-      messagingSenderId: "66221970620",
-      appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
+      apiKey: "TU_API_KEY",
+      authDomain: "TU_PROJECT_ID.firebaseapp.com",
+      projectId: "TU_PROJECT_ID",
+      storageBucket: "TU_PROJECT_ID.appspot.com",
+      messagingSenderId: "TU_SENDER_ID",
+      appId: "TU_APP_ID"
     };
 
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
     const auth = getAuth(app);
-    const themeRef = doc(db, "settings", "theme");
 
-    // UI refs
-    const authCard = document.getElementById('authCard');
-    const editorCard = document.getElementById('editorCard');
-    const email = document.getElementById('email');
-    const password = document.getElementById('password');
-    const signInBtn = document.getElementById('signInBtn');
-    const signOutBtn = document.getElementById('signOutBtn');
-    const currentUser = document.getElementById('currentUser');
-    const preview = document.getElementById('preview');
-    const applyPreview = document.getElementById('applyPreview');
-    const revertPreview = document.getElementById('revertPreview');
-    const status = document.getElementById('status');
-    const notes = document.getElementById('notes');
-    const openIndex = document.getElementById('openIndex');
-    const goAnon = document.getElementById('goAnon');
-    const publishVars = document.getElementById('publishVars');
+    async function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
-    const bgColor = document.getElementById('bgColor');
-    const textColor = document.getElementById('textColor');
-    const primaryColor = document.getElementById('primaryColor');
-    const accentColor = document.getElementById('accentColor');
-    const cardColor = document.getElementById('cardColor');
-    const ringColor = document.getElementById('ringColor');
-    const fontSelect = document.getElementById('fontSelect');
-    const fontSize = document.getElementById('fontSize');
-    const fontSizeLabel = document.getElementById('fontSizeLabel');
-    const radius = document.getElementById('radius');
-    const radiusLabel = document.getElementById('radiusLabel');
-    const blur = document.getElementById('blur');
-    const blurLabel = document.getElementById('blurLabel');
-    const bgImageUrl = document.getElementById('bgImageUrl');
-
-    function showStatus(msg, success=true){
-      status.textContent = msg;
-      status.style.color = success ? '#16a34a' : '#dc2626';
-      setTimeout(()=> {
-        status.textContent = '— no hay cambios —';
-        status.style.color = '#6b7280';
-      }, 3000);
-    }
-
-    function flashButton(btn, success=true){
-      const originalBg = btn.style.backgroundColor;
-      btn.style.backgroundColor = success ? '#16a34a' : '#dc2626';
-      setTimeout(()=> { btn.style.backgroundColor = originalBg; }, 500);
-    }
-
-    function collectVarsFromControls(){
-      return {
-        bg: bgColor.value,
-        text: textColor.value,
-        primary: primaryColor.value,
-        accent: accentColor.value,
-        card: cardColor.value,
-        ring: ringColor.value,
-        font: fontSelect.value,
-        fontSize: parseInt(fontSize.value,10),
-        radius: parseInt(radius.value,10),
-        blur: parseInt(blur.value,10),
-        bgImage: bgImageUrl.value || null
-      };
-    }
-
-    async function loadTheme(){
-      const snap = await getDoc(themeRef).catch(()=>null);
-      if(snap && snap.exists()){
-        const vars = snap.data().vars || {};
-        bgColor.value = vars.bg || '#ffffff';
-        textColor.value = vars.text || '#000000';
-        primaryColor.value = vars.primary || '#22c55e';
-        accentColor.value = vars.accent || '#f43f5e';
-        cardColor.value = vars.card || '#f8f8f8';
-        ringColor.value = vars.ring || '#d1d5db';
-        fontSelect.value = vars.font || 'Inter';
-        fontSize.value = vars.fontSize || 16; fontSizeLabel.textContent = fontSize.value + 'px';
-        radius.value = vars.radius || 12; radiusLabel.textContent = radius.value + 'px';
-        blur.value = vars.blur || 4; blurLabel.textContent = blur.value + 'px';
-        bgImageUrl.value = vars.bgImage || '';
-        status.textContent = 'Tema cargado desde servidor';
-      } else {
-        status.textContent = 'No hay tema en servidor — valores por defecto';
-      }
-    }
-
-    function onLogin(emailStr){
-      authCard.classList.add('hidden');
-      editorCard.classList.remove('hidden');
-      currentUser.textContent = emailStr;
-      loadTheme();
-    }
-
-    // AUTH LISTENERS
-    signInBtn.addEventListener('click', async () => {
       try {
-        const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value);
-        onLogin(userCredential.user.email);
-      } catch(err) {
-        showStatus('Error al iniciar sesión: ' + err.message, false);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        alert("Bienvenido: " + user.email);
+        // 👉 Aquí más adelante redirigimos al panel de gestión
+      } catch (error) {
+        alert("Error: " + error.message);
       }
-    });
-
-    goAnon.addEventListener('click', () => {
-      authCard.classList.add('hidden');
-      editorCard.classList.remove('hidden');
-      currentUser.textContent = 'modo-demo (local)';
-      loadTheme();
-    });
-
-    signOutBtn.addEventListener('click', async () => {
-      await signOut(auth);
-      authCard.classList.remove('hidden');
-      editorCard.classList.add('hidden');
-      currentUser.textContent = '';
-    });
-
-    openIndex.addEventListener('click', () => window.open('index.html','_blank'));
-
-    publishVars.addEventListener('click', async ()=>{
-      try{
-        const vars = collectVarsFromControls();
-        await setDoc(themeRef, { vars, updatedAt: Date.now(), notes: notes.value || '' }, { merge:true });
-        showStatus('Guardado correctamente ✅', true);
-        flashButton(publishVars, true);
-      }catch(err){
-        showStatus('Error al guardar: ' + err.message, false);
-        flashButton(publishVars, false);
-      }
-    });
-
-    onAuthStateChanged(auth, user => {
-      if(user){
-        onLogin(user.email);
-      } else {
-        authCard.classList.remove('hidden');
-        editorCard.classList.add('hidden');
-      }
-    });
-
-    fontSize.addEventListener('input', ()=> fontSizeLabel.textContent = fontSize.value + 'px');
-    radius.addEventListener('input', ()=> radiusLabel.textContent = radius.value + 'px');
-    blur.addEventListener('input', ()=> blurLabel.textContent = blur.value + 'px');
-
-    applyPreview.addEventListener('click', ()=>{
-      const vars = collectVarsFromControls();
-      preview.contentWindow.postMessage({ type:'apply-vars', vars }, '*');
-    });
-
-    revertPreview.addEventListener('click', ()=>{
-      preview.contentWindow.postMessage({ type:'revert-vars' }, '*');
-    });
+    }
   </script>
 </body>
 </html>
