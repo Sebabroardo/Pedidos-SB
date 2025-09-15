@@ -173,17 +173,18 @@ li span { flex:1; }
   position: relative;
 }
 
-/* Panel de descuentos arriba a la derecha */
+/* Panel de descuentos fijo arriba a la derecha */
 .discount-panel {
-  position: absolute;
+  position: fixed;     /* fijo en la ventana */
   top: 20px;
   right: 20px;
   padding: 20px;
   background: #171a21;
   border-radius: 12px;
   width: 200px;
+  display: none;       /* se muestra al iniciar sesión */
   flex-direction: column;
-  display: none;
+  z-index: 1000;       /* para que esté sobre otros elementos */
 }
 
 #logoutBtn {
