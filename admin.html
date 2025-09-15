@@ -7,8 +7,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -21,27 +20,47 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
 
-// Elementos del DOM
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
 const discountPanel = document.querySelector('.discount-panel');
-const form = document.getElementById('productForm');
-const imgInput = document.getElementById('img');
-const imgPreview = document.getElementById('imgPreview');
-let editId = null;
+
 let currentUserLocal = null;
 
-// Ocultar dashboard y paneles al inicio
-dashboardDiv.style.display = "none";
-discountPanel.style.display = "none";
-welcomeMessage.style.display = "none";
-logoutBtn.style.display = "none";
+// Función para mostrar dashboard
+function showDashboard(username, local){
+  loginDiv.style.display = "none";
+  dashboardDiv.style.display = "flex";
+  welcomeMessage.style.display = "block";
+  discountPanel.style.display = "block";
+  logoutBtn.style.display = "block";
+  welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
+  currentUserLocal = local;
+  filterProductsByLocal();
+}
 
-// LOGIN usando nombre de usuario
+// Función para ocultar dashboard
+function hideDashboard(){
+  loginDiv.style.display = "flex";
+  dashboardDiv.style.display = "none";
+  welcomeMessage.style.display = "none";
+  discountPanel.style.display = "none";
+  logoutBtn.style.display = "none";
+  currentUserLocal = null;
+}
+
+// Revisa sesión guardada
+document.addEventListener("DOMContentLoaded", ()=>{
+  const session = localStorage.getItem("session");
+  if(session){
+    const data = JSON.parse(session);
+    showDashboard(data.username, data.local);
+  }
+});
+
+// Login
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const username = document.getElementById("username").value.trim();
@@ -50,48 +69,34 @@ document.getElementById("loginForm").addEventListener("submit", async (e)=>{
 
   if(!username || !password) return alert("Todos los campos son obligatorios");
 
-  try {
-    // Buscar usuario en Firestore
+  try{
     const userRef = doc(db, "Users", username);
     const userSnap = await getDoc(userRef);
     if(!userSnap.exists()) return alert("Usuario no encontrado");
-    const userData = userSnap.data();
-    if(userData.password !== password) return alert("Contraseña incorrecta");
+    const data = userSnap.data();
+    if(data.password !== password) return alert("Contraseña incorrecta");
 
-    // Guardar local asignado
-    currentUserLocal = userData.local;
+    // Guardar sesión
+    if(rememberMe) localStorage.setItem("session", JSON.stringify({username, local: data.local}));
+    else sessionStorage.setItem("session", JSON.stringify({username, local: data.local}));
 
-    // Mostrar dashboard
-    loginDiv.style.display = "none";
-    dashboardDiv.style.display = "flex";
-    welcomeMessage.style.display = "block";
-    discountPanel.style.display = "block";
-    logoutBtn.style.display = "block";
+    showDashboard(username, data.local);
 
-    welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${currentUserLocal}`;
-
-    // Filtrar productos por local
-    filterProductsByLocal();
-
-  } catch(err){
+  }catch(err){
     console.error(err);
     alert("Error al iniciar sesión: "+err.message);
   }
 });
 
-// Cerrar sesión
-logoutBtn.addEventListener("click", async ()=>{
-  currentUserLocal = null;
-  loginDiv.style.display = "flex";
-  dashboardDiv.style.display = "none";
-  welcomeMessage.style.display = "none";
-  discountPanel.style.display = "none";
-  logoutBtn.style.display = "none";
+// Logout
+logoutBtn.addEventListener("click", ()=>{
+  localStorage.removeItem("session");
+  sessionStorage.removeItem("session");
+  hideDashboard();
 });
 
 // --- Función para filtrar productos por local ---
 function filterProductsByLocal(){
-  // Escuchar productos
   const productLists = {
     pizza: document.getElementById('pizzaList'),
     hamburguesa: document.getElementById('hamburguesaList'),
@@ -102,32 +107,29 @@ function filterProductsByLocal(){
 
   onSnapshot(collection(db, "productos"), snapshot => {
     Object.values(productLists).forEach(ul => ul.innerHTML = '');
-
-    snapshot.forEach(d => {
+    snapshot.forEach(d=>{
       const data = d.data();
-      if(data.local !== currentUserLocal) return; // solo productos del local del usuario
+      if(data.local !== currentUserLocal) return;
       const li = document.createElement('li');
       li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
 
       const btnEdit = document.createElement('button');
       btnEdit.textContent = 'Editar';
       btnEdit.className = 'btn-edit';
-      btnEdit.addEventListener('click', () => {
+      btnEdit.addEventListener('click', ()=>{
         document.getElementById('name').value = data.name;
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
         document.getElementById('img').value = data.img;
         document.getElementById('category').value = data.category;
-        imgPreview.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
         editId = d.id;
-        form.querySelector('button').textContent = "Actualizar producto";
       });
 
       const btnDelete = document.createElement('button');
       btnDelete.textContent = 'Borrar';
       btnDelete.className = 'btn-delete';
-      btnDelete.addEventListener('click', async () => {
-        if(confirm(`¿Eliminar ${data.name}?`)) {
+      btnDelete.addEventListener('click', async ()=>{
+        if(confirm(`¿Eliminar ${data.name}?`)){
           await deleteDoc(doc(db, "productos", d.id));
         }
       });
