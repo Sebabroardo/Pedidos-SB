@@ -24,9 +24,6 @@ const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
-const toggleSidebarBtn = document.getElementById("toggleSidebar");
-const sidebar = document.getElementById("sidebar");
-const mainContent = document.getElementById("mainContent");
 
 welcomeMessage.style.display = "none";
 
@@ -48,7 +45,6 @@ onAuthStateChanged(auth, (user) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Login
   const loginForm = document.getElementById("loginForm");
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -64,7 +60,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Cerrar sesión
   logoutBtn.addEventListener("click", async ()=>{
     try{
       await signOut(auth);
@@ -73,25 +68,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Sidebar menu click
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
   menuItems.forEach(item => {
     item.addEventListener("click", () => {
       menuItems.forEach(i => i.classList.remove("active"));
       item.classList.add("active");
       const section = item.getAttribute("data-section");
-      mainContent.innerHTML = `<h2>${section}</h2><p>Contenido de la sección ${section} aquí.</p>`;
+      document.getElementById("mainContent").innerHTML = `<h2>${section}</h2><p>Contenido de la sección ${section} aquí.</p>`;
     });
-  });
-
-  // Toggle sidebar
-  toggleSidebarBtn.addEventListener("click", () => {
-    sidebar.classList.toggle("collapsed");
-    if(sidebar.classList.contains("collapsed")){
-      mainContent.style.marginLeft = "0";
-    } else {
-      mainContent.style.marginLeft = "220px";
-    }
   });
 });
 </script>
@@ -103,23 +87,22 @@ body{
   background:#ffffff;
   color:#000;
   min-height:100vh;
+  display:flex;
+  flex-direction:column;
   overflow-x: hidden;
 }
 
-/* Header */
 header{
   width:100%;
-  padding:10px 20px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  background:#ffffff;
-  border-bottom:1px solid #ccc;
-}
-
-.header-title{
+  padding:20px;
+  text-align:center;
   font-size:24px;
   font-weight:bold;
+  background:#ffffff;
+  border-bottom:1px solid #ccc;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
 }
 
 .header-subtitle{
@@ -129,17 +112,8 @@ header{
   display:none;
 }
 
-#toggleSidebar{
-  background:#22c55e;
-  border:none;
-  color:white;
-  padding:8px 12px;
-  cursor:pointer;
-  border-radius:6px;
-}
-
-/* Login */
 #loginDiv{
+  flex:1;
   display:flex;
   justify-content:center;
   align-items:flex-start;
@@ -183,13 +157,13 @@ button{
   width:100%;
 }
 
-/* Dashboard */
 #dashboardDiv{
   display:none;
+  flex-direction:row;
   height:100vh;
+  overflow-x:hidden;
 }
 
-/* Sidebar */
 #sidebar{
   position:fixed;
   top:0;
@@ -200,23 +174,17 @@ button{
   color:#fff;
   display:flex;
   flex-direction:column;
-  justify-content:space-between;
+  justify-content:space-between; /* empuja botón al final */
   box-shadow:2px 0 5px rgba(0,0,0,0.2);
   padding:0;
-  transition: width 0.3s;
-}
-
-#sidebar.collapsed{
-  width:0;
-  overflow:hidden;
 }
 
 #sidebarMenu{
-  margin-top:60px;
+  margin-top:100px; /* separa el menú de la parte superior */
 }
 
 #sidebarMenu ul{
-  list-style:none;
+  list-style: none;
   padding:0;
   margin:0;
 }
@@ -238,12 +206,13 @@ button{
 }
 
 #mainContent{
+  flex:1;
   margin-left:220px;
+  max-width:1000px;
   padding:20px;
-  transition: margin-left 0.3s;
+  overflow-x:hidden;
 }
 
-/* Botón cerrar sesión */
 #logoutBtn{
   background:#f43f5e;
   color:#fff;
@@ -262,10 +231,13 @@ button{
 }
 </style>
 </head>
+
 <body>
 <header>
   <div class="header-title">Gestor de Locales/Usuarios</div>
-  <button id="toggleSidebar">☰</button>
+  <div class="header-subtitle" id="welcomeMessage">
+    Bienvenido al Panel Backdoor. Aquí podrás gestionar usuarios y locales.
+  </div>
 </header>
 
 <div id="loginDiv">
@@ -290,7 +262,6 @@ button{
   </div>
 
   <div id="mainContent">
-    <!-- Contenido dinámico -->
   </div>
 </div>
 </body>
