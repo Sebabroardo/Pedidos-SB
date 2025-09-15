@@ -81,7 +81,6 @@ body{
   flex-direction:column;
 }
 
-/* Header arriba */
 header{
   width:100%;
   padding:20px;
@@ -90,6 +89,20 @@ header{
   font-weight:bold;
   background:#ffffff;
   border-bottom:1px solid #ccc;
+  display:flex;
+  flex-direction:column;
+  gap:8px; /* espacio entre título y subtítulo */
+}
+
+.header-title{
+  font-size:24px;
+  font-weight:bold;
+}
+
+.header-subtitle{
+  font-size:16px;
+  font-weight:normal;
+  color:#555;
 }
 
 /* Login */
@@ -178,7 +191,12 @@ button{
 </head>
 
 <body>
-<header>Gestor de Locales/Usuarios</header>
+<header>
+  <div class="header-title">Gestor de Locales/Usuarios</div>
+  <div class="header-subtitle" id="welcomeMessage">
+    Bienvenido al Panel Backdoor. Aquí podrás gestionar usuarios y locales.
+  </div>
+</header>
 
 <div id="loginDiv">
   <form id="loginForm" class="form-container">
