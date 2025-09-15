@@ -24,6 +24,7 @@ const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
+const sidebar = document.getElementById("sidebar");
 
 welcomeMessage.style.display = "none";
 
@@ -76,6 +77,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const section = item.getAttribute("data-section");
       document.getElementById("mainContent").innerHTML = `<h2>${section}</h2><p>Contenido de la sección ${section} aquí.</p>`;
     });
+  });
+
+  // Toggle sidebar solo en dashboard
+  const toggleBtn = document.getElementById("toggleSidebarBtn");
+  toggleBtn.addEventListener("click", () => {
+    sidebar.classList.toggle("collapsed");
   });
 });
 </script>
@@ -157,6 +164,7 @@ button{
   width:100%;
 }
 
+/* Dashboard */
 #dashboardDiv{
   display:none;
   flex-direction:row;
@@ -164,6 +172,7 @@ button{
   overflow-x:hidden;
 }
 
+/* Sidebar */
 #sidebar{
   position:fixed;
   top:0;
@@ -174,13 +183,18 @@ button{
   color:#fff;
   display:flex;
   flex-direction:column;
-  justify-content:space-between; /* empuja botón al final */
+  justify-content:space-between;
   box-shadow:2px 0 5px rgba(0,0,0,0.2);
   padding:0;
+  transition: width 0.3s;
+}
+
+#sidebar.collapsed{
+  width:60px;
 }
 
 #sidebarMenu{
-  margin-top:100px; /* separa el menú de la parte superior */
+  margin-top:100px;
 }
 
 #sidebarMenu ul{
@@ -194,6 +208,9 @@ button{
   cursor:pointer;
   transition:0.2s;
   border-left:4px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #sidebarMenu ul li:hover{
@@ -211,6 +228,11 @@ button{
   max-width:1000px;
   padding:20px;
   overflow-x:hidden;
+  transition: margin-left 0.3s;
+}
+
+#sidebar.collapsed + #mainContent{
+  margin-left:60px;
 }
 
 #logoutBtn{
@@ -222,12 +244,24 @@ button{
   cursor:pointer;
   font-weight:bold;
   width:auto;
-  min-width:120px;
+  min-width:50px;
   margin:20px auto;
 }
 
 #logoutBtn:hover{
   background:#d32f45;
+}
+
+/* Botón toggle */
+#toggleSidebarBtn{
+  background:#22c55e;
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  padding:8px 12px;
+  cursor:pointer;
+  font-weight:bold;
+  margin:10px;
 }
 </style>
 </head>
@@ -251,6 +285,7 @@ button{
 
 <div id="dashboardDiv">
   <div id="sidebar">
+    <button id="toggleSidebarBtn">☰</button>
     <div id="sidebarMenu">
       <ul>
         <li data-section="Crear Usuarios" class="active">Creación de Usuarios</li>
@@ -262,6 +297,7 @@ button{
   </div>
 
   <div id="mainContent">
+    <!-- Contenido dinámico -->
   </div>
 </div>
 </body>
