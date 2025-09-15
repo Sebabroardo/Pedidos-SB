@@ -159,19 +159,70 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, doc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
   authDomain: "santa-roti.firebaseapp.com",
   projectId: "santa-roti",
-  storageBucket: "santa-roti.firebasestorage.app",
+  storageBucket: "santa-roti.appspot.com",
   messagingSenderId: "66221970620",
   appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+const localId = "local_santa"; // esto sale del login del usuario
+
+// Filtrar productos por local
+const productsRef = collection(db, "productos");
+const localQuery = query(productsRef, where("localId", "==", localId));
+
+onSnapshot(localQuery, snapshot => {
+  const categories = {};
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    const id = doc.id;
+    const catKey = data.category?.trim().toLowerCase();
+    if(!categories[catKey]) categories[catKey] = [];
+    categories[catKey].push({ id, ...data });
+  });
+
+  const categoryMap = {
+    'pizza': 'pizzas',
+    'hamburguesa': 'hamburguesas',
+    'papas': 'papas',
+    'menu especial': 'menuEspecial',
+    'extras': 'extras'
+  };
+
+  for(const cat in categories){
+    const gridId = categoryMap[cat];
+    if(!gridId) continue;
+    const grid = document.getElementById(gridId);
+    const wasOpen = grid.classList.contains('show');
+    grid.innerHTML = '';
+    if(wasOpen) grid.classList.add('show');
+
+    categories[cat].forEach(product => {
+      const uid = product.id;
+      const card = document.createElement('div');
+      card.className = 'card product';
+      card.innerHTML = `
+        <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
+        <h3>${product.name}</h3>
+        <p class="price">${product.price.toLocaleString('es-AR', {style:'currency', currency:'ARS', maximumFractionDigits:0})}</p>
+        <div class="actions">
+          <button class="btn-minus" data-id="${uid}">-</button>
+          <span class="qty-display" data-id="${uid}">0</span>
+          <button class="btn-plus" data-id="${uid}">+</button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+});
 // --- BLOQUE DE TEMA EN TIEMPO REAL ---
 const themeRef = doc(db, "settings", "theme");
 
