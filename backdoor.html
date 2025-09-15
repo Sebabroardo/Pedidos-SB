@@ -149,14 +149,12 @@ button{
 }
 
 #dashboardDiv main{
-  font-size:20px;
-  width:100%;
-  max-width:600px;
-  padding:20px;
-  text-align:center;
-  box-sizing:border-box;
+  flex:1;
+  display:flex;
+  justify-content:center; /* centrado horizontal */
+  align-items:flex-start; /* cerca del header */
+  padding-top:60px;       /* distancia desde el header */
 }
-
 /* Botón cerrar sesión en centro abajo */
 #logoutBtn{
   position:absolute;
