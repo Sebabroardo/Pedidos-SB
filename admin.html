@@ -9,7 +9,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
   getFirestore, collection, doc, getDocs, query, where, 
-  onSnapshot, deleteDoc, addDoc, setDoc, getDoc
+  onSnapshot, deleteDoc, addDoc, setDoc, getDoc 
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -24,6 +24,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// ELEMENTOS
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -33,7 +34,7 @@ const discountRadios = document.querySelectorAll("input[name='discount']");
 let currentUserLocal = null;
 let editId = null;
 
-// Mostrar/Ocultar dashboard
+// --- DASHBOARD ---
 async function showDashboard(username, local){
   loginDiv.style.display = "none";
   dashboardDiv.style.display = "flex";
@@ -43,7 +44,7 @@ async function showDashboard(username, local){
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
   filterProductsByLocal();
-  await loadDiscount(); // cargar Discount desde Firestore
+  loadDiscount(); // cargar descuento desde Firestore
 }
 
 function hideDashboard(){
@@ -55,7 +56,7 @@ function hideDashboard(){
   currentUserLocal = null;
 }
 
-// Login
+// --- LOGIN ---
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const username = document.getElementById("username").value.trim();
@@ -87,7 +88,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   }
 });
 
-// Revisar sesión guardada
+// --- REVISAR SESIÓN ---
 document.addEventListener("DOMContentLoaded", ()=>{
   const session = localStorage.getItem("session") || sessionStorage.getItem("session");
   if(session){
@@ -96,14 +97,14 @@ document.addEventListener("DOMContentLoaded", ()=>{
   }
 });
 
-// Logout
+// --- LOGOUT ---
 logoutBtn.addEventListener("click", ()=>{
   localStorage.removeItem("session");
   sessionStorage.removeItem("session");
   hideDashboard();
 });
 
-// Guardar producto
+// --- PRODUCTOS ---
 document.getElementById("productForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
 
@@ -120,7 +121,6 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
 
   try {
     if(editId){
-      // Editar producto existente
       await setDoc(doc(db, "productos", editId), {
         name, desc, price, img, category,
         local: currentUserLocal,
@@ -128,7 +128,6 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
       });
       editId = null;
     } else {
-      // Crear producto nuevo
       await addDoc(collection(db, "productos"), {
         name, desc, price, img, category,
         local: currentUserLocal,
@@ -145,7 +144,7 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   }
 });
 
-// Filtrar productos por local
+// --- FILTRAR PRODUCTOS POR LOCAL ---
 function filterProductsByLocal(){
   const productLists = {
     pizza: document.getElementById('pizzaList'),
@@ -194,31 +193,27 @@ function filterProductsByLocal(){
   });
 }
 
-// Guardar Discount GLOBAL
-function saveDiscountToFirestore(discount) {
-  const docRef = doc(db, "settings", "discount");
-  setDoc(docRef, { valor: discount, updatedAt: new Date() }, { merge: true })
-    .then(() => console.log(`Discount global ${discount}% guardado`))
-    .catch(err => console.error("Error al guardar Discount:", err));
-}
+// --- PANEL DE DESCUENTOS ---
+const discountDocRef = doc(db, "settings", "discount");
 
-// Cargar Discount GLOBAL al iniciar sesión
-async function loadDiscount() {
-  const ref = doc(db, "settings", "discount");
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    const data = snap.data();
-    const discount = data.valor || 0;
-    discountRadios.forEach(r => r.checked = parseInt(r.value) === discount);
-  }
-}
-
-// Cuando cambia el Discount
+// Guardar descuento en Firestore
 discountRadios.forEach(radio => {
-  radio.addEventListener("change", e => {
-    const discount = parseInt(e.target.value);
-    saveDiscountToFirestore(discount);
+  radio.addEventListener('change', async () => {
+    const value = parseInt(radio.value);
+    try {
+      await setDoc(discountDocRef, { value }, { merge: true });
+    } catch(err){
+      console.error("Error guardando descuento:", err);
+    }
   });
+});
+
+// Cargar descuento actual en tiempo real
+onSnapshot(discountDocRef, snapshot => {
+  if(snapshot.exists()){
+    const val = snapshot.data().value || 0;
+    discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
+  }
 });
 </script>
 
@@ -277,7 +272,6 @@ li span { flex:1; }
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="loginDiv">
   <form id="loginForm" class="form-container">
     <input type="text" id="username" placeholder="Nombre de usuario" required>
@@ -287,7 +281,6 @@ li span { flex:1; }
   </form>
 </div>
 
-<!-- DASHBOARD -->
 <div id="dashboardDiv">
 <h1>Panel Admin — Agregar / Editar Producto</h1>
 <div id="welcomeMessage"></div>
