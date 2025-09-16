@@ -43,7 +43,7 @@ async function showDashboard(username, local){
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
   filterProductsByLocal();
-  await loadDiscountForLocal(local); // cargar descuento desde Firestore
+ await loadDiscount(); // cargar descuento desde Firestore
 }
 
 function hideDashboard(){
@@ -193,34 +193,33 @@ function filterProductsByLocal(){
     });
   });
 }
-
-// ====== MANEJO DE DESCUENTOS ======
-function saveDiscountToFirestore(local, discount) {
-  if (!local) return;
-  const docRef = doc(db, "locales", local);
-  setDoc(docRef, { discount: discount }, { merge: true })
-    .then(() => console.log(`Descuento ${discount}% guardado para ${local}`))
+// Guardar descuento GLOBAL
+function saveDiscountToFirestore(discount) {
+  const docRef = doc(db, "descuentos", "global");
+  setDoc(docRef, { valor: discount, updatedAt: new Date() }, { merge: true })
+    .then(() => console.log(`Descuento global ${discount}% guardado`))
     .catch(err => console.error("Error al guardar descuento:", err));
+}
+
+// Cargar descuento GLOBAL al iniciar sesión
+async function loadDiscount() {
+  const ref = doc(db, "descuentos", "global");
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const data = snap.data();
+    const discount = data.valor || 0;
+    discountRadios.forEach(r => r.checked = parseInt(r.value) === discount);
+  }
 }
 
 // Cuando cambia el descuento
 discountRadios.forEach(radio => {
   radio.addEventListener("change", e => {
     const discount = parseInt(e.target.value);
-    saveDiscountToFirestore(currentUserLocal, discount);
+    saveDiscountToFirestore(discount);
   });
 });
 
-// Al iniciar sesión cargar el descuento actual
-async function loadDiscountForLocal(local) {
-  const ref = doc(db, "locales", local);
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    const data = snap.data();
-    const discount = data.discount || 0;
-    discountRadios.forEach(r => r.checked = parseInt(r.value) === discount);
-  }
-}
 </script>
 
 <style>
