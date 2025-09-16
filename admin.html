@@ -9,7 +9,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
   getFirestore, collection, doc, getDocs, query, where, 
-  onSnapshot, deleteDoc, addDoc, setDoc 
+  onSnapshot, deleteDoc, addDoc, setDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -29,11 +29,12 @@ const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
 const discountPanel = document.querySelector('.discount-panel');
+const discountRadios = document.querySelectorAll("input[name='discount']");
 let currentUserLocal = null;
 let editId = null;
 
 // Mostrar/Ocultar dashboard
-function showDashboard(username, local){
+async function showDashboard(username, local){
   loginDiv.style.display = "none";
   dashboardDiv.style.display = "flex";
   welcomeMessage.style.display = "block";
@@ -42,6 +43,7 @@ function showDashboard(username, local){
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
   filterProductsByLocal();
+  await loadDiscountForLocal(local); // cargar descuento desde Firestore
 }
 
 function hideDashboard(){
@@ -190,6 +192,34 @@ function filterProductsByLocal(){
       if(productLists[cat]) productLists[cat].appendChild(li);
     });
   });
+}
+
+// ====== MANEJO DE DESCUENTOS ======
+function saveDiscountToFirestore(local, discount) {
+  if (!local) return;
+  const docRef = doc(db, "locales", local);
+  setDoc(docRef, { discount: discount }, { merge: true })
+    .then(() => console.log(`Descuento ${discount}% guardado para ${local}`))
+    .catch(err => console.error("Error al guardar descuento:", err));
+}
+
+// Cuando cambia el descuento
+discountRadios.forEach(radio => {
+  radio.addEventListener("change", e => {
+    const discount = parseInt(e.target.value);
+    saveDiscountToFirestore(currentUserLocal, discount);
+  });
+});
+
+// Al iniciar sesión cargar el descuento actual
+async function loadDiscountForLocal(local) {
+  const ref = doc(db, "locales", local);
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const data = snap.data();
+    const discount = data.discount || 0;
+    discountRadios.forEach(r => r.checked = parseInt(r.value) === discount);
+  }
 }
 </script>
 
