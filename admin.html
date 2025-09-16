@@ -43,7 +43,7 @@ async function showDashboard(username, local){
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
   filterProductsByLocal();
- await loadDiscount(); // cargar Discount desde Firestore
+  await loadDiscount(); // cargar Discount desde Firestore
 }
 
 function hideDashboard(){
@@ -193,11 +193,12 @@ function filterProductsByLocal(){
     });
   });
 }
+
 // Guardar Discount GLOBAL
-function saveDiscountToFirestore(settings) {
+function saveDiscountToFirestore(discount) {
   const docRef = doc(db, "settings", "discount");
-  setDoc(docRef, { valor: settings, updatedAt: new Date() }, { merge: true })
-    .then(() => console.log(`settings global ${settings}% guardado`))
+  setDoc(docRef, { valor: discount, updatedAt: new Date() }, { merge: true })
+    .then(() => console.log(`Discount global ${discount}% guardado`))
     .catch(err => console.error("Error al guardar Discount:", err));
 }
 
@@ -208,7 +209,7 @@ async function loadDiscount() {
   if (snap.exists()) {
     const data = snap.data();
     const discount = data.valor || 0;
-    discountRadios.forEach(r => r.checked = parseInt(r.value) === settings);
+    discountRadios.forEach(r => r.checked = parseInt(r.value) === discount);
   }
 }
 
@@ -216,10 +217,9 @@ async function loadDiscount() {
 discountRadios.forEach(radio => {
   radio.addEventListener("change", e => {
     const discount = parseInt(e.target.value);
-    saveDiscountToFirestore(settings);
+    saveDiscountToFirestore(discount);
   });
 });
-
 </script>
 
 <style>
@@ -237,7 +237,6 @@ li span { flex:1; }
 #searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
 
-/* Contenedor dashboard relativo para panel de Discounts */
 #dashboardDiv {
   display: none;
   flex-direction: column;
@@ -247,7 +246,6 @@ li span { flex:1; }
   position: relative;
 }
 
-/* Panel de Discounts fijo arriba a la derecha */
 .discount-panel {
   position: fixed;
   top: 20px;
@@ -294,7 +292,6 @@ li span { flex:1; }
 <h1>Panel Admin — Agregar / Editar Producto</h1>
 <div id="welcomeMessage"></div>
 
-<!-- FORM PRODUCTOS -->
 <form id="productForm">
   <input type="text" id="name" placeholder="Nombre del producto" required>
   <input type="text" id="desc" placeholder="Descripción" required>
@@ -338,7 +335,6 @@ li span { flex:1; }
   </div>
 </div>
 
-<!-- DiscountS ARRIBA DERECHA -->
 <div class="discount-panel">
   <h3>Descuentos</h3>
   <label><input type="radio" name="discount" value="0" checked> Sin descuento</label>
