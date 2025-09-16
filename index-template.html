@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Santa Rotisería — Pedidos por WhatsApp</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff;
+  --card:#f8f8f8;
+  --muted:#4b5563;
+  --text:#000000;
+  --primary:#22c55e;
+  --accent:#f43f5e;
+  --ring:#d1d5db;
+}
+*{box-sizing:border-box}
+html, body { margin:0; height:100%; font-family:STAATLICHES,sans-serif; background:url('Fondo.png') repeat center center; background-size:auto; color:var(--text); }
+.container{max-width:1100px;margin:0 auto;padding:24px}
+header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-radius: 20px; padding: 18px; margin-bottom: 18px; display:flex; align-items:flex-start; justify-content:space-between; }
+.brand-wrapper { display:flex; gap:12px; align-items:center; }
+.logo {width:64px;height:64px;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:none;}
+.logo img {width:100%;height:100%;object-fit:contain;}
+.brand-text h1{font-size:20px;margin:0}
+.brand-text .tag a { display:flex; align-items:center; gap:4px; color:var(--muted); text-decoration:underline; font-size:18px; transition:color 0.3s ease;}
+.brand-text .tag a svg { width:16px;height:16px; fill:#E1306C; transition: transform 0.3s ease, fill 0.3s ease;}
+.brand-text .tag a:hover { color:red; }
+.brand-text .tag a:hover svg { fill:red; transform: scale(1.2); }
+.hero{ padding:18px; border:1px solid var(--ring); border-radius:20px; display:grid; grid-template-columns:1.3fr .7fr; gap:18px; background: rgba(255,255,255,0.9); backdrop-filter: blur(4px);}
+.hero .copy h2{font-size:20px;margin:0 0 8px}
+.hero .copy p{margin:0;color:#000}
+.hero .info{display:grid;gap:8px;align-content:start}
+.pill{display:inline-flex;gap:8px;align-items:center;background:#f8f8f8;border:1px solid var(--ring);border-radius:999px;padding:8px 12px;font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-top:8px;transition:max-height 0.3s ease, opacity 0.3s ease;overflow:hidden;opacity:0;max-height:0}
+.grid.show{opacity:1;max-height:2000px}
+.card{background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; padding:14px; backdrop-filter: blur(4px); display:flex; flex-direction:column;}
+.product{display:flex;flex-direction:column;gap:10px; height:100%}
+.product .img{height:140px;border-radius:14px;background:#ffffff;border:1px dashed #d1d5db;display:grid;place-items:center;font-size:12px;color:#6b7280;overflow:hidden}
+.product img{width:100%;height:100%;object-fit:cover;border-radius:14px}
+.product h3{margin:0;font-size:16px}
+.product p{margin:0;color:var(--muted);font-size:13px}
+.price{font-weight:700}
+.actions { display: flex; gap:6px; justify-content:flex-end; align-items:center; margin-top:auto; }
+.actions button{width:28px;height:28px;border-radius:8px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text);cursor:pointer;}
+.actions span{min-width:20px;text-align:center;display:inline-block;}
+.category-btn{ cursor:pointer; font-size:18px; margin:12px 0; display:flex; align-items:center; gap:6px; color:var(--text); font-weight:600; border:1px solid var(--ring); background: rgba(255,255,255,0.9); padding:8px 12px; border-radius:10px; transition: background 0.2s ease;}
+.category-btn:hover{background:rgba(255,255,255,1)}
+.col-9{grid-column:span 9}
+.col-3{grid-column:span 3}
+@media (max-width:900px){.hero{grid-template-columns:1fr}.col-9,.col-3{grid-column:1/-1}}
+.cart{position:sticky;top:12px;display:grid;gap:10px;background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; backdrop-filter: blur(4px);}
+.cart h3{margin:0 0 6px}
+.cart-list{display:grid;gap:8px;max-height:360px;overflow:auto;padding-right:6px}
+.cart-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--ring);border-radius:12px;background:#f8f8f8}
+.cart-item .title{font-size:13px}
+.cart-item button.remove-btn{background:#ef4444;color:#fff;border:none;border-radius:6px;padding:2px 6px;cursor:pointer}
+.tot{display:flex;align-items:center;justify-content:space-between;font-weight:800}
+.muted{color:var(--muted);font-size:12px}
+.inputs{display:grid;gap:10px}
+.inputs input, .inputs textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text)}
+.inputs textarea{min-height:72px;resize:vertical}
+.card img { width:100%; height:180px; object-fit:cover; border-top-left-radius:12px; border-top-right-radius:12px; display:block;}
+footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center; background: rgba(255,255,255,0.9); padding:10px; border-radius:12px; }
+.btn.primary { background: linear-gradient(180deg,#22c55e,#16a34a); border:none; color:#fff; font-size:15px; font-weight:600; padding:12px 14px; border-radius:999px; cursor:pointer; width:100%; }
+@media (max-width:600px){
+  header {flex-direction: column;align-items:center;padding:12px;gap:12px;}
+  .brand-wrapper {flex-direction: column; gap:6px; align-items:center;}
+  .logo {width:48px;height:48px;}
+  .brand-text h1 {font-size:18px; text-align:center;}
+  .brand-text .tag a {font-size:16px; text-align:center;}
+  .pill {font-size:12px; padding:6px 10px; text-align:center;}
+}
+  #discountInfo {
+  display: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #16a34a; /* verde llamativo */
+  background: #d1fae5; /* verde muy suave de fondo */
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#discountInfo::before {
+  content: "💸";
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div class="brand-wrapper">
+    <div class="logo"><img src="logo.png" alt="Santa Rotisería"></div>
+    <div class="brand-text">
+      <h1>Santa</h1>
+      <div class="tag">
+        <a href="https://www.instagram.com/santa.roti" target="_blank">
+          <svg viewBox="0 0 448 512"><path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9S160.5 370.8 224.1 370.8 339 319.5 339 255.9 287.7 141 224.1 141zm0 186c-39.6 0-71.8-32.2-71.8-71.8s32.2-71.8 71.8-71.8 71.8 32.2 71.8 71.8-32.2 71.8-71.8 71.8zm146.4-194.3c0 14.9-12.1 27-27 27s-27-12.1-27-27 12.1-27 27-27 27 12.1 27 27zM398.8 80c-8.2-19.6-24.3-35.7-43.9-43.9C332.6 32 224 32 224 32S115.4 32 93.1 36.1c-19.6 8.2-35.7 24.3-43.9 43.9C32 115.4 32 224 32 224s0 108.6 17.1 131c8.2 19.6 24.3 35.7 43.9 43.9 22.3 4.1 130.9 4.1 130.9 4.1s108.6 0 131-17.1c19.6-8.2 35.7-24.3 43.9-43.9 4.1-22.3 4.1-130.9 4.1-130.9s0-108.6-17.1-131zM224 338c-45.5 0-82.4-36.9-82.4-82.4S178.5 173.2 224 173.2 306.4 210.1 306.4 255.6 269.5 338 224 338z"/></svg>
+          Nuestro Instagram - Santa Rotisería
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="pill">⏱️ Viernes, Sábados y Domingos: 20:00 – 23:30· 📍 Cintra</div>
+</header>
+
+<section class="hero">
+  <div class="copy">
+    <h2>Hacé tu pedido online y confirmalo por WhatsApp</h2>
+    <p>Elegí tu pedido, agregalo al carrito y presioná “Enviar por WhatsApp”. Te llega el mensaje listo para confirmar con nuestra atención.</p>
+  </div>
+  <div class="info">
+    <div class="pill">🚚 Envíos y retiro en local</div>
+    <div class="pill">💳 Efectivo, Débito/Crédito, QR</div>      
+  </div>
+</section>
+
+<section class="col-9">
+  <button class="category-btn" data-target="pizzas">Pizzas ▸</button>
+  <div id="pizzas" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
+
+  <button class="category-btn" data-target="hamburguesas">Hamburguesas ▸</button>
+  <div id="hamburguesas" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
+
+  <button class="category-btn" data-target="papas">Papas ▸</button>
+  <div id="papas" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
+
+  <button class="category-btn" data-target="menuEspecial">Menú Especial ▸</button>
+  <div id="menuEspecial" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
+
+  <button class="category-btn" data-target="extras">Extras ▸</button>
+  <div id="extras" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
+</section>
+
+<aside class="col-3">
+  <div class="card cart">
+    <h3>🛒 Tu pedido</h3>
+    <div class="cart-list" id="cartList"></div>
+    <div class="tot">
+  <span>Total</span>
+  <span id="total">$0</span>
+</div>
+<div id="discountInfo" class="muted" style="font-size:12px;display:none;"></div>
+    <div class="inputs">
+      <input id="customerName" placeholder="Tu nombre"/>
+      <textarea id="customerNotes" placeholder="Notas para la cocina (sin mayonesa, más ketchup, etc.)"></textarea>
+    </div>
+    <button class="btn primary" id="whatsBtn">📲 Enviar pedido por WhatsApp</button>
+    <div class="muted">Al hacer clic se abrirá WhatsApp con el detalle de tu pedido para confirmar.</div>
+  </div>
+</aside>
+
+<footer>
+  © <span id="year"></span> Santa · Hecho con ♥
+</footer>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+  authDomain: "santa-roti.firebaseapp.com",
+  projectId: "santa-roti",
+  storageBucket: "santa-roti.firebasestorage.app",
+  messagingSenderId: "66221970620",
+  appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const state = { cart: {} };
+const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
+
+let discount = 0; // porcentaje de descuento
+
+// Referencia al documento de descuento
+const discountDocRef = doc(db, "settings", "discount");
+
+// Escuchar cambios en tiempo real
+onSnapshot(discountDocRef, snapshot => {
+  if (snapshot.exists()) {
+    discount = snapshot.data().value || 0;
+    renderCart(); // re-renderiza el carrito si cambia el descuento
+  }
+});
+
+// --- FUNCIONES DEL CARRITO ---
+function renderCart() {
+  const list = document.getElementById('cartList');
+  list.innerHTML = '';
+  let total = 0;
+  Object.values(state.cart).forEach(({ uid, product, extra }) => {
+    const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
+    total += lineTotal;
+    const row = document.createElement('div');
+    row.className='cart-item';
+    row.innerHTML=`
+      <div>
+        <div class="title">${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}</div>
+        ${product.category==='hamburguesa'?`<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra?'checked':''}> Agrandar Pedido +$3.000</label>`:''}
+      </div>
+      <button class="remove-btn" data-id="${uid}">X</button>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('.extra-checkbox').forEach(chk=>{
+    chk.addEventListener('change', e=>{
+      const uid = e.target.dataset.id;
+      if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
+      renderCart();
+      if(state.cart[uid]) updateCardQty(state.cart[uid].idOriginal);
+    });
+  });
+
+  list.querySelectorAll('.remove-btn').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      const uid = e.target.dataset.id;
+      const prodId = state.cart[uid]?.idOriginal;
+      delete state.cart[uid];
+      renderCart();
+      if(prodId) updateCardQty(prodId);
+    });
+  });
+
+  let discountedTotal = total;
+if(discount > 0){
+  discountedTotal = Math.round(total * (1 - discount / 100));
+  const discountAmount = total - discountedTotal;
+  const discountInfo = document.getElementById('discountInfo');
+  discountInfo.style.display = 'block';
+  discountInfo.textContent = `¡Descuento del ${discount}% aplicado! Ahorrás ${currency.format(discountAmount)}.`;
+} else {
+  document.getElementById('discountInfo').style.display = 'none';
+}
+document.getElementById('total').textContent = currency.format(discountedTotal);
+}
+
+function buildWhatsAppMessage() {
+  const entries = Object.values(state.cart);
+  if(entries.length===0){ alert('Agregá al menos 1 producto al carrito.'); return null; }
+  const name = document.getElementById('customerName').value.trim();
+  const notes = document.getElementById('customerNotes').value.trim();
+  const lines = ['🧾 *Nuevo pedido — Santa*',''];
+  entries.forEach(({ product, extra })=>{
+    const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
+    lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}`);
+  });
+ let total = entries.reduce((acc,{product,extra})=>acc + product.price + ((extra && product.category==='hamburguesa')?3000:0),0);
+  
+let discountedTotal = total;
+if(discount > 0){
+  discountedTotal = Math.round(total * (1 - discount / 100));
+}
+lines.push('');
+if(discount > 0){
+  const discountAmount = total - discountedTotal;
+  lines.push(`*Descuento:* ${discount}% — Ahorrás ${currency.format(discountAmount)}`);
+}
+lines.push(`*Total:* ${currency.format(discountedTotal)}`);
+  lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
+  if(name) lines.push(`*Nombre:* ${name}`);
+  if(notes) lines.push(`*Notas:* ${notes}`);
+  lines.push('','Enviado desde la web de pedidos ✅');
+  return lines.join('\n');
+}
+
+document.getElementById('whatsBtn').addEventListener('click', ()=>{
+  const message = buildWhatsAppMessage();
+  if(!message) return;
+  const url = 'https://wa.me/+543537581341?text='+encodeURIComponent(message);
+  window.open(url,'_blank');
+});
+
+// --- BOTONES DE CATEGORÍA ---
+document.querySelectorAll('.category-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const targetId = btn.getAttribute('data-target');
+    const grid = document.getElementById(targetId);
+    grid.classList.toggle('show');
+    btn.textContent = btn.textContent.includes('▸')?btn.textContent.replace('▸','▾'):btn.textContent.replace('▾','▸');
+  });
+});
+
+// --- FIRESTORE Y RENDERIZADO DE PRODUCTOS ---
+const productsRef = collection(db,'productos');
+onSnapshot(productsRef, snapshot => {
+  const categories = {};
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    const id = doc.id;
+    const catKey = data.category?.trim().toLowerCase();
+    if(!categories[catKey]) categories[catKey] = [];
+    categories[catKey].push({ id, ...data });
+  });
+
+  const categoryMap = {
+    'pizza': 'pizzas',
+    'hamburguesa': 'hamburguesas',
+    'papas': 'papas',
+    'menu especial': 'menuEspecial',
+    'extras': 'extras'
+  };
+
+  for(const cat in categories){
+    const gridId = categoryMap[cat];
+    if(!gridId) continue;
+    const grid = document.getElementById(gridId);
+    const wasOpen = grid.classList.contains('show');
+    grid.innerHTML = '';
+    if(wasOpen) grid.classList.add('show');
+
+    categories[cat].forEach(product => {
+      const uid = product.id;
+      const card = document.createElement('div');
+      card.className = 'card product';
+      card.innerHTML = `
+        <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
+        <h3>${product.name}</h3>
+        <p class="price">${currency.format(product.price)}</p>
+        <div class="actions">
+          <button class="btn-minus" data-id="${uid}">-</button>
+          <span class="qty-display" data-id="${uid}">0</span>
+          <button class="btn-plus" data-id="${uid}">+</button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  // Delegación de eventos para todos los botones + y -
+  document.querySelector('.col-9').addEventListener('click', e => {
+    const productId = e.target.dataset.id;
+    if(!productId) return;
+
+    if(e.target.classList.contains('btn-plus')){
+      const productDoc = snapshot.docs.find(d => d.id === productId);
+      if(!productDoc) return;
+      const product = productDoc.data();
+      const uniqueId = productId + '-' + Date.now();
+      state.cart[uniqueId] = { uid: uniqueId, product, idOriginal: productId, extra: false };
+      renderCart();
+      updateCardQty(productId);
+    }
+
+    if(e.target.classList.contains('btn-minus')){
+      const cartKey = Object.keys(state.cart).find(k => state.cart[k].idOriginal === productId);
+      if(cartKey){
+        delete state.cart[cartKey];
+        renderCart();
+        updateCardQty(productId);
+      }
+    }
+  });
+});
+
+// --- ACTUALIZACIÓN DE CONTADOR ---
+function updateCardQty(uid){
+  const count = Object.values(state.cart).filter(item => item.idOriginal === uid).length;
+  const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
+  if(span) span.textContent = count;
+}
+
+document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
