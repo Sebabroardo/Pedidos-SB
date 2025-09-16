@@ -7,7 +7,10 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, query, where, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { 
+  getFirestore, collection, doc, getDocs, query, where, 
+  onSnapshot, deleteDoc, addDoc, setDoc 
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -98,6 +101,48 @@ logoutBtn.addEventListener("click", ()=>{
   hideDashboard();
 });
 
+// Guardar producto
+document.getElementById("productForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+
+  const name = document.getElementById("name").value.trim();
+  const desc = document.getElementById("desc").value.trim();
+  const price = parseFloat(document.getElementById("price").value);
+  const img = document.getElementById("img").value.trim();
+  const category = document.getElementById("category").value;
+
+  if(!name || !desc || !price || !category){
+    alert("Todos los campos son obligatorios");
+    return;
+  }
+
+  try {
+    if(editId){
+      // Editar producto existente
+      await setDoc(doc(db, "productos", editId), {
+        name, desc, price, img, category,
+        local: currentUserLocal,
+        updatedAt: new Date()
+      });
+      editId = null;
+    } else {
+      // Crear producto nuevo
+      await addDoc(collection(db, "productos"), {
+        name, desc, price, img, category,
+        local: currentUserLocal,
+        createdAt: new Date()
+      });
+    }
+
+    document.getElementById("productForm").reset();
+    document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+    alert("Producto guardado correctamente");
+  } catch(err){
+    console.error(err);
+    alert("Error al guardar producto: " + err.message);
+  }
+});
+
 // Filtrar productos por local
 function filterProductsByLocal(){
   const productLists = {
@@ -175,16 +220,16 @@ li span { flex:1; }
 
 /* Panel de descuentos fijo arriba a la derecha */
 .discount-panel {
-  position: fixed;     /* fijo en la ventana */
+  position: fixed;
   top: 20px;
   right: 20px;
   padding: 20px;
   background: #171a21;
   border-radius: 12px;
   width: 200px;
-  display: none;       /* se muestra al iniciar sesión */
+  display: none;
   flex-direction: column;
-  z-index: 1000;       /* para que esté sobre otros elementos */
+  z-index: 1000;
 }
 
 #logoutBtn {
