@@ -195,7 +195,7 @@ function filterProductsByLocal(){
 }
 // Guardar Discount GLOBAL
 function saveDiscountToFirestore(settings) {
-  const docRef = doc(db, "settings", "global");
+  const docRef = doc(db, "settings", "discount");
   setDoc(docRef, { valor: settings, updatedAt: new Date() }, { merge: true })
     .then(() => console.log(`settings global ${settings}% guardado`))
     .catch(err => console.error("Error al guardar Discount:", err));
@@ -203,7 +203,7 @@ function saveDiscountToFirestore(settings) {
 
 // Cargar Discount GLOBAL al iniciar sesión
 async function loadDiscount() {
-  const ref = doc(db, "Discount", "global");
+  const ref = doc(db, "settings", "discount");
   const snap = await getDoc(ref);
   if (snap.exists()) {
     const data = snap.data();
