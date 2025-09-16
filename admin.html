@@ -194,10 +194,10 @@ function filterProductsByLocal(){
   });
 }
 // Guardar Discount GLOBAL
-function saveDiscountToFirestore(discount) {
-  const docRef = doc(db, "Discount", "global");
-  setDoc(docRef, { valor: discount, updatedAt: new Date() }, { merge: true })
-    .then(() => console.log(`Discount global ${discount}% guardado`))
+function saveDiscountToFirestore(settings) {
+  const docRef = doc(db, "settings", "global");
+  setDoc(docRef, { valor: settings, updatedAt: new Date() }, { merge: true })
+    .then(() => console.log(`settings global ${settings}% guardado`))
     .catch(err => console.error("Error al guardar Discount:", err));
 }
 
@@ -208,7 +208,7 @@ async function loadDiscount() {
   if (snap.exists()) {
     const data = snap.data();
     const discount = data.valor || 0;
-    discountRadios.forEach(r => r.checked = parseInt(r.value) === discount);
+    discountRadios.forEach(r => r.checked = parseInt(r.value) === settings);
   }
 }
 
@@ -216,7 +216,7 @@ async function loadDiscount() {
 discountRadios.forEach(radio => {
   radio.addEventListener("change", e => {
     const discount = parseInt(e.target.value);
-    saveDiscountToFirestore(discount);
+    saveDiscountToFirestore(settings);
   });
 });
 
