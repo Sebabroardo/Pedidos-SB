@@ -51,12 +51,14 @@ document.addEventListener("DOMContentLoaded", () => {
     else showLogin();
   });
 
+  // Login
   const loginForm = document.getElementById("loginForm");
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
     const rememberMe = document.getElementById("rememberMe").checked;
+
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth,email,password);
@@ -66,10 +68,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   logoutBtn.addEventListener("click", async ()=>{ 
-    try{ await signOut(auth); } 
+    try{ await signOut(auth); showLogin(); } 
     catch(err){ alert("Error al cerrar sesión: "+err.message); }
   });
 
+  // Sidebar menu
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
   menuItems.forEach(item => {
     item.addEventListener("click", async () => {
@@ -148,7 +151,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button class="delete-btn">🗑️</button>
               </div>
             `;
-            userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{ if(confirm("¿Eliminar usuario?")){ await deleteDoc(doc(db,"Users",docSnap.id)); loadUsers(); }});
+            userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{ 
+              if(confirm("¿Eliminar usuario?")){ await deleteDoc(doc(db,"Users",docSnap.id)); loadUsers(); }
+            });
             userDiv.querySelector(".edit-btn").addEventListener("click", ()=>{
               document.getElementById("newUsername").value = userData.username;
               document.getElementById("newPassword").value = userData.password;
@@ -289,6 +294,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <style>
+/* Estilos idénticos al tuyo, sidebar, login, usuarios y generador de locales */
 body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#000;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;}
 header{width:100%;padding:20px;text-align:center;font-size:24px;font-weight:bold;background:#fff;border-bottom:1px solid #ccc;display:flex;flex-direction:column;gap:8px;}
 .header-subtitle{font-size:16px;font-weight:normal;color:#555;display:none;}
@@ -314,8 +320,7 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
 #mainContent{flex:1;margin-left:220px;max-width:calc(1000px + 300px);padding:20px;overflow-x:hidden;transition:margin-left 0.3s;display:flex;}
 #sidebar.collapsed + #mainContent{margin-left:60px;}
 #logoutBtn{background:#f43f5e;color:#fff;border:none;padding:12px 25px;border-radius:6px;cursor:pointer;font-weight:bold;width:auto;min-width:50px;margin:20px auto;display:flex;align-items:center;justify-content:center;gap:5px;}
-#logoutBtn::before{content:"🚪";}
-
+#logoutBtn::before{content:"🚪";} 
 #sidebar.collapsed #logoutBtn span{display:none;}
 #sidebar.collapsed #logoutBtn{width:40px;padding:12px 0;}
 .menu-text{display:inline;}
@@ -335,8 +340,8 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
 .user-actions .edit-btn{background:#facc15;color:#fff;}
 .user-actions .delete-btn{background:#f43f5e;color:#fff;}
 </style>
-
 </head>
+
 <body>
 <header>
   <div class="header-title">Gestor de Locales/Usuarios</div>
