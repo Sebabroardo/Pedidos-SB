@@ -50,7 +50,7 @@ async function showDashboard(username, local){
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
   filterProductsByLocal();
-  loadDiscount(); // cargar descuento desde Firestore
+  loadDiscount();
 }
 
 function hideDashboard(){
@@ -119,44 +119,19 @@ document.getElementById("img").addEventListener("change", e=>{
   reader.onload = ev => document.getElementById("imgPreview").src = ev.target.result;
   reader.readAsDataURL(file);
 
-  const progressDiv = document.getElementById("uploadProgress");
-  const progressBar = document.getElementById("progressBar");
-  const cancelBtn = document.getElementById("cancelUploadBtn");
-
-  progressDiv.style.display = "block";
-  progressBar.value = 0;
-  cancelBtn.style.display = "inline-block";
-
   const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${file.name}`);
   uploadTask = uploadBytesResumable(imgStorageRef, file);
 
   uploadTask.on('state_changed',
-    snapshot => {
-      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-      progressBar.value = progress;
-    },
-    error => {
-      alert("Error en subida: " + error.message);
-      progressDiv.style.display = "none";
-      cancelBtn.style.display = "none";
-    },
+    null,
+    error => alert("Error en subida: " + error.message),
     () => {
       getDownloadURL(uploadTask.snapshot.ref).then(url => {
         document.getElementById("imgPreview").src = url;
-        document.getElementById("img").dataset.url = url; // Guardamos la URL para usarla al guardar producto
-        progressDiv.style.display = "none";
-        cancelBtn.style.display = "none";
+        document.getElementById("img").dataset.url = url;
       });
     }
   );
-
-  cancelBtn.onclick = () => {
-    if(uploadTask) uploadTask.cancel();
-    progressDiv.style.display = "none";
-    cancelBtn.style.display = "none";
-    document.getElementById("img").value = "";
-    document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-  };
 });
 
 // --- PRODUCTOS ---
@@ -166,7 +141,7 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
-  const img = document.getElementById("img").dataset.url || ""; // Tomamos la URL subida
+  const img = document.getElementById("img").dataset.url || "";
   const category = document.getElementById("category").value;
 
   if(!name || !desc || !price || !category){
@@ -290,7 +265,6 @@ li span { flex:1; }
 .btn-edit { background:#3b82f6; color:#fff; }
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
-#uploadProgress { margin-top:5px; display:none; }
 #logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
 .discount-panel { position: fixed; top: 20px; right: 20px; padding: 20px; background: #171a21; border-radius: 12px; width: 200px; display: none; flex-direction: column; z-index: 1000; }
 </style>
@@ -317,10 +291,6 @@ li span { flex:1; }
   <input type="number" id="price" placeholder="Precio" required>
   <input type="file" id="img" accept="image/*">
   <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
-  <div id="uploadProgress">
-    <progress id="progressBar" value="0" max="100" style="width:100%;"></progress>
-    <button type="button" id="cancelUploadBtn" style="display:none; margin-top:5px;">Cancelar subida</button>
-  </div>
   <select id="category" required>
     <option value="">Seleccionar categoría</option>
     <option value="pizza">Pizza</option>
