@@ -9,10 +9,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
   getFirestore, collection, doc, getDocs, query, where, 
-  onSnapshot, deleteDoc, addDoc, setDoc 
+  onSnapshot, deleteDoc, addDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { 
+  getStorage, ref as storageRef, uploadBytes, getDownloadURL 
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
-// --- CONFIG FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
   authDomain: "santa-roti.firebaseapp.com",
@@ -24,8 +26,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
-// --- ELEMENTOS ---
+// ELEMENTOS
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -34,12 +37,6 @@ const discountPanel = document.querySelector('.discount-panel');
 const discountRadios = document.querySelectorAll("input[name='discount']");
 let currentUserLocal = null;
 let editId = null;
-
-// --- FUNCIONES ---
-function getDiscountDocRef() {
-  if(!currentUserLocal) return null;
-  return doc(db, "settings", `discount_${currentUserLocal}`);
-}
 
 // --- DASHBOARD ---
 async function showDashboard(username, local){
@@ -118,7 +115,7 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
-  const img = document.getElementById("img").value.trim();
+  const imgFile = document.getElementById("img").files[0]; // ahora es file input
   const category = document.getElementById("category").value;
 
   if(!name || !desc || !price || !category){
@@ -127,16 +124,26 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   }
 
   try {
+    let imgUrl = ""; 
+    if(imgFile){
+      const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${imgFile.name}`);
+      await uploadBytes(imgStorageRef, imgFile);
+      imgUrl = await getDownloadURL(imgStorageRef);
+    } else if(editId){ 
+      const docSnap = await getDoc(doc(db,"productos",editId));
+      if(docSnap.exists()) imgUrl = docSnap.data().img || "";
+    }
+
     if(editId){
       await setDoc(doc(db, "productos", editId), {
-        name, desc, price, img, category,
+        name, desc, price, img: imgUrl, category,
         local: currentUserLocal,
         updatedAt: new Date()
       });
       editId = null;
     } else {
       await addDoc(collection(db, "productos"), {
-        name, desc, price, img, category,
+        name, desc, price, img: imgUrl, category,
         local: currentUserLocal,
         createdAt: new Date()
       });
@@ -148,6 +155,18 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   } catch(err){
     console.error(err);
     alert("Error al guardar producto: " + err.message);
+  }
+});
+
+// --- VISTA PREVIA DE IMAGEN ---
+document.getElementById("img").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = ev => document.getElementById("imgPreview").src = ev.target.result;
+    reader.readAsDataURL(file);
+  } else {
+    document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
   }
 });
 
@@ -177,9 +196,9 @@ function filterProductsByLocal(){
         document.getElementById('name').value = data.name;
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
-        document.getElementById('img').value = data.img;
         document.getElementById('category').value = data.category;
         editId = d.id;
+        document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
       });
 
       const btnDelete = document.createElement('button');
@@ -201,42 +220,36 @@ function filterProductsByLocal(){
 }
 
 // --- PANEL DE DESCUENTOS ---
-// Guardar descuento en Firestore asociado a cada local
+const discountDocRef = doc(db, "settings", "discount_" + currentUserLocal);
+
 discountRadios.forEach(radio => {
   radio.addEventListener('change', async () => {
     if(!currentUserLocal) return;
     const value = parseInt(radio.value);
     try {
-      await setDoc(getDiscountDocRef(), { 
-        value,
+      await setDoc(doc(db,"settings","discount_" + currentUserLocal), { 
+        value, 
         local: currentUserLocal
       }, { merge: true });
-      console.log(`Descuento guardado para ${currentUserLocal}: ${value}%`);
     } catch(err){
       console.error("Error guardando descuento:", err);
     }
   });
 });
 
-// Cargar descuento actual en tiempo real filtrando por local
 function loadDiscount(){
-  const ref = getDiscountDocRef();
-  if(!ref) return;
-  onSnapshot(ref, snapshot => {
+  onSnapshot(doc(db,"settings","discount_" + currentUserLocal), snapshot => {
     if(snapshot.exists()){
       const data = snapshot.data();
-      const val = data.value || 0;
-      discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
-    } else {
-      discountRadios.forEach(r => r.checked = (parseInt(r.value) === 0));
+      discountRadios.forEach(r => r.checked = (parseInt(r.value) === data.value));
     }
   });
 }
 </script>
 
 <style>
+/* tu CSS anterior aquí */
 body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
-h1,h2,h3 { margin-bottom:20px; }
 form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
 input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
 button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
@@ -245,45 +258,10 @@ li { display:flex; justify-content:space-between; background:#171a21; padding:10
 li span { flex:1; }
 .btn-delete { background:#f43f5e; color:#fff; }
 .btn-edit { background:#3b82f6; color:#fff; }
-.category-section { margin-bottom:30px; width:100%; max-width:500px; }
-#searchInput { padding:10px; border-radius:8px; border:none; font-size:14px; width:320px; margin-bottom:20px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
-
-#dashboardDiv {
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 600px;
-  position: relative;
-}
-
-.discount-panel {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 20px;
-  background: #171a21;
-  border-radius: 12px;
-  width: 200px;
-  display: none;
-  flex-direction: column;
-  z-index: 1000;
-}
-
-#logoutBtn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  padding:12px 25px;
-  border-radius:12px;
-  background:#f43f5e;
-  color:#fff;
-  border:none;
-  cursor:pointer;
-  font-weight:bold;
-  display:none;
-}
+#dashboardDiv { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; position: relative; }
+.discount-panel { position: fixed; top: 20px; right: 20px; padding: 20px; background: #171a21; border-radius: 12px; width: 200px; display: none; flex-direction: column; z-index: 1000; }
+#logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
 </style>
 
 </head>
@@ -306,7 +284,7 @@ li span { flex:1; }
   <input type="text" id="name" placeholder="Nombre del producto" required>
   <input type="text" id="desc" placeholder="Descripción" required>
   <input type="number" id="price" placeholder="Precio" required>
-  <input type="text" id="img" placeholder="URL de imagen (opcional)">
+  <input type="file" id="img" accept="image/*">
   <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
   <select id="category" required>
     <option value="">Seleccionar categoría</option>
@@ -320,8 +298,6 @@ li span { flex:1; }
 </form>
 
 <h2>Productos existentes</h2>
-<input type="text" id="searchInput" placeholder="Buscar producto por nombre...">
-
 <div id="productLists">
   <div class="category-section">
     <h3>Pizzas</h3>
