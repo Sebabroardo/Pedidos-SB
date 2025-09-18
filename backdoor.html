@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  logoutBtn.addEventListener("click", async ()=>{
+  logoutBtn.addEventListener("click", async ()=>{ 
     try{
       await signOut(auth);
     }catch(err){
@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Función para guardar usuario
         const saveUserBtn = document.getElementById("saveUserBtn");
-        saveUserBtn.addEventListener("click", async () => {
+        const saveUserHandler = async () => {
           const username = document.getElementById("newUsername").value.trim();
           const password = document.getElementById("newPassword").value.trim();
           const localName = document.getElementById("newLocal").value.trim();
@@ -130,11 +130,12 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("newUsername").value = "";
             document.getElementById("newPassword").value = "";
             document.getElementById("newLocal").value = "";
-            loadUsers(); // recargar la lista
+            loadUsers();
           } catch(err){
             document.getElementById("userMessage").innerText = "Error al crear usuario: "+err.message;
           }
-        });
+        };
+        saveUserBtn.onclick = saveUserHandler;
 
         // Función para cargar usuarios
         async function loadUsers(search=""){
@@ -158,20 +159,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button class="delete-btn">🗑️</button>
               </div>
             `;
-            // Eliminar
             userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{
               if(confirm("¿Eliminar usuario?")){
                 await deleteDoc(doc(db,"Users",docSnap.id));
                 loadUsers();
               }
             });
-            // Editar
             userDiv.querySelector(".edit-btn").addEventListener("click", ()=>{
               document.getElementById("newUsername").value = userData.username;
               document.getElementById("newPassword").value = userData.password;
               document.getElementById("newLocal").value = userData.local;
               document.getElementById("userMessage").innerText = "Editando usuario, guardar cambios.";
-              // Al guardar, se eliminará el viejo y se creará nuevo
               saveUserBtn.onclick = async ()=>{
                 await updateDoc(doc(db,"Users",docSnap.id), {
                   username: document.getElementById("newUsername").value,
@@ -186,18 +184,63 @@ document.addEventListener("DOMContentLoaded", () => {
                 saveUserBtn.onclick = saveUserHandler;
               };
             });
-
             userGrid.appendChild(userDiv);
           });
         }
 
         const searchInput = document.getElementById("searchUser");
-        searchInput.addEventListener("input", ()=>{
-          loadUsers(searchInput.value);
-        });
-
-        const saveUserHandler = saveUserBtn.onclick;
+        searchInput.addEventListener("input", ()=> loadUsers(searchInput.value));
         loadUsers();
+
+      } else if(section === "Generador de Locales"){
+        document.getElementById("mainContent").innerHTML = `
+          <h2>Generador de Locales</h2>
+          <form id="localForm">
+            <input type="text" id="localName" placeholder="Nombre del local" required>
+            <input type="text" id="localAddress" placeholder="Dirección" required>
+            <input type="text" id="localImg" placeholder="URL imagen principal">
+            <button type="submit">Generar Local HTML</button>
+          </form>
+          <div id="localMessage"></div>
+        `;
+
+        document.getElementById("localForm").addEventListener("submit", (e) => {
+          e.preventDefault();
+          const name = document.getElementById("localName").value.trim();
+          const address = document.getElementById("localAddress").value.trim();
+          const img = document.getElementById("localImg").value.trim();
+
+          if(!name || !address) return alert("Completa todos los campos");
+
+          const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${name}</title>
+<style>
+body { font-family: Arial,sans-serif; padding:20px; background:#f4f4f4; }
+h1 { color:#333; }
+img { max-width:300px; display:block; margin-bottom:20px; }
+</style>
+</head>
+<body>
+  <h1>${name}</h1>
+  <p>Dirección: ${address}</p>
+  ${img ? `<img src="${img}" alt="${name}">` : ''}
+  <p>Bienvenido a nuestro local.</p>
+</body>
+</html>
+          `;
+          const blob = new Blob([htmlContent], {type: "text/html"});
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = `${name.replace(/\s+/g,"_")}.html`;
+          link.click();
+
+          document.getElementById("localMessage").innerText = "Archivo HTML generado y descargado.";
+        });
 
       } else {
         document.getElementById("mainContent").innerHTML = `<h2>${section}</h2><p>Contenido de la sección ${section} aquí.</p>`;
@@ -206,9 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   const toggleBtn = document.getElementById("toggleSidebarBtn");
-  toggleBtn.addEventListener("click", () => {
-    sidebar.classList.toggle("collapsed");
-  });
+  toggleBtn.addEventListener("click", () => sidebar.classList.toggle("collapsed"));
 });
 </script>
 
@@ -566,7 +607,7 @@ button{
       <ul>
         <li data-section="Crear Usuarios">📄<span class="menu-text">Creación de Usuarios</span></li>
         <li data-section="Gestión de Locales">🏢<span class="menu-text">Gestión Visual de Locales</span></li>
-        <li data-section="Otra Sección">⚙️<span class="menu-text">Otra Sección</span></li>
+        <li data-section="Generador de Locales">⚙️<span class="menu-text">Generador de Locales</span></li>
       </ul>
     </div>
     <button id="logoutBtn"><span>Cerrar sesión</span></button>
