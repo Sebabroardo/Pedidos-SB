@@ -22,6 +22,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// ELEMENTOS
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -42,6 +43,7 @@ function showLogin(){
   welcomeMessage.style.display = "none";
 }
 
+// --- AUTH ---
 onAuthStateChanged(auth, (user) => {
   if(user) showDashboard(user);
   else showLogin();
@@ -63,9 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  logoutBtn.addEventListener("click", async ()=>{ 
-    try{ await signOut(auth); }catch(err){ alert("Error al cerrar sesión: "+err.message); }
-  });
+  logoutBtn.addEventListener("click", async ()=>{ try{ await signOut(auth); }catch(err){ alert("Error al cerrar sesión: "+err.message); } });
 
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
   menuItems.forEach(item => {
@@ -104,38 +104,32 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
 
         const saveUserBtn = document.getElementById("saveUserBtn");
-        const saveUserHandler = async ()=>{ 
+        const saveUserHandler = async ()=>{
           const username = document.getElementById("newUsername").value.trim();
           const password = document.getElementById("newPassword").value.trim();
           const localName = document.getElementById("newLocal").value.trim();
           if(!username || !password || !localName){
-            document.getElementById("userMessage").innerText = "Completa todos los campos.";
+            document.getElementById("userMessage").innerText="Completa todos los campos.";
             return;
           }
           try {
-            await addDoc(collection(db, "Users"), {
-              username,password,local: localName,createdAt: serverTimestamp()
-            });
-            document.getElementById("userMessage").innerText = "Usuario creado correctamente.";
-            document.getElementById("newUsername").value = "";
-            document.getElementById("newPassword").value = "";
-            document.getElementById("newLocal").value = "";
+            await addDoc(collection(db,"Users"),{username,password,local:localName,createdAt:serverTimestamp()});
+            document.getElementById("userMessage").innerText="Usuario creado correctamente.";
+            document.getElementById("newUsername").value="";
+            document.getElementById("newPassword").value="";
+            document.getElementById("newLocal").value="";
             loadUsers();
-          } catch(err){
-            document.getElementById("userMessage").innerText = "Error al crear usuario: "+err.message;
-          }
+          } catch(err){ document.getElementById("userMessage").innerText="Error al crear usuario: "+err.message; }
         };
         saveUserBtn.onclick = saveUserHandler;
 
         async function loadUsers(search=""){
           const userGrid = document.getElementById("userGrid");
           userGrid.innerHTML = "";
-          let q = collection(db, "Users");
-          if(search){
-            q = query(collection(db, "Users"), where("username", ">=", search), where("username", "<=", search+"\uf8ff"));
-          }
+          let q = collection(db,"Users");
+          if(search){ q = query(collection(db,"Users"),where("username", ">=", search), where("username","<=",search+"\uf8ff")); }
           const querySnapshot = await getDocs(q);
-          querySnapshot.forEach(docSnap => {
+          querySnapshot.forEach(docSnap=>{
             const userData = docSnap.data();
             const date = userData.createdAt ? new Date(userData.createdAt.seconds*1000).toLocaleString() : "-";
             const userDiv = document.createElement("div");
@@ -149,28 +143,25 @@ document.addEventListener("DOMContentLoaded", () => {
               </div>
             `;
             userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{
-              if(confirm("¿Eliminar usuario?")){
-                await deleteDoc(doc(db,"Users",docSnap.id));
-                loadUsers();
-              }
+              if(confirm("¿Eliminar usuario?")){ await deleteDoc(doc(db,"Users",docSnap.id)); loadUsers(); }
             });
             userDiv.querySelector(".edit-btn").addEventListener("click", ()=>{
-              document.getElementById("newUsername").value = userData.username;
-              document.getElementById("newPassword").value = userData.password;
-              document.getElementById("newLocal").value = userData.local;
-              document.getElementById("userMessage").innerText = "Editando usuario, guardar cambios.";
-              saveUserBtn.onclick = async ()=>{
+              document.getElementById("newUsername").value=userData.username;
+              document.getElementById("newPassword").value=userData.password;
+              document.getElementById("newLocal").value=userData.local;
+              document.getElementById("userMessage").innerText="Editando usuario, guardar cambios.";
+              saveUserBtn.onclick=async()=>{
                 await updateDoc(doc(db,"Users",docSnap.id),{
                   username: document.getElementById("newUsername").value,
                   password: document.getElementById("newPassword").value,
                   local: document.getElementById("newLocal").value
                 });
-                document.getElementById("userMessage").innerText = "Usuario actualizado correctamente.";
+                document.getElementById("userMessage").innerText="Usuario actualizado correctamente.";
+                loadUsers();
                 document.getElementById("newUsername").value="";
                 document.getElementById("newPassword").value="";
                 document.getElementById("newLocal").value="";
-                saveUserBtn.onclick = saveUserHandler;
-                loadUsers();
+                saveUserBtn.onclick=saveUserHandler;
               };
             });
             userGrid.appendChild(userDiv);
@@ -182,42 +173,28 @@ document.addEventListener("DOMContentLoaded", () => {
         loadUsers();
 
       } else if(section === "Generador de Locales"){
+
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
             <div id="localFormContainer" class="user-form">
               <h2>Generador de Locales</h2>
-              <div class="form-group">
-                <label for="localName">Nombre del Local:</label>
-                <input type="text" id="localName" placeholder="Ingrese nombre del local" required>
-              </div>
-              <div class="form-group">
-                <label for="localInstagram">URL de Instagram:</label>
-                <input type="text" id="localInstagram" placeholder="https://instagram.com/...">
-              </div>
-              <div class="form-group">
-                <label for="localLogo">Imagen de Logo (URL):</label>
-                <input type="text" id="localLogo" placeholder="URL de logo">
-              </div>
-              <div class="form-group">
-                <label for="localBg">Imagen de Fondo (URL):</label>
-                <input type="text" id="localBg" placeholder="URL de fondo">
-              </div>
-              <button id="generateLocalBtn">Generar Local</button>
+              <div class="form-group"><label for="localName">Nombre del Local:</label><input type="text" id="localName" placeholder="Nombre del local"></div>
+              <div class="form-group"><label for="localInstagram">URL Instagram:</label><input type="text" id="localInstagram" placeholder="Instagram"></div>
+              <div class="form-group"><label for="localLogo">URL Logo:</label><input type="text" id="localLogo" placeholder="Logo"></div>
+              <div class="form-group"><label for="localBg">URL Imagen Fondo:</label><input type="text" id="localBg" placeholder="Imagen de fondo"></div>
+              <button id="generateBtn">Generar HTML</button>
               <div id="localMessage"></div>
             </div>
-            <div class="user-list">
-              <h2>Vista Previa</h2>
-              <iframe id="previewFrame" style="width:100%; height:400px;"></iframe>
-            </div>
+            <iframe id="previewFrame" style="flex:1; width:100%; height:500px; border:1px solid #ccc; border-radius:8px;"></iframe>
           </div>
         `;
 
+        const generateBtn = document.getElementById("generateBtn");
         const previewFrame = document.getElementById("previewFrame");
-        const generateBtn = document.getElementById("generateLocalBtn");
 
-        async function fetchIndexHTML(){
-          const resp = await fetch('index.html');
-          return await resp.text();
+        async function fetchIndexHTML(){ 
+          const res = await fetch("Index.html"); 
+          return await res.text(); 
         }
 
         generateBtn.addEventListener("click", async ()=>{
@@ -226,15 +203,13 @@ document.addEventListener("DOMContentLoaded", () => {
           const logo = document.getElementById("localLogo").value.trim();
           const bg = document.getElementById("localBg").value.trim();
           if(!name){ document.getElementById("localMessage").innerText="Nombre es obligatorio"; return; }
+
           let html = await fetchIndexHTML();
-
-          // Reemplazos
-          html = html.replace(/<title>.*<\/title>/,"<title>"+name+"</title>");
-          html = html.replace(/(<div id="welcomeMessage">.*?<\/div>)/s,`<div id="welcomeMessage">${name}</div>`);
-          html = html.replace(/(href=".*?instagram.*?)"/, insta ? `href="${insta}"` : '$1');
-          html = html.replace(/(id="logo".*?src=").*?"/, logo ? `$1${logo}"` : '$1$2');
-          html = html.replace(/(id="bg".*?src=").*?"/, bg ? `$1${bg}"` : '$1$2');
-
+          html = html.replace(/Santa Rotisería/g, name);
+          html = html.replace(/Santa/g, name);
+          if(insta) html = html.replace(/href=".*?instagram.*?"/g, `href="${insta}"`);
+          if(logo) html = html.replace(/(<img[^>]*id=["']logo["'][^>]*src=["']).*?"/, `$1${logo}"`);
+          if(bg) html = html.replace(/(<img[^>]*id=["']bg["'][^>]*src=["']).*?"/, `$1${bg}"`);
           previewFrame.srcdoc = html;
 
           const blob = new Blob([html], {type:"text/html"});
@@ -243,6 +218,7 @@ document.addEventListener("DOMContentLoaded", () => {
           link.download = name.replace(/\s/g,"_")+".html";
           link.click();
         });
+
       } else {
         document.getElementById("mainContent").innerHTML = `<h2>${section}</h2><p>Contenido de la sección ${section} aquí.</p>`;
       }
@@ -255,61 +231,57 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <style>
-body{ margin:0; font-family: Arial, sans-serif; background:#ffffff; color:#000; min-height:100vh; display:flex; flex-direction:column; overflow-x: hidden;}
-header{ width:100%; padding:20px; text-align:center; font-size:24px; font-weight:bold; background:#ffffff; border-bottom:1px solid #ccc; display:flex; flex-direction:column; gap:8px;}
-.header-subtitle{ font-size:16px; font-weight:normal; color:#555; display:none;}
-#loginDiv{ flex:1; display:flex; justify-content:center; align-items:flex-start; padding-top:60px;}
-.form-container{ background:#171a21; padding:20px; border-radius:12px; width:300px; display:flex; flex-direction:column; gap:12px; color:#fff; align-items:center; box-shadow:0 4px 15px rgba(0,0,0,0.3);}
-input{ padding:10px; border-radius:8px; border:none; font-size:14px; width:100%;}
-label{ font-size:14px; display:flex; align-items:center; gap:6px;}
-button{ padding:10px; border:none; border-radius:8px; background:#22c55e; color:#fff; font-weight:bold; cursor:pointer; width:100%;}
-
-/* Dashboard */
-#dashboardDiv{ display:none; flex-direction:row; height:100vh; overflow-x:hidden;}
-#sidebar{ position:fixed; top:0; left:0; width:220px; height:100vh; background:#171a21; color:#fff; display:flex; flex-direction:column; justify-content:space-between; box-shadow:2px 0 5px rgba(0,0,0,0.2); padding:0; transition: width 0.3s; overflow:hidden;}
-#sidebarTop{ display:flex; justify-content:flex-end; padding:10px;}
-#toggleSidebarBtn{ background:#22c55e; color:#fff; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-weight:bold;}
-#sidebarMenu{ margin-top:20px;}
-#sidebarMenu ul{ list-style: none; padding:0; margin:0;}
-#sidebarMenu ul li{ padding:15px 20px; cursor:pointer; transition:0.2s; border-left:4px solid transparent; display:flex; align-items:center; gap:10px;}
-#sidebarMenu ul li:hover{ background:#1f222a;}
-#sidebarMenu ul li.active{ border-left:4px solid #22c55e; background:#1f222a;}
-#sidebar.collapsed{ width:60px;}
-#sidebar.collapsed #sidebarMenu li{ justify-content:center; padding:12px 0;}
-#sidebar.collapsed #sidebarMenu li span{ display:none;}
-#sidebar.collapsed #sidebarTop{ justify-content:center;}
-#sidebar.collapsed #toggleSidebarBtn{ padding:6px 8px; margin:0;}
-#mainContent{ flex:1; margin-left:220px; max-width:calc(1000px + 300px); padding:20px; overflow-x:hidden; transition: margin-left 0.3s; display:flex;}
-#sidebar.collapsed + #mainContent{ margin-left:60px;}
-#logoutBtn{ background:#f43f5e; color:#fff; border:none; padding:12px 25px; border-radius:6px; cursor:pointer; font-weight:bold; width:auto; min-width:50px; margin:20px auto; display:flex; align-items:center; justify-content:center; gap:5px;}
-#logoutBtn::before{ content:"🚪"; }
-#sidebar.collapsed #logoutBtn span{ display:none; }
-#sidebar.collapsed #logoutBtn{ width:40px; padding:12px 0; }
-.menu-text{ display:inline; }
-/* Nuevo estilo para formularios */
-.user-page{ display:flex; gap:20px; width:100%; }
-.user-form{ background:#f4f4f4; padding:20px; border-radius:12px; max-width:400px; flex:1; box-shadow:0 2px 10px rgba(0,0,0,0.1);}
-.user-form .form-group{ display:flex; flex-direction:column; margin-bottom:15px;}
-.user-form .form-group label{ font-weight:bold; margin-bottom:5px; color:#333;}
-.user-form .form-group input{ padding:10px; border-radius:6px; border:1px solid #ccc; font-size:14px;}
-#saveUserBtn, #generateLocalBtn{ background:#22c55e; color:#fff; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer; width:100%; transition:0.2s;}
-#saveUserBtn:hover, #generateLocalBtn:hover{ background:#16a34a; }
-#userMessage, #localMessage{ margin-top:10px; font-weight:bold; color:#16a34a;}
-.user-list{ background:#f4f4f4; padding:20px; border-radius:12px; width:300px; box-shadow:0 2px 10px rgba(0,0,0,0.1); flex-shrink:0;}
-.user-list input{ width:100%; padding:8px; margin-bottom:10px; border-radius:6px; border:1px solid #ccc;}
-.user-row{ display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #ccc;}
-.user-actions button{ margin-left:5px; padding:3px 6px; border:none; border-radius:4px; cursor:pointer; font-size:12px;}
-.user-actions .edit-btn{ background:#facc15; color:#fff;}
-.user-actions .delete-btn{ background:#f43f5e; color:#fff;}
+body{margin:0;font-family: Arial, sans-serif; background:#ffffff;color:#000; min-height:100vh; display:flex; flex-direction:column; overflow-x: hidden;}
+header{width:100%; padding:20px; text-align:center; font-size:24px; font-weight:bold; background:#ffffff; border-bottom:1px solid #ccc; display:flex; flex-direction:column; gap:8px;}
+.header-subtitle{font-size:16px; font-weight:normal; color:#555; display:none;}
+#loginDiv{flex:1; display:flex; justify-content:center; align-items:flex-start; padding-top:60px;}
+.form-container{background:#171a21; padding:20px; border-radius:12px; width:300px; display:flex; flex-direction:column; gap:12px; color:#fff; align-items:center; box-shadow:0 4px 15px rgba(0,0,0,0.3);}
+input{padding:10px; border-radius:8px; border:none; font-size:14px; width:100%;}
+label{font-size:14px; display:flex; align-items:center; gap:6px;}
+button{padding:10px; border:none; border-radius:8px; background:#22c55e; color:#fff; font-weight:bold; cursor:pointer; width:100%;}
+#dashboardDiv{display:none; flex-direction:row; height:100vh; overflow-x:hidden;}
+#sidebar{position:fixed; top:0; left:0; width:220px; height:100vh; background:#171a21; color:#fff; display:flex; flex-direction:column; justify-content:space-between; box-shadow:2px 0 5px rgba(0,0,0,0.2); padding:0; transition: width 0.3s; overflow:hidden;}
+#sidebarTop{display:flex; justify-content:flex-end; padding:10px;}
+#toggleSidebarBtn{background:#22c55e; color:#fff; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; font-weight:bold;}
+#sidebarMenu{margin-top:20px;}
+#sidebarMenu ul{list-style: none; padding:0; margin:0;}
+#sidebarMenu ul li{padding:15px 20px; cursor:pointer; transition:0.2s; border-left:4px solid transparent; display:flex; align-items:center; gap:10px;}
+#sidebarMenu ul li:hover{background:#1f222a;}
+#sidebarMenu ul li.active{border-left:4px solid #22c55e; background:#1f222a;}
+#sidebar.collapsed{width:60px;}
+#sidebar.collapsed #sidebarMenu li{justify-content:center; padding:12px 0;}
+#sidebar.collapsed #sidebarMenu li span{display:none;}
+#sidebar.collapsed #sidebarTop{justify-content:center;}
+#sidebar.collapsed #toggleSidebarBtn{padding:6px 8px; margin:0;}
+#mainContent{flex:1; margin-left:220px; max-width:calc(1000px + 300px); padding:20px; overflow-x:hidden; transition: margin-left 0.3s; display:flex;}
+#sidebar.collapsed + #mainContent{margin-left:60px;}
+#logoutBtn{background:#f43f5e; color:#fff; border:none; padding:12px 25px; border-radius:6px; cursor:pointer; font-weight:bold; width:auto; min-width:50px; margin:20px auto; display:flex; align-items:center; justify-content:center; gap:5px;}
+#logoutBtn::before{content:"🚪";}
+#sidebar.collapsed #logoutBtn span{display:none;}
+#sidebar.collapsed #logoutBtn{width:40px; padding:12px 0;}
+.menu-text{display:inline;}
+#sidebar.collapsed .menu-text{display:none;}
+.user-page{display:flex; gap:20px; width:100%;}
+.user-form{background:#f4f4f4; padding:20px; border-radius:12px; max-width:400px; flex:1; box-shadow:0 2px 10px rgba(0,0,0,0.1);}
+.user-form .form-group{display:flex; flex-direction:column; margin-bottom:15px;}
+.user-form .form-group label{font-weight:bold; margin-bottom:5px; color:#333;}
+.user-form .form-group input{padding:10px; border-radius:6px; border:1px solid #ccc; font-size:14px;}
+#saveUserBtn,#generateBtn{background:#22c55e; color:#fff; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer; width:100%; transition:0.2s;}
+#saveUserBtn:hover,#generateBtn:hover{background:#16a34a;}
+#userMessage,#localMessage{margin-top:10px; font-weight:bold; color:#16a34a;}
+.user-list{background:#f4f4f4; padding:20px; border-radius:12px; width:300px; box-shadow:0 2px 10px rgba(0,0,0,0.1); flex-shrink:0;}
+.user-list input{width:100%; padding:8px; margin-bottom:10px; border-radius:6px; border:1px solid #ccc;}
+.user-row{display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid #ccc;}
+.user-actions button{margin-left:5px; padding:3px 6px; border:none; border-radius:4px; cursor:pointer; font-size:12px;}
+.user-actions .edit-btn{background:#facc15; color:#fff;}
+.user-actions .delete-btn{background:#f43f5e; color:#fff;}
 </style>
 </head>
 
 <body>
 <header>
   <div class="header-title">Gestor de Locales/Usuarios</div>
-  <div class="header-subtitle" id="welcomeMessage">
-    Bienvenido al Panel Backdoor. Aquí podrás gestionar usuarios y locales.
-  </div>
+  <div class="header-subtitle" id="welcomeMessage">Bienvenido al Panel Backdoor. Aquí podrás gestionar usuarios y locales.</div>
 </header>
 
 <div id="loginDiv">
@@ -334,7 +306,7 @@ button{ padding:10px; border:none; border-radius:8px; background:#22c55e; color:
     </div>
     <button id="logoutBtn"><span>Cerrar sesión</span></button>
   </div>
-  <div id="mainContent"></div>
+  <div id="mainContent"><!-- Contenido dinámico --></div>
 </div>
 </body>
 </html>
