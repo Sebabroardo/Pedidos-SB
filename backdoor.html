@@ -9,7 +9,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -23,7 +22,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
@@ -51,8 +49,6 @@ onAuthStateChanged(auth, (user) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-
-  // LOGIN
   const loginForm = document.getElementById("loginForm");
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -73,7 +69,6 @@ document.addEventListener("DOMContentLoaded", () => {
     catch(err){ alert("Error al cerrar sesión: "+err.message); }
   });
 
-  // SIDEBAR MENU
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
   menuItems.forEach(item => {
     item.addEventListener("click", async () => {
@@ -81,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
       item.classList.add("active");
       const section = item.getAttribute("data-section");
 
-      // CREACION DE USUARIOS
+      // Crear Usuarios
       if(section === "Crear Usuarios"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -181,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loadUsers();
       }
 
-      // GENERADOR DE LOCALES
+      // Generador de Locales simplificado
       else if(section === "Generador de Locales"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -191,95 +186,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 <label for="localName">Nombre del Local:</label>
                 <input type="text" id="localName" placeholder="Ingrese nombre del local" required>
               </div>
-              <div class="form-group">
-                <label for="localInstagram">URL de Instagram:</label>
-                <input type="text" id="localInstagram" placeholder="Ingrese URL de Instagram">
-              </div>
-              <div class="form-group">
-                <label for="localLogo">Logo del Local:</label>
-                <input type="file" id="localLogo" accept="image/*">
-                <img id="previewLogo" src="" style="margin-top:10px; width:120px; display:none;">
-              </div>
-              <div class="form-group">
-                <label for="localBackground">Imagen de Fondo:</label>
-                <input type="file" id="localBackground" accept="image/*">
-                <img id="previewBG" src="" style="margin-top:10px; width:200px; display:none;">
-              </div>
-              <div class="form-group">
-                <label for="localTemplate">Archivo Index.html:</label>
-                <input type="file" id="localTemplate" accept=".html" required>
-              </div>
               <button id="saveLocalBtn">Generar Local</button>
               <div id="localMessage"></div>
             </div>
           </div>
         `;
 
-        // PREVIEW DE IMÁGENES
-        document.getElementById("localLogo").addEventListener("change", e=>{
-          const file = e.target.files[0];
-          if(file){ document.getElementById("previewLogo").src = URL.createObjectURL(file); document.getElementById("previewLogo").style.display="block"; }
-        });
-        document.getElementById("localBackground").addEventListener("change", e=>{
-          const file = e.target.files[0];
-          if(file){ document.getElementById("previewBG").src = URL.createObjectURL(file); document.getElementById("previewBG").style.display="block"; }
-        });
-
-        document.getElementById("saveLocalBtn").addEventListener("click", async () => {
+        document.getElementById("saveLocalBtn").addEventListener("click", () => {
           const name = document.getElementById("localName").value.trim();
-          const instagram = document.getElementById("localInstagram").value.trim();
-          const logoFile = document.getElementById("localLogo").files[0];
-          const bgFile = document.getElementById("localBackground").files[0];
-          const templateFile = document.getElementById("localTemplate").files[0];
-
-          if(!name || !templateFile){
-            document.getElementById("localMessage").innerText = "El nombre del local y el archivo index.html son obligatorios.";
+          if(!name){
+            document.getElementById("localMessage").innerText = "El nombre del local es obligatorio.";
             return;
           }
 
-          try{
-            let logoURL = "", bgURL = "";
+          // Tomar Index.html como plantilla interna
+          fetch('Index.html')
+            .then(res => res.text())
+            .then(template => {
+              // Reemplazar ocurrencias de "Santa" por el nombre del local
+              const finalHTML = template.replace(/Santa Rotiseria|Santa/gi, name);
 
-            if(logoFile){
-              const logoRef = ref(storage, `locales/${name}/logo-${logoFile.name}`);
-              await uploadBytes(logoRef, logoFile);
-              logoURL = await getDownloadURL(logoRef);
-            }
+              const blob = new Blob([finalHTML], {type:"text/html"});
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = `${name}.html`;
+              a.click();
 
-            if(bgFile){
-              const bgRef = ref(storage, `locales/${name}/bg-${bgFile.name}`);
-              await uploadBytes(bgRef, bgFile);
-              bgURL = await getDownloadURL(bgRef);
-            }
-
-            // LEER PLANTILLA INDEX.HTML
-            const templateText = await templateFile.text();
-            let finalHTML = templateText
-              .replaceAll("{{LOCAL_NAME}}", name)
-              .replaceAll("{{LOCAL_LOGO}}", logoURL)
-              .replaceAll("{{LOCAL_BG}}", bgURL)
-              .replaceAll("{{LOCAL_INSTAGRAM}}", instagram);
-
-            const blob = new Blob([finalHTML], {type:"text/html"});
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `${name}.html`;
-            a.click();
-
-            await addDoc(collection(db,"Locales"), { name, instagram, logoURL, bgURL, createdAt: serverTimestamp() });
-
-            document.getElementById("localMessage").innerText = "Local generado y descargado correctamente.";
-            document.getElementById("localName").value="";
-            document.getElementById("localInstagram").value="";
-            document.getElementById("localLogo").value="";
-            document.getElementById("localBackground").value="";
-            document.getElementById("localTemplate").value="";
-            document.getElementById("previewLogo").style.display="none";
-            document.getElementById("previewBG").style.display="none";
-          }catch(err){
-            console.error(err);
-            document.getElementById("localMessage").innerText = "Error generando local: "+err.message;
-          }
+              document.getElementById("localMessage").innerText = "Local generado y descargado correctamente.";
+              document.getElementById("localName").value="";
+            })
+            .catch(err => {
+              document.getElementById("localMessage").innerText = "Error cargando la plantilla: "+err.message;
+            });
         });
       }
 
@@ -290,7 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <style>
-/* Estilos idénticos a tu backdoor anterior */
+/* Estilos originales, formulario de usuarios y generador igual visual */
 body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#000;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;}
 header{width:100%;padding:20px;text-align:center;font-size:24px;font-weight:bold;background:#fff;border-bottom:1px solid #ccc;display:flex;flex-direction:column;gap:8px;}
 .header-subtitle{font-size:16px;font-weight:normal;color:#555;display:none;}
@@ -363,7 +301,6 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
     <div id="sidebarMenu">
       <ul>
         <li data-section="Crear Usuarios">📄<span class="menu-text">Creación de Usuarios</span></li>
-        <li data-section="Gestión de Locales">🏢<span class="menu-text">Gestión Visual de Locales</span></li>
         <li data-section="Generador de Locales">⚙️<span class="menu-text">Generador de Locales</span></li>
       </ul>
     </div>
