@@ -36,16 +36,9 @@ const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
 const discountPanel = document.querySelector('.discount-panel');
 const discountRadios = document.querySelectorAll("input[name='discount']");
-const fileInput = document.getElementById("img");
-const preview = document.getElementById("imgPreview");
-const progressDiv = document.getElementById("uploadProgress");
-const progressBar = document.getElementById("progressBar");
-const cancelBtn = document.getElementById("cancelUploadBtn");
-
 let currentUserLocal = null;
 let editId = null;
 let uploadTask = null;
-let previousImgUrl = "";
 
 // --- DASHBOARD ---
 async function showDashboard(username, local){
@@ -57,7 +50,7 @@ async function showDashboard(username, local){
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
   filterProductsByLocal();
-  loadDiscount();
+  loadDiscount(); // cargar descuento desde Firestore
 }
 
 function hideDashboard(){
@@ -67,7 +60,6 @@ function hideDashboard(){
   discountPanel.style.display = "none";
   logoutBtn.style.display = "none";
   currentUserLocal = null;
-  resetForm();
 }
 
 // --- LOGIN ---
@@ -118,21 +110,25 @@ logoutBtn.addEventListener("click", ()=>{
   hideDashboard();
 });
 
-// --- IMAGEN ---
-fileInput.addEventListener("change", e => {
+// --- SUBIDA DE IMÁGENES ---
+document.getElementById("img").addEventListener("change", e=>{
   const file = e.target.files[0];
-  if (!file) return;
+  if(!file) return;
 
   const reader = new FileReader();
-  reader.onload = ev => preview.src = ev.target.result;
+  reader.onload = ev => document.getElementById("imgPreview").src = ev.target.result;
   reader.readAsDataURL(file);
+
+  const progressDiv = document.getElementById("uploadProgress");
+  const progressBar = document.getElementById("progressBar");
+  const cancelBtn = document.getElementById("cancelUploadBtn");
 
   progressDiv.style.display = "block";
   progressBar.value = 0;
   cancelBtn.style.display = "inline-block";
 
-  const imgRef = storageRef(storage, `productos/${Date.now()}_${file.name}`);
-  uploadTask = uploadBytesResumable(imgRef, file);
+  const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${file.name}`);
+  uploadTask = uploadBytesResumable(imgStorageRef, file);
 
   uploadTask.on('state_changed',
     snapshot => {
@@ -144,12 +140,13 @@ fileInput.addEventListener("change", e => {
       progressDiv.style.display = "none";
       cancelBtn.style.display = "none";
     },
-    async () => {
-      const url = await getDownloadURL(uploadTask.snapshot.ref);
-      preview.src = url;
-      fileInput.dataset.url = url;
-      progressDiv.style.display = "none";
-      cancelBtn.style.display = "none";
+    () => {
+      getDownloadURL(uploadTask.snapshot.ref).then(url => {
+        document.getElementById("imgPreview").src = url;
+        document.getElementById("img").dataset.url = url; // Guardamos la URL para usarla al guardar producto
+        progressDiv.style.display = "none";
+        cancelBtn.style.display = "none";
+      });
     }
   );
 
@@ -157,26 +154,19 @@ fileInput.addEventListener("change", e => {
     if(uploadTask) uploadTask.cancel();
     progressDiv.style.display = "none";
     cancelBtn.style.display = "none";
-    fileInput.value = "";
-    preview.src = previousImgUrl || "https://via.placeholder.com/150x100?text=Sin+imagen";
-    fileInput.dataset.url = previousImgUrl || "";
+    document.getElementById("img").value = "";
+    document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
   };
 });
 
-function setEditImage(url) {
-  previousImgUrl = url || "";
-  preview.src = previousImgUrl || "https://via.placeholder.com/150x100?text=Sin+imagen";
-  fileInput.dataset.url = previousImgUrl || "";
-}
-
-// --- FORMULARIO PRODUCTOS ---
+// --- PRODUCTOS ---
 document.getElementById("productForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
 
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
-  const img = fileInput.dataset.url || ""; 
+  const img = document.getElementById("img").dataset.url || ""; // Tomamos la URL subida
   const category = document.getElementById("category").value;
 
   if(!name || !desc || !price || !category){
@@ -200,7 +190,9 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
       });
     }
 
-    resetForm();
+    document.getElementById("productForm").reset();
+    document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+    document.getElementById("img").dataset.url = "";
     alert("Producto guardado correctamente");
   } catch(err){
     console.error(err);
@@ -208,12 +200,7 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   }
 });
 
-function resetForm(){
-  document.getElementById("productForm").reset();
-  setEditImage("");
-}
-
-// --- FILTRAR PRODUCTOS ---
+// --- FILTRAR PRODUCTOS POR LOCAL ---
 function filterProductsByLocal(){
   const productLists = {
     pizza: document.getElementById('pizzaList'),
@@ -239,9 +226,10 @@ function filterProductsByLocal(){
         document.getElementById('name').value = data.name;
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
+        document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
+        document.getElementById('img').dataset.url = data.img || "";
         document.getElementById('category').value = data.category;
         editId = d.id;
-        setEditImage(data.img);
       });
 
       const btnDelete = document.createElement('button');
@@ -262,7 +250,7 @@ function filterProductsByLocal(){
   });
 }
 
-// --- DESCUENTOS ---
+// --- PANEL DE DESCUENTOS ---
 const discountDocRef = doc(db, "settings", "discount_" + (currentUserLocal || "default"));
 
 discountRadios.forEach(radio => {
@@ -288,7 +276,6 @@ function loadDiscount(){
     }
   });
 }
-
 </script>
 
 <style>
