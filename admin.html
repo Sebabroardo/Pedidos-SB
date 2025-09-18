@@ -9,7 +9,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
   getFirestore, collection, doc, getDocs, query, where, 
-  onSnapshot, deleteDoc, addDoc, setDoc 
+  onSnapshot, deleteDoc, addDoc, setDoc, getDoc 
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -44,9 +44,9 @@ async function showDashboard(username, local){
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
   filterProductsByLocal();
+  loadDiscount(); // cargar descuento desde Firestore
 }
 
-// --- HIDE DASHBOARD ---
 function hideDashboard(){
   loginDiv.style.display = "flex";
   dashboardDiv.style.display = "none";
@@ -194,34 +194,35 @@ function filterProductsByLocal(){
 }
 
 // --- PANEL DE DESCUENTOS ---
-const discountDocRef = doc(db, "settings", "discount");
+// Documento de descuento por local
+function getDiscountDocRef(){
+  return doc(db, "settings", `discount_${currentUserLocal}`);
+}
 
-// Guardar descuento en Firestore asociado al local del usuario
+// Guardar descuento
 discountRadios.forEach(radio => {
   radio.addEventListener('change', async () => {
-    if(!currentUserLocal) return; // asegurarse que hay local
+    if(!currentUserLocal) return;
     const value = parseInt(radio.value);
     try {
-      await setDoc(discountDocRef, { 
-        value, 
-        local: currentUserLocal
-      }, { merge: true });
+      await setDoc(getDiscountDocRef(), { value }, { merge: true });
     } catch(err){
       console.error("Error guardando descuento:", err);
     }
   });
 });
 
-// Cargar descuento actual en tiempo real, filtrando por local
-onSnapshot(discountDocRef, snapshot => {
-  if(snapshot.exists()){
-    const data = snapshot.data();
-    if(data.local === currentUserLocal){
-      const val = data.value || 0;
+// Cargar descuento
+function loadDiscount(){
+  if(!currentUserLocal) return;
+  const discountDocRef = getDiscountDocRef();
+  onSnapshot(discountDocRef, snapshot => {
+    if(snapshot.exists()){
+      const val = snapshot.data().value || 0;
       discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
     }
-  }
-});
+  });
+}
 </script>
 
 <style>
