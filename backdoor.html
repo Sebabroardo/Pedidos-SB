@@ -11,7 +11,6 @@ import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersis
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
-// Configuración Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
   authDomain: "santa-roti.firebaseapp.com",
@@ -46,13 +45,14 @@ function showLogin(){
   welcomeMessage.style.display = "none";
 }
 
-// Manejo estado sesión
 onAuthStateChanged(auth, (user) => {
   if(user) showDashboard(user);
   else showLogin();
 });
 
 document.addEventListener("DOMContentLoaded", () => {
+
+  // LOGIN
   const loginForm = document.getElementById("loginForm");
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -73,6 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
     catch(err){ alert("Error al cerrar sesión: "+err.message); }
   });
 
+  // SIDEBAR MENU
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
   menuItems.forEach(item => {
     item.addEventListener("click", async () => {
@@ -80,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
       item.classList.add("active");
       const section = item.getAttribute("data-section");
 
-      // --- CREAR USUARIOS ---
+      // CREACION DE USUARIOS
       if(section === "Crear Usuarios"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -175,11 +176,12 @@ document.addEventListener("DOMContentLoaded", () => {
             userGrid.appendChild(userDiv);
           });
         }
+
         document.getElementById("searchUser").addEventListener("input", (e)=>{ loadUsers(e.target.value); });
         loadUsers();
       }
 
-      // --- GENERADOR DE LOCALES ---
+      // GENERADOR DE LOCALES
       else if(section === "Generador de Locales"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -203,91 +205,84 @@ document.addEventListener("DOMContentLoaded", () => {
                 <input type="file" id="localBackground" accept="image/*">
                 <img id="previewBG" src="" style="margin-top:10px; width:200px; display:none;">
               </div>
+              <div class="form-group">
+                <label for="localTemplate">Archivo Index.html:</label>
+                <input type="file" id="localTemplate" accept=".html" required>
+              </div>
               <button id="saveLocalBtn">Generar Local</button>
               <div id="localMessage"></div>
             </div>
           </div>
         `;
 
-        // Previsualización
-        document.getElementById("localLogo").addEventListener("change", (e)=>{
+        // PREVIEW DE IMÁGENES
+        document.getElementById("localLogo").addEventListener("change", e=>{
           const file = e.target.files[0];
           if(file){ document.getElementById("previewLogo").src = URL.createObjectURL(file); document.getElementById("previewLogo").style.display="block"; }
         });
-        document.getElementById("localBackground").addEventListener("change", (e)=>{
+        document.getElementById("localBackground").addEventListener("change", e=>{
           const file = e.target.files[0];
           if(file){ document.getElementById("previewBG").src = URL.createObjectURL(file); document.getElementById("previewBG").style.display="block"; }
         });
 
-        const saveLocalBtn = document.getElementById("saveLocalBtn");
-        saveLocalBtn.addEventListener("click", async () => {
+        document.getElementById("saveLocalBtn").addEventListener("click", async () => {
           const name = document.getElementById("localName").value.trim();
           const instagram = document.getElementById("localInstagram").value.trim();
           const logoFile = document.getElementById("localLogo").files[0];
           const bgFile = document.getElementById("localBackground").files[0];
+          const templateFile = document.getElementById("localTemplate").files[0];
 
-          if(!name){ document.getElementById("localMessage").innerText = "El nombre del local es obligatorio."; return; }
+          if(!name || !templateFile){
+            document.getElementById("localMessage").innerText = "El nombre del local y el archivo index.html son obligatorios.";
+            return;
+          }
 
           try{
             let logoURL = "", bgURL = "";
 
             if(logoFile){
-              const logoRef = ref(storage, `locales/${name}/logo-${Date.now()}-${logoFile.name}`);
+              const logoRef = ref(storage, `locales/${name}/logo-${logoFile.name}`);
               await uploadBytes(logoRef, logoFile);
               logoURL = await getDownloadURL(logoRef);
             }
 
             if(bgFile){
-              const bgRef = ref(storage, `locales/${name}/bg-${Date.now()}-${bgFile.name}`);
+              const bgRef = ref(storage, `locales/${name}/bg-${bgFile.name}`);
               await uploadBytes(bgRef, bgFile);
               bgURL = await getDownloadURL(bgRef);
             }
 
-            await addDoc(collection(db,"Locales"), { name, instagram, logoURL, bgURL, createdAt: serverTimestamp() });
+            // LEER PLANTILLA INDEX.HTML
+            const templateText = await templateFile.text();
+            let finalHTML = templateText
+              .replaceAll("{{LOCAL_NAME}}", name)
+              .replaceAll("{{LOCAL_LOGO}}", logoURL)
+              .replaceAll("{{LOCAL_BG}}", bgURL)
+              .replaceAll("{{LOCAL_INSTAGRAM}}", instagram);
 
-            const template = `
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>${name}</title>
-            </head>
-            <body>
-              <header>
-                ${logoURL ? `<img src="${logoURL}" alt="${name} Logo" style="width:120px;">` : ""}
-                <h1>${name}</h1>
-              </header>
-              <main>
-                ${bgURL ? `<img src="${bgURL}" alt="Fondo ${name}" style="width:100%;">` : ""}
-                <p>Síguenos en <a href="${instagram}" target="_blank">Instagram</a></p>
-              </main>
-            </body>
-            </html>
-            `;
-
-            const blob = new Blob([template], {type:"text/html"});
+            const blob = new Blob([finalHTML], {type:"text/html"});
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
             a.download = `${name}.html`;
             a.click();
+
+            await addDoc(collection(db,"Locales"), { name, instagram, logoURL, bgURL, createdAt: serverTimestamp() });
 
             document.getElementById("localMessage").innerText = "Local generado y descargado correctamente.";
             document.getElementById("localName").value="";
             document.getElementById("localInstagram").value="";
             document.getElementById("localLogo").value="";
             document.getElementById("localBackground").value="";
+            document.getElementById("localTemplate").value="";
             document.getElementById("previewLogo").style.display="none";
             document.getElementById("previewBG").style.display="none";
-
-          } catch(err){
+          }catch(err){
             console.error(err);
-            document.getElementById("localMessage").innerText = "Error generando local: " + err.message;
+            document.getElementById("localMessage").innerText = "Error generando local: "+err.message;
           }
         });
       }
 
-      // Sidebar toggle
       document.getElementById("toggleSidebarBtn").addEventListener("click", ()=>{ sidebar.classList.toggle("collapsed"); });
     });
   });
@@ -295,6 +290,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <style>
+/* Estilos idénticos a tu backdoor anterior */
 body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#000;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;}
 header{width:100%;padding:20px;text-align:center;font-size:24px;font-weight:bold;background:#fff;border-bottom:1px solid #ccc;display:flex;flex-direction:column;gap:8px;}
 .header-subtitle{font-size:16px;font-weight:normal;color:#555;display:none;}
