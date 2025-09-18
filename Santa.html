@@ -177,7 +177,7 @@ const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS
 let discount = 0; // porcentaje de descuento
 
 // Referencia al documento de descuento
-const discountDocRef = doc(db, "settings", "discount");
+const discountDocRef = doc(db, "settings", "discount_Santa");
 
 // Escuchar cambios en tiempo real y aplicar solo si local es Santa
 onSnapshot(discountDocRef, snapshot => {
@@ -369,3 +369,4 @@ document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
+
