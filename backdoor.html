@@ -11,6 +11,7 @@ import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersis
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
+// Configuración Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
   authDomain: "santa-roti.firebaseapp.com",
@@ -45,6 +46,7 @@ function showLogin(){
   welcomeMessage.style.display = "none";
 }
 
+// Manejo estado sesión
 onAuthStateChanged(auth, (user) => {
   if(user) showDashboard(user);
   else showLogin();
@@ -78,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
       item.classList.add("active");
       const section = item.getAttribute("data-section");
 
+      // --- CREAR USUARIOS ---
       if(section === "Crear Usuarios"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -172,11 +175,11 @@ document.addEventListener("DOMContentLoaded", () => {
             userGrid.appendChild(userDiv);
           });
         }
-
         document.getElementById("searchUser").addEventListener("input", (e)=>{ loadUsers(e.target.value); });
         loadUsers();
       }
 
+      // --- GENERADOR DE LOCALES ---
       else if(section === "Generador de Locales"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -206,47 +209,43 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `;
 
-        const logoInput = document.getElementById("localLogo");
-        const bgInput = document.getElementById("localBackground");
-        const saveLocalBtn = document.getElementById("saveLocalBtn");
-
-        logoInput.addEventListener("change", e=>{
+        // Previsualización
+        document.getElementById("localLogo").addEventListener("change", (e)=>{
           const file = e.target.files[0];
           if(file){ document.getElementById("previewLogo").src = URL.createObjectURL(file); document.getElementById("previewLogo").style.display="block"; }
         });
-        bgInput.addEventListener("change", e=>{
+        document.getElementById("localBackground").addEventListener("change", (e)=>{
           const file = e.target.files[0];
           if(file){ document.getElementById("previewBG").src = URL.createObjectURL(file); document.getElementById("previewBG").style.display="block"; }
         });
 
-        saveLocalBtn.addEventListener("click", async ()=>{
+        const saveLocalBtn = document.getElementById("saveLocalBtn");
+        saveLocalBtn.addEventListener("click", async () => {
           const name = document.getElementById("localName").value.trim();
           const instagram = document.getElementById("localInstagram").value.trim();
           const logoFile = document.getElementById("localLogo").files[0];
           const bgFile = document.getElementById("localBackground").files[0];
 
-          if(!name){
-            document.getElementById("localMessage").innerText = "El nombre del local es obligatorio.";
-            return;
-          }
+          if(!name){ document.getElementById("localMessage").innerText = "El nombre del local es obligatorio."; return; }
 
           try{
             let logoURL = "", bgURL = "";
 
             if(logoFile){
-              const logoRef = ref(storage, `locales/${name}/logo-${logoFile.name}`);
+              const logoRef = ref(storage, `locales/${name}/logo-${Date.now()}-${logoFile.name}`);
               await uploadBytes(logoRef, logoFile);
               logoURL = await getDownloadURL(logoRef);
             }
+
             if(bgFile){
-              const bgRef = ref(storage, `locales/${name}/bg-${bgFile.name}`);
+              const bgRef = ref(storage, `locales/${name}/bg-${Date.now()}-${bgFile.name}`);
               await uploadBytes(bgRef, bgFile);
               bgURL = await getDownloadURL(bgRef);
             }
 
             await addDoc(collection(db,"Locales"), { name, instagram, logoURL, bgURL, createdAt: serverTimestamp() });
 
-            let template = `
+            const template = `
             <!DOCTYPE html>
             <html lang="es">
             <head>
@@ -256,11 +255,11 @@ document.addEventListener("DOMContentLoaded", () => {
             </head>
             <body>
               <header>
-                <img id="logo" src="${logoURL}" alt="${name} Logo">
+                ${logoURL ? `<img src="${logoURL}" alt="${name} Logo" style="width:120px;">` : ""}
                 <h1>${name}</h1>
               </header>
               <main>
-                <img id="background" src="${bgURL}" alt="Fondo ${name}" style="width:100%;">
+                ${bgURL ? `<img src="${bgURL}" alt="Fondo ${name}" style="width:100%;">` : ""}
                 <p>Síguenos en <a href="${instagram}" target="_blank">Instagram</a></p>
               </main>
             </body>
@@ -274,10 +273,10 @@ document.addEventListener("DOMContentLoaded", () => {
             a.click();
 
             document.getElementById("localMessage").innerText = "Local generado y descargado correctamente.";
-            document.getElementById("localName").value = "";
-            document.getElementById("localInstagram").value = "";
-            document.getElementById("localLogo").value = "";
-            document.getElementById("localBackground").value = "";
+            document.getElementById("localName").value="";
+            document.getElementById("localInstagram").value="";
+            document.getElementById("localLogo").value="";
+            document.getElementById("localBackground").value="";
             document.getElementById("previewLogo").style.display="none";
             document.getElementById("previewBG").style.display="none";
 
@@ -288,6 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
+      // Sidebar toggle
       document.getElementById("toggleSidebarBtn").addEventListener("click", ()=>{ sidebar.classList.toggle("collapsed"); });
     });
   });
