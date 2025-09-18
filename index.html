@@ -231,14 +231,11 @@ document.querySelectorAll('.category-btn').forEach(btn => {
   });
 });
 
-const LOCAL_NAME = "Santa"; // <- Local específico
-
 onSnapshot(collection(db,"productos"), snapshot => {
   ['pizzas','hamburguesas','papas','menuEspecial','extras'].forEach(id => document.getElementById(id).innerHTML = '');
   
   snapshot.forEach(doc => {
     const p = doc.data();
-    if(p.local !== LOCAL_NAME) return; // <- Filtra solo productos del local Santa
     const id = doc.id;
     const card = document.createElement('div');
     card.className = 'card product';
