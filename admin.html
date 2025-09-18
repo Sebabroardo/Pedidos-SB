@@ -9,11 +9,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
   getFirestore, collection, doc, getDocs, query, where, 
-  onSnapshot, deleteDoc, addDoc, setDoc 
+  onSnapshot, deleteDoc, addDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-
 import { 
-  getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL 
+  getStorage, ref as storageRef, uploadBytes, getDownloadURL 
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
 const firebaseConfig = {
@@ -38,7 +37,6 @@ const discountPanel = document.querySelector('.discount-panel');
 const discountRadios = document.querySelectorAll("input[name='discount']");
 let currentUserLocal = null;
 let editId = null;
-let uploadTask = null;
 
 // --- DASHBOARD ---
 async function showDashboard(username, local){
@@ -50,7 +48,7 @@ async function showDashboard(username, local){
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
   filterProductsByLocal();
-  loadDiscount(); // cargar descuento desde Firestore
+  loadDiscount();
 }
 
 function hideDashboard(){
@@ -110,55 +108,6 @@ logoutBtn.addEventListener("click", ()=>{
   hideDashboard();
 });
 
-// --- SUBIDA DE IMÁGENES ---
-document.getElementById("img").addEventListener("change", e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-  reader.onload = ev => document.getElementById("imgPreview").src = ev.target.result;
-  reader.readAsDataURL(file);
-
-  const progressDiv = document.getElementById("uploadProgress");
-  const progressBar = document.getElementById("progressBar");
-  const cancelBtn = document.getElementById("cancelUploadBtn");
-
-  progressDiv.style.display = "block";
-  progressBar.value = 0;
-  cancelBtn.style.display = "inline-block";
-
-  const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${file.name}`);
-  uploadTask = uploadBytesResumable(imgStorageRef, file);
-
-  uploadTask.on('state_changed',
-    snapshot => {
-      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-      progressBar.value = progress;
-    },
-    error => {
-      alert("Error en subida: " + error.message);
-      progressDiv.style.display = "none";
-      cancelBtn.style.display = "none";
-    },
-    () => {
-      getDownloadURL(uploadTask.snapshot.ref).then(url => {
-        document.getElementById("imgPreview").src = url;
-        document.getElementById("img").dataset.url = url; // Guardamos la URL para usarla al guardar producto
-        progressDiv.style.display = "none";
-        cancelBtn.style.display = "none";
-      });
-    }
-  );
-
-  cancelBtn.onclick = () => {
-    if(uploadTask) uploadTask.cancel();
-    progressDiv.style.display = "none";
-    cancelBtn.style.display = "none";
-    document.getElementById("img").value = "";
-    document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-  };
-});
-
 // --- PRODUCTOS ---
 document.getElementById("productForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
@@ -166,7 +115,7 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
-  const img = document.getElementById("img").dataset.url || ""; // Tomamos la URL subida
+  const imgFile = document.getElementById("img").files[0]; // ahora es file input
   const category = document.getElementById("category").value;
 
   if(!name || !desc || !price || !category){
@@ -175,16 +124,26 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   }
 
   try {
+    let imgUrl = ""; 
+    if(imgFile){
+      const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${imgFile.name}`);
+      await uploadBytes(imgStorageRef, imgFile);
+      imgUrl = await getDownloadURL(imgStorageRef);
+    } else if(editId){ 
+      const docSnap = await getDoc(doc(db,"productos",editId));
+      if(docSnap.exists()) imgUrl = docSnap.data().img || "";
+    }
+
     if(editId){
       await setDoc(doc(db, "productos", editId), {
-        name, desc, price, img, category,
+        name, desc, price, img: imgUrl, category,
         local: currentUserLocal,
         updatedAt: new Date()
       });
       editId = null;
     } else {
       await addDoc(collection(db, "productos"), {
-        name, desc, price, img, category,
+        name, desc, price, img: imgUrl, category,
         local: currentUserLocal,
         createdAt: new Date()
       });
@@ -192,11 +151,22 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
 
     document.getElementById("productForm").reset();
     document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-    document.getElementById("img").dataset.url = "";
     alert("Producto guardado correctamente");
   } catch(err){
     console.error(err);
     alert("Error al guardar producto: " + err.message);
+  }
+});
+
+// --- VISTA PREVIA DE IMAGEN ---
+document.getElementById("img").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = ev => document.getElementById("imgPreview").src = ev.target.result;
+    reader.readAsDataURL(file);
+  } else {
+    document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
   }
 });
 
@@ -226,10 +196,9 @@ function filterProductsByLocal(){
         document.getElementById('name').value = data.name;
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
-        document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
-        document.getElementById('img').dataset.url = data.img || "";
         document.getElementById('category').value = data.category;
         editId = d.id;
+        document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
       });
 
       const btnDelete = document.createElement('button');
@@ -251,14 +220,17 @@ function filterProductsByLocal(){
 }
 
 // --- PANEL DE DESCUENTOS ---
-const discountDocRef = doc(db, "settings", "discount_" + (currentUserLocal || "default"));
+const discountDocRef = doc(db, "settings", "discount_" + currentUserLocal);
 
 discountRadios.forEach(radio => {
   radio.addEventListener('change', async () => {
     if(!currentUserLocal) return;
     const value = parseInt(radio.value);
     try {
-      await setDoc(discountDocRef, { value, local: currentUserLocal }, { merge: true });
+      await setDoc(doc(db,"settings","discount_" + currentUserLocal), { 
+        value, 
+        local: currentUserLocal
+      }, { merge: true });
     } catch(err){
       console.error("Error guardando descuento:", err);
     }
@@ -266,20 +238,17 @@ discountRadios.forEach(radio => {
 });
 
 function loadDiscount(){
-  onSnapshot(discountDocRef, snapshot => {
+  onSnapshot(doc(db,"settings","discount_" + currentUserLocal), snapshot => {
     if(snapshot.exists()){
       const data = snapshot.data();
-      if(data.local === currentUserLocal){
-        const val = data.value || 0;
-        discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
-      }
+      discountRadios.forEach(r => r.checked = (parseInt(r.value) === data.value));
     }
   });
 }
-
 </script>
 
 <style>
+/* tu CSS anterior aquí */
 body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
 form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
 input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
@@ -289,11 +258,10 @@ li { display:flex; justify-content:space-between; background:#171a21; padding:10
 li span { flex:1; }
 .btn-delete { background:#f43f5e; color:#fff; }
 .btn-edit { background:#3b82f6; color:#fff; }
-.category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
-#uploadProgress { margin-top:5px; display:none; }
-#logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
+#dashboardDiv { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; position: relative; }
 .discount-panel { position: fixed; top: 20px; right: 20px; padding: 20px; background: #171a21; border-radius: 12px; width: 200px; display: none; flex-direction: column; z-index: 1000; }
+#logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
 </style>
 
 </head>
@@ -318,10 +286,6 @@ li span { flex:1; }
   <input type="number" id="price" placeholder="Precio" required>
   <input type="file" id="img" accept="image/*">
   <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
-  <div id="uploadProgress">
-    <progress id="progressBar" value="0" max="100" style="width:100%;"></progress>
-    <button type="button" id="cancelUploadBtn" style="display:none; margin-top:5px;">Cancelar subida</button>
-  </div>
   <select id="category" required>
     <option value="">Seleccionar categoría</option>
     <option value="pizza">Pizza</option>
@@ -332,7 +296,7 @@ li span { flex:1; }
   </select>
   <button type="submit">Guardar producto</button>
 </form>
-  
+
 <h2>Productos existentes</h2>
 <div id="productLists">
   <div class="category-section">
