@@ -122,7 +122,8 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
     let imgUrl = "";
 
     if (imgFile) {
-      const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${imgFile.name}`);
+      const safeName = imgFile.name.replace(/\s+/g, '_').replace(/[^\w.-]/g, '');
+      const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${safeName}`);
       await uploadBytes(imgStorageRef, imgFile);
       imgUrl = await getDownloadURL(imgStorageRef);
     } else if (editIdField) {
@@ -189,7 +190,19 @@ function filterProductsByLocal(){
       if(data.local !== currentUserLocal) return;
 
       const li = document.createElement('li');
-      li.innerHTML = `<span>${data.name} — ${data.desc} — $${data.price}</span>`;
+
+      // Crear imagen del producto
+      const imgElement = document.createElement('img');
+      imgElement.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
+      imgElement.style.width = "50px";
+      imgElement.style.height = "50px";
+      imgElement.style.objectFit = "cover";
+      imgElement.style.borderRadius = "6px";
+      li.appendChild(imgElement);
+
+      const span = document.createElement('span');
+      span.textContent = `${data.name} — ${data.desc} — $${data.price}`;
+      li.appendChild(span);
 
       const btnEdit = document.createElement('button');
       btnEdit.textContent = 'Editar';
