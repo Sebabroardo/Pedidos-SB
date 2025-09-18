@@ -109,55 +109,54 @@ logoutBtn.addEventListener("click", ()=>{
 });
 
 // --- PRODUCTOS ---
-document.getElementById("productForm").addEventListener("submit", async (e)=>{
+document.getElementById("productForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
-  const imgFile = document.getElementById("img").files[0]; 
   const category = document.getElementById("category").value;
-
-  if(!name || !desc || !price || !category){
-    alert("Todos los campos son obligatorios");
-    return;
-  }
+  const imgFile = document.getElementById("img").files[0]; 
+  const editIdField = document.getElementById("editId").value;
 
   try {
-    let imgUrl = ""; 
+    let imgUrl = "";
 
-    if(imgFile){
-      // SUBIDA DE IMAGEN
+    if (imgFile) {
       const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${imgFile.name}`);
       await uploadBytes(imgStorageRef, imgFile);
       imgUrl = await getDownloadURL(imgStorageRef);
-    } else if(editId){ 
-      // TOMAR IMAGEN EXISTENTE AL EDITAR
-      const docSnap = await getDoc(doc(db,"productos",editId));
-      if(docSnap.exists()) imgUrl = docSnap.data().img || "";
+    } else if (editIdField) {
+      const docSnap = await getDoc(doc(db, "productos", editIdField));
+      if (docSnap.exists()) {
+        imgUrl = docSnap.data().img || "";
+      }
     }
 
-    if(editId){
-      await setDoc(doc(db, "productos", editId), {
-        name, desc, price, img: imgUrl, category,
-        local: currentUserLocal,
-        updatedAt: new Date()
-      });
-      editId = null;
+    const productData = {
+      name,
+      desc,
+      price,
+      category,
+      local: currentUserLocal,
+      img: imgUrl,
+      updatedAt: new Date()
+    };
+
+    if (editIdField) {
+      await setDoc(doc(db, "productos", editIdField), productData);
+      alert("Producto actualizado correctamente");
     } else {
-      await addDoc(collection(db, "productos"), {
-        name, desc, price, img: imgUrl, category,
-        local: currentUserLocal,
-        createdAt: new Date()
-      });
+      productData.createdAt = new Date();
+      await addDoc(collection(db, "productos"), productData);
+      alert("Producto agregado correctamente");
     }
 
-    document.getElementById("productForm").reset();
+    e.target.reset();
     document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-    alert("Producto guardado correctamente");
-  } catch(err){
-    console.error(err);
-    alert("Error al guardar producto: " + err.message);
+    document.getElementById("editId").value = "";
+  } catch (err) {
+    console.error("Error al guardar producto:", err);
+    alert("❌ Error al guardar producto: " + err.message);
   }
 });
 
@@ -200,7 +199,7 @@ function filterProductsByLocal(){
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
         document.getElementById('category').value = data.category;
-        editId = d.id;
+        document.getElementById('editId').value = d.id;
         document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
       });
 
@@ -281,6 +280,7 @@ li span { flex:1; }
 <div id="welcomeMessage"></div>
 
 <form id="productForm">
+  <input type="hidden" id="editId">
   <input type="text" id="name" placeholder="Nombre del producto" required>
   <input type="text" id="desc" placeholder="Descripción" required>
   <input type="number" id="price" placeholder="Precio" required>
