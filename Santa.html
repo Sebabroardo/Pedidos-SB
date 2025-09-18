@@ -140,10 +140,10 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
     <h3>🛒 Tu pedido</h3>
     <div class="cart-list" id="cartList"></div>
     <div class="tot">
-  <span>Total</span>
-  <span id="total">$0</span>
-</div>
-<div id="discountInfo" class="muted" style="font-size:12px;display:none;"></div>
+      <span>Total</span>
+      <span id="total">$0</span>
+    </div>
+    <div id="discountInfo" class="muted" style="font-size:12px;display:none;"></div>
     <div class="inputs">
       <input id="customerName" placeholder="Tu nombre"/>
       <textarea id="customerNotes" placeholder="Notas para la cocina (sin mayonesa, más ketchup, etc.)"></textarea>
@@ -179,10 +179,11 @@ let discount = 0; // porcentaje de descuento
 // Referencia al documento de descuento
 const discountDocRef = doc(db, "settings", "discount");
 
-// Escuchar cambios en tiempo real
+// Escuchar cambios en tiempo real y aplicar solo si local es Santa
 onSnapshot(discountDocRef, snapshot => {
   if (snapshot.exists()) {
-    discount = snapshot.data().value || 0;
+    const data = snapshot.data();
+    discount = data.local === "Santa" ? (data.value || 0) : 0;
     renderCart(); // re-renderiza el carrito si cambia el descuento
   }
 });
@@ -227,16 +228,16 @@ function renderCart() {
   });
 
   let discountedTotal = total;
-if(discount > 0){
-  discountedTotal = Math.round(total * (1 - discount / 100));
-  const discountAmount = total - discountedTotal;
-  const discountInfo = document.getElementById('discountInfo');
-  discountInfo.style.display = 'block';
-  discountInfo.textContent = `¡Descuento del ${discount}% aplicado! Ahorrás ${currency.format(discountAmount)}.`;
-} else {
-  document.getElementById('discountInfo').style.display = 'none';
-}
-document.getElementById('total').textContent = currency.format(discountedTotal);
+  if(discount > 0){
+    discountedTotal = Math.round(total * (1 - discount / 100));
+    const discountAmount = total - discountedTotal;
+    const discountInfo = document.getElementById('discountInfo');
+    discountInfo.style.display = 'block';
+    discountInfo.textContent = `¡Descuento del ${discount}% aplicado! Ahorrás ${currency.format(discountAmount)}.`;
+  } else {
+    document.getElementById('discountInfo').style.display = 'none';
+  }
+  document.getElementById('total').textContent = currency.format(discountedTotal);
 }
 
 function buildWhatsAppMessage() {
@@ -249,18 +250,17 @@ function buildWhatsAppMessage() {
     const lineTotal = product.price + ((extra && product.category==='hamburguesa')?3000:0);
     lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(lineTotal)}`);
   });
- let total = entries.reduce((acc,{product,extra})=>acc + product.price + ((extra && product.category==='hamburguesa')?3000:0),0);
-  
-let discountedTotal = total;
-if(discount > 0){
-  discountedTotal = Math.round(total * (1 - discount / 100));
-}
-lines.push('');
-if(discount > 0){
-  const discountAmount = total - discountedTotal;
-  lines.push(`*Descuento:* ${discount}% — Ahorrás ${currency.format(discountAmount)}`);
-}
-lines.push(`*Total:* ${currency.format(discountedTotal)}`);
+  let total = entries.reduce((acc,{product,extra})=>acc + product.price + ((extra && product.category==='hamburguesa')?3000:0),0);
+  let discountedTotal = total;
+  if(discount > 0){
+    discountedTotal = Math.round(total * (1 - discount / 100));
+  }
+  lines.push('');
+  if(discount > 0){
+    const discountAmount = total - discountedTotal;
+    lines.push(`*Descuento:* ${discount}% — Ahorrás ${currency.format(discountAmount)}`);
+  }
+  lines.push(`*Total:* ${currency.format(discountedTotal)}`);
   lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
   if(name) lines.push(`*Nombre:* ${name}`);
   if(notes) lines.push(`*Notas:* ${notes}`);
@@ -291,6 +291,7 @@ onSnapshot(productsRef, snapshot => {
   const categories = {};
   snapshot.docs.forEach(doc => {
     const data = doc.data();
+    if(data.local !== "Santa") return; // <-- filtramos solo productos de Santa
     const id = doc.id;
     const catKey = data.category?.trim().toLowerCase();
     if(!categories[catKey]) categories[catKey] = [];
