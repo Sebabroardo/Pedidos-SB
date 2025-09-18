@@ -8,7 +8,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
-  getFirestore, collection, doc, getDocs, query, where, 
+  getFirestore, collection, doc, getDocs, getDoc, query, where, 
   onSnapshot, deleteDoc, addDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 import { 
@@ -115,7 +115,7 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
-  const imgFile = document.getElementById("img").files[0]; // ahora es file input
+  const imgFile = document.getElementById("img").files[0]; 
   const category = document.getElementById("category").value;
 
   if(!name || !desc || !price || !category){
@@ -125,11 +125,14 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
 
   try {
     let imgUrl = ""; 
+
     if(imgFile){
+      // SUBIDA DE IMAGEN
       const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${imgFile.name}`);
       await uploadBytes(imgStorageRef, imgFile);
       imgUrl = await getDownloadURL(imgStorageRef);
     } else if(editId){ 
+      // TOMAR IMAGEN EXISTENTE AL EDITAR
       const docSnap = await getDoc(doc(db,"productos",editId));
       if(docSnap.exists()) imgUrl = docSnap.data().img || "";
     }
@@ -220,8 +223,6 @@ function filterProductsByLocal(){
 }
 
 // --- PANEL DE DESCUENTOS ---
-const discountDocRef = doc(db, "settings", "discount_" + currentUserLocal);
-
 discountRadios.forEach(radio => {
   radio.addEventListener('change', async () => {
     if(!currentUserLocal) return;
@@ -248,7 +249,6 @@ function loadDiscount(){
 </script>
 
 <style>
-/* tu CSS anterior aquí */
 body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
 form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
 input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
