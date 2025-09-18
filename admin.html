@@ -7,14 +7,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { 
-  getFirestore, collection, doc, getDocs, query, where, 
-  onSnapshot, deleteDoc, addDoc, setDoc 
-} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-
-import { 
-  getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL 
-} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
+import { getFirestore, collection, doc, getDocs, query, where, onSnapshot, deleteDoc, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -29,7 +23,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// ELEMENTOS
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -75,19 +68,16 @@ document.getElementById("loginForm").addEventListener("submit", async (e)=>{
     const usersRef = collection(db, "Users");
     const q = query(usersRef, where("username", "==", username));
     const querySnapshot = await getDocs(q);
-
     if(querySnapshot.empty) return alert("Usuario no encontrado");
 
     const userDoc = querySnapshot.docs[0];
     const userData = userDoc.data();
-
     if(userData.password !== password) return alert("Contraseña incorrecta");
 
     if(rememberMe) localStorage.setItem("session", JSON.stringify({username, local: userData.local}));
     else sessionStorage.setItem("session", JSON.stringify({username, local: userData.local}));
 
     showDashboard(userData.username, userData.local);
-
   } catch(err){
     console.error(err);
     alert("Error al iniciar sesión: "+err.message);
@@ -115,20 +105,24 @@ document.getElementById("img").addEventListener("change", e=>{
   const file = e.target.files[0];
   if(!file) return;
 
-  const reader = new FileReader();
-  reader.onload = ev => document.getElementById("imgPreview").src = ev.target.result;
-  reader.readAsDataURL(file);
+  const imgPreview = document.getElementById("imgPreview");
+  const urlTemp = URL.createObjectURL(file);
+  imgPreview.src = urlTemp;
 
-  const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${file.name}`);
-  uploadTask = uploadBytesResumable(imgStorageRef, file);
+  const storageReference = storageRef(storage, `productos/${Date.now()}_${file.name}`);
+  uploadTask = uploadBytesResumable(storageReference, file);
 
-  uploadTask.on('state_changed',
-    null,
-    error => alert("Error en subida: " + error.message),
+  uploadTask.on('state_changed', 
+    snapshot => {}, // no necesitamos progress visual
+    error => {
+      alert("Error al subir imagen: " + error.message);
+      imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+      document.getElementById("img").value = "";
+    },
     () => {
-      getDownloadURL(uploadTask.snapshot.ref).then(url => {
-        document.getElementById("imgPreview").src = url;
-        document.getElementById("img").dataset.url = url;
+      getDownloadURL(uploadTask.snapshot.ref).then(url=>{
+        imgPreview.src = url;
+        document.getElementById("img").dataset.url = url; // guardamos la URL para guardar producto
       });
     }
   );
@@ -137,7 +131,6 @@ document.getElementById("img").addEventListener("change", e=>{
 // --- PRODUCTOS ---
 document.getElementById("productForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
-
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
@@ -151,18 +144,10 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
 
   try {
     if(editId){
-      await setDoc(doc(db, "productos", editId), {
-        name, desc, price, img, category,
-        local: currentUserLocal,
-        updatedAt: new Date()
-      });
+      await setDoc(doc(db, "productos", editId), {name, desc, price, img, category, local: currentUserLocal, updatedAt: new Date()});
       editId = null;
     } else {
-      await addDoc(collection(db, "productos"), {
-        name, desc, price, img, category,
-        local: currentUserLocal,
-        createdAt: new Date()
-      });
+      await addDoc(collection(db, "productos"), {name, desc, price, img, category, local: currentUserLocal, createdAt: new Date()});
     }
 
     document.getElementById("productForm").reset();
@@ -171,7 +156,7 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
     alert("Producto guardado correctamente");
   } catch(err){
     console.error(err);
-    alert("Error al guardar producto: " + err.message);
+    alert("Error al guardar producto: "+err.message);
   }
 });
 
@@ -186,7 +171,7 @@ function filterProductsByLocal(){
   };
 
   onSnapshot(collection(db, "productos"), snapshot => {
-    Object.values(productLists).forEach(ul => ul.innerHTML = '');
+    Object.values(productLists).forEach(ul=>ul.innerHTML='');
     snapshot.forEach(d=>{
       const data = d.data();
       if(data.local !== currentUserLocal) return;
@@ -225,28 +210,26 @@ function filterProductsByLocal(){
   });
 }
 
-// --- PANEL DE DESCUENTOS ---
+// --- DESCUENTOS ---
 const discountDocRef = doc(db, "settings", "discount_" + (currentUserLocal || "default"));
 
-discountRadios.forEach(radio => {
-  radio.addEventListener('change', async () => {
+discountRadios.forEach(radio=>{
+  radio.addEventListener('change', async ()=>{
     if(!currentUserLocal) return;
-    const value = parseInt(radio.value);
-    try {
-      await setDoc(discountDocRef, { value, local: currentUserLocal }, { merge: true });
-    } catch(err){
-      console.error("Error guardando descuento:", err);
+    try{
+      await setDoc(discountDocRef, {value: parseInt(radio.value), local: currentUserLocal}, {merge:true});
+    }catch(err){
+      console.error(err);
     }
   });
 });
 
 function loadDiscount(){
-  onSnapshot(discountDocRef, snapshot => {
+  onSnapshot(discountDocRef, snapshot=>{
     if(snapshot.exists()){
       const data = snapshot.data();
       if(data.local === currentUserLocal){
-        const val = data.value || 0;
-        discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
+        discountRadios.forEach(r => r.checked = (parseInt(r.value) === (data.value || 0)));
       }
     }
   });
@@ -266,7 +249,7 @@ li span { flex:1; }
 .category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
 #logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
-.discount-panel { position: fixed; top: 20px; right: 20px; padding: 20px; background: #171a21; border-radius: 12px; width: 200px; display: none; flex-direction: column; z-index: 1000; }
+.discount-panel { position: fixed; top: 20px; right: 20px; padding:20px; background:#171a21; border-radius:12px; width:200px; display:none; flex-direction:column; z-index:1000; }
 </style>
 
 </head>
@@ -301,7 +284,7 @@ li span { flex:1; }
   </select>
   <button type="submit">Guardar producto</button>
 </form>
-  
+
 <h2>Productos existentes</h2>
 <div id="productLists">
   <div class="category-section">
