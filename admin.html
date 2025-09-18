@@ -7,8 +7,13 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, query, where, onSnapshot, deleteDoc, addDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
+import { 
+  getFirestore, collection, doc, getDocs, query, where, 
+  onSnapshot, deleteDoc, addDoc, setDoc
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { 
+  getStorage, ref as storageRef, uploadBytes, getDownloadURL 
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -23,6 +28,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+// ELEMENTOS
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -31,7 +37,6 @@ const discountPanel = document.querySelector('.discount-panel');
 const discountRadios = document.querySelectorAll("input[name='discount']");
 let currentUserLocal = null;
 let editId = null;
-let uploadTask = null;
 
 // --- DASHBOARD ---
 async function showDashboard(username, local){
@@ -68,16 +73,19 @@ document.getElementById("loginForm").addEventListener("submit", async (e)=>{
     const usersRef = collection(db, "Users");
     const q = query(usersRef, where("username", "==", username));
     const querySnapshot = await getDocs(q);
+
     if(querySnapshot.empty) return alert("Usuario no encontrado");
 
     const userDoc = querySnapshot.docs[0];
     const userData = userDoc.data();
+
     if(userData.password !== password) return alert("Contraseña incorrecta");
 
     if(rememberMe) localStorage.setItem("session", JSON.stringify({username, local: userData.local}));
     else sessionStorage.setItem("session", JSON.stringify({username, local: userData.local}));
 
     showDashboard(userData.username, userData.local);
+
   } catch(err){
     console.error(err);
     alert("Error al iniciar sesión: "+err.message);
@@ -100,41 +108,14 @@ logoutBtn.addEventListener("click", ()=>{
   hideDashboard();
 });
 
-// --- SUBIDA DE IMÁGENES ---
-document.getElementById("img").addEventListener("change", e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-
-  const imgPreview = document.getElementById("imgPreview");
-  const urlTemp = URL.createObjectURL(file);
-  imgPreview.src = urlTemp;
-
-  const storageReference = storageRef(storage, `productos/${Date.now()}_${file.name}`);
-  uploadTask = uploadBytesResumable(storageReference, file);
-
-  uploadTask.on('state_changed', 
-    snapshot => {}, // no necesitamos progress visual
-    error => {
-      alert("Error al subir imagen: " + error.message);
-      imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-      document.getElementById("img").value = "";
-    },
-    () => {
-      getDownloadURL(uploadTask.snapshot.ref).then(url=>{
-        imgPreview.src = url;
-        document.getElementById("img").dataset.url = url; // guardamos la URL para guardar producto
-      });
-    }
-  );
-});
-
 // --- PRODUCTOS ---
 document.getElementById("productForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
+
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
-  const img = document.getElementById("img").dataset.url || "";
+  const imgFile = document.getElementById("img").files[0]; // ahora es file input
   const category = document.getElementById("category").value;
 
   if(!name || !desc || !price || !category){
@@ -143,20 +124,49 @@ document.getElementById("productForm").addEventListener("submit", async (e)=>{
   }
 
   try {
+    let imgUrl = ""; 
+    if(imgFile){
+      const imgStorageRef = storageRef(storage, `productos/${Date.now()}_${imgFile.name}`);
+      await uploadBytes(imgStorageRef, imgFile);
+      imgUrl = await getDownloadURL(imgStorageRef);
+    } else if(editId){ 
+      const docSnap = await getDoc(doc(db,"productos",editId));
+      if(docSnap.exists()) imgUrl = docSnap.data().img || "";
+    }
+
     if(editId){
-      await setDoc(doc(db, "productos", editId), {name, desc, price, img, category, local: currentUserLocal, updatedAt: new Date()});
+      await setDoc(doc(db, "productos", editId), {
+        name, desc, price, img: imgUrl, category,
+        local: currentUserLocal,
+        updatedAt: new Date()
+      });
       editId = null;
     } else {
-      await addDoc(collection(db, "productos"), {name, desc, price, img, category, local: currentUserLocal, createdAt: new Date()});
+      await addDoc(collection(db, "productos"), {
+        name, desc, price, img: imgUrl, category,
+        local: currentUserLocal,
+        createdAt: new Date()
+      });
     }
 
     document.getElementById("productForm").reset();
     document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-    document.getElementById("img").dataset.url = "";
     alert("Producto guardado correctamente");
   } catch(err){
     console.error(err);
-    alert("Error al guardar producto: "+err.message);
+    alert("Error al guardar producto: " + err.message);
+  }
+});
+
+// --- VISTA PREVIA DE IMAGEN ---
+document.getElementById("img").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = ev => document.getElementById("imgPreview").src = ev.target.result;
+    reader.readAsDataURL(file);
+  } else {
+    document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
   }
 });
 
@@ -171,7 +181,7 @@ function filterProductsByLocal(){
   };
 
   onSnapshot(collection(db, "productos"), snapshot => {
-    Object.values(productLists).forEach(ul=>ul.innerHTML='');
+    Object.values(productLists).forEach(ul => ul.innerHTML = '');
     snapshot.forEach(d=>{
       const data = d.data();
       if(data.local !== currentUserLocal) return;
@@ -186,10 +196,9 @@ function filterProductsByLocal(){
         document.getElementById('name').value = data.name;
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
-        document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
-        document.getElementById('img').dataset.url = data.img || "";
         document.getElementById('category').value = data.category;
         editId = d.id;
+        document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
       });
 
       const btnDelete = document.createElement('button');
@@ -210,33 +219,36 @@ function filterProductsByLocal(){
   });
 }
 
-// --- DESCUENTOS ---
-const discountDocRef = doc(db, "settings", "discount_" + (currentUserLocal || "default"));
+// --- PANEL DE DESCUENTOS ---
+const discountDocRef = doc(db, "settings", "discount_" + currentUserLocal);
 
-discountRadios.forEach(radio=>{
-  radio.addEventListener('change', async ()=>{
+discountRadios.forEach(radio => {
+  radio.addEventListener('change', async () => {
     if(!currentUserLocal) return;
-    try{
-      await setDoc(discountDocRef, {value: parseInt(radio.value), local: currentUserLocal}, {merge:true});
-    }catch(err){
-      console.error(err);
+    const value = parseInt(radio.value);
+    try {
+      await setDoc(doc(db,"settings","discount_" + currentUserLocal), { 
+        value, 
+        local: currentUserLocal
+      }, { merge: true });
+    } catch(err){
+      console.error("Error guardando descuento:", err);
     }
   });
 });
 
 function loadDiscount(){
-  onSnapshot(discountDocRef, snapshot=>{
+  onSnapshot(doc(db,"settings","discount_" + currentUserLocal), snapshot => {
     if(snapshot.exists()){
       const data = snapshot.data();
-      if(data.local === currentUserLocal){
-        discountRadios.forEach(r => r.checked = (parseInt(r.value) === (data.value || 0)));
-      }
+      discountRadios.forEach(r => r.checked = (parseInt(r.value) === data.value));
     }
   });
 }
 </script>
 
 <style>
+/* tu CSS anterior aquí */
 body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
 form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
 input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
@@ -246,10 +258,10 @@ li { display:flex; justify-content:space-between; background:#171a21; padding:10
 li span { flex:1; }
 .btn-delete { background:#f43f5e; color:#fff; }
 .btn-edit { background:#3b82f6; color:#fff; }
-.category-section { margin-bottom:30px; width:100%; max-width:500px; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
+#dashboardDiv { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; position: relative; }
+.discount-panel { position: fixed; top: 20px; right: 20px; padding: 20px; background: #171a21; border-radius: 12px; width: 200px; display: none; flex-direction: column; z-index: 1000; }
 #logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
-.discount-panel { position: fixed; top: 20px; right: 20px; padding:20px; background:#171a21; border-radius:12px; width:200px; display:none; flex-direction:column; z-index:1000; }
 </style>
 
 </head>
