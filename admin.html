@@ -9,9 +9,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
   getFirestore, collection, doc, getDocs, query, where, 
-  onSnapshot, deleteDoc, addDoc, setDoc, getDoc 
+  onSnapshot, deleteDoc, addDoc, setDoc 
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
+// --- CONFIG FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
   authDomain: "santa-roti.firebaseapp.com",
@@ -24,7 +25,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ELEMENTOS
+// --- ELEMENTOS ---
 const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -34,21 +35,10 @@ const discountRadios = document.querySelectorAll("input[name='discount']");
 let currentUserLocal = null;
 let editId = null;
 
-// --- FUNCIONES DE DESCUENTO POR LOCAL ---
-function getDiscountDocRef(){
+// --- FUNCIONES ---
+function getDiscountDocRef() {
   if(!currentUserLocal) return null;
   return doc(db, "settings", `discount_${currentUserLocal}`);
-}
-
-function loadDiscount(){
-  const ref = getDiscountDocRef();
-  if(!ref) return;
-  onSnapshot(ref, snapshot => {
-    if(snapshot.exists()){
-      const val = snapshot.data().value || 0;
-      discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
-    }
-  });
 }
 
 // --- DASHBOARD ---
@@ -211,17 +201,37 @@ function filterProductsByLocal(){
 }
 
 // --- PANEL DE DESCUENTOS ---
+// Guardar descuento en Firestore asociado a cada local
 discountRadios.forEach(radio => {
   radio.addEventListener('change', async () => {
     if(!currentUserLocal) return;
     const value = parseInt(radio.value);
     try {
-      await setDoc(getDiscountDocRef(), { value }, { merge: true });
+      await setDoc(getDiscountDocRef(), { 
+        value,
+        local: currentUserLocal
+      }, { merge: true });
+      console.log(`Descuento guardado para ${currentUserLocal}: ${value}%`);
     } catch(err){
       console.error("Error guardando descuento:", err);
     }
   });
 });
+
+// Cargar descuento actual en tiempo real filtrando por local
+function loadDiscount(){
+  const ref = getDiscountDocRef();
+  if(!ref) return;
+  onSnapshot(ref, snapshot => {
+    if(snapshot.exists()){
+      const data = snapshot.data();
+      const val = data.value || 0;
+      discountRadios.forEach(r => r.checked = (parseInt(r.value) === val));
+    } else {
+      discountRadios.forEach(r => r.checked = (parseInt(r.value) === 0));
+    }
+  });
+}
 </script>
 
 <style>
