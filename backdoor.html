@@ -63,13 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  logoutBtn.addEventListener("click", async ()=>{ 
-    try{
-      await signOut(auth);
-    }catch(err){
-      alert("Error al cerrar sesión: "+err.message);
-    }
-  });
+  logoutBtn.addEventListener("click", async ()=>{ try{ await signOut(auth); }catch(err){ alert("Error al cerrar sesión: "+err.message); } });
 
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
   menuItems.forEach(item => {
@@ -78,6 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
       item.classList.add("active");
       const section = item.getAttribute("data-section");
 
+      // --- CREACION DE USUARIOS ---
       if(section === "Crear Usuarios"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -107,51 +102,44 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `;
 
-        // Función para guardar usuario
         const saveUserBtn = document.getElementById("saveUserBtn");
-        const saveUserHandler = async () => {
+        async function saveUserHandler(){
           const username = document.getElementById("newUsername").value.trim();
           const password = document.getElementById("newPassword").value.trim();
           const localName = document.getElementById("newLocal").value.trim();
-
           if(!username || !password || !localName){
             document.getElementById("userMessage").innerText = "Completa todos los campos.";
             return;
           }
-
-          try {
-            await addDoc(collection(db, "Users"), {
-              username,
-              password,
-              local: localName,
-              createdAt: serverTimestamp()
+          try{
+            await addDoc(collection(db,"Users"),{
+              username,password,local:localName,createdAt:serverTimestamp()
             });
             document.getElementById("userMessage").innerText = "Usuario creado correctamente.";
-            document.getElementById("newUsername").value = "";
-            document.getElementById("newPassword").value = "";
-            document.getElementById("newLocal").value = "";
+            document.getElementById("newUsername").value="";
+            document.getElementById("newPassword").value="";
+            document.getElementById("newLocal").value="";
             loadUsers();
-          } catch(err){
-            document.getElementById("userMessage").innerText = "Error al crear usuario: "+err.message;
+          }catch(err){
+            document.getElementById("userMessage").innerText="Error al crear usuario: "+err.message;
           }
-        };
+        }
         saveUserBtn.onclick = saveUserHandler;
 
-        // Función para cargar usuarios
         async function loadUsers(search=""){
           const userGrid = document.getElementById("userGrid");
-          userGrid.innerHTML = "";
-          let q = collection(db, "Users");
+          userGrid.innerHTML="";
+          let q = collection(db,"Users");
           if(search){
-            q = query(collection(db, "Users"), where("username", ">=", search), where("username", "<=", search+"\uf8ff"));
+            q=query(collection(db,"Users"),where("username",">=",search),where("username","<=",search+"\uf8ff"));
           }
           const querySnapshot = await getDocs(q);
-          querySnapshot.forEach(docSnap => {
-            const userData = docSnap.data();
-            const date = userData.createdAt ? new Date(userData.createdAt.seconds*1000).toLocaleString() : "-";
-            const userDiv = document.createElement("div");
+          querySnapshot.forEach(docSnap=>{
+            const userData=docSnap.data();
+            const date=userData.createdAt?new Date(userData.createdAt.seconds*1000).toLocaleString():"-";
+            const userDiv=document.createElement("div");
             userDiv.classList.add("user-row");
-            userDiv.innerHTML = `
+            userDiv.innerHTML=`
               <span>${userData.username}</span>
               <span>${date}</span>
               <div class="user-actions">
@@ -159,24 +147,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button class="delete-btn">🗑️</button>
               </div>
             `;
-            userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{
+            userDiv.querySelector(".delete-btn").addEventListener("click",async ()=>{
               if(confirm("¿Eliminar usuario?")){
                 await deleteDoc(doc(db,"Users",docSnap.id));
                 loadUsers();
               }
             });
-            userDiv.querySelector(".edit-btn").addEventListener("click", ()=>{
-              document.getElementById("newUsername").value = userData.username;
-              document.getElementById("newPassword").value = userData.password;
-              document.getElementById("newLocal").value = userData.local;
-              document.getElementById("userMessage").innerText = "Editando usuario, guardar cambios.";
+            userDiv.querySelector(".edit-btn").addEventListener("click",()=>{
+              document.getElementById("newUsername").value=userData.username;
+              document.getElementById("newPassword").value=userData.password;
+              document.getElementById("newLocal").value=userData.local;
+              document.getElementById("userMessage").innerText="Editando usuario, guardar cambios.";
               saveUserBtn.onclick = async ()=>{
-                await updateDoc(doc(db,"Users",docSnap.id), {
-                  username: document.getElementById("newUsername").value,
-                  password: document.getElementById("newPassword").value,
-                  local: document.getElementById("newLocal").value
+                await updateDoc(doc(db,"Users",docSnap.id),{
+                  username:document.getElementById("newUsername").value,
+                  password:document.getElementById("newPassword").value,
+                  local:document.getElementById("newLocal").value
                 });
-                document.getElementById("userMessage").innerText = "Usuario actualizado correctamente.";
+                document.getElementById("userMessage").innerText="Usuario actualizado correctamente.";
                 loadUsers();
                 document.getElementById("newUsername").value="";
                 document.getElementById("newPassword").value="";
@@ -187,400 +175,115 @@ document.addEventListener("DOMContentLoaded", () => {
             userGrid.appendChild(userDiv);
           });
         }
-
-        const searchInput = document.getElementById("searchUser");
-        searchInput.addEventListener("input", ()=> loadUsers(searchInput.value));
+        const searchInput=document.getElementById("searchUser");
+        searchInput.addEventListener("input",()=>{ loadUsers(searchInput.value); });
         loadUsers();
 
+      // --- GENERADOR DE LOCALES ---
       } else if(section === "Generador de Locales"){
         document.getElementById("mainContent").innerHTML = `
-          <h2>Generador de Locales</h2>
-          <form id="localForm">
-            <input type="text" id="localName" placeholder="Nombre del local" required>
-            <input type="text" id="localAddress" placeholder="Dirección" required>
-            <input type="text" id="localImg" placeholder="URL imagen principal">
-            <button type="submit">Generar Local HTML</button>
-          </form>
-          <div id="localMessage"></div>
+          <div class="user-page">
+            <div class="user-form">
+              <h2>Generador de Locales</h2>
+              <div class="form-group">
+                <label for="localName">Nombre del Local:</label>
+                <input type="text" id="localName" placeholder="Ingrese nombre del local" required>
+              </div>
+              <button id="generateLocalBtn">Generar Local HTML</button>
+              <div id="localMessage"></div>
+            </div>
+          </div>
         `;
+        const generateBtn=document.getElementById("generateLocalBtn");
+        generateBtn.addEventListener("click",()=>{
+          const name=document.getElementById("localName").value.trim();
+          if(!name) return alert("Completa el nombre del local");
 
-        document.getElementById("localForm").addEventListener("submit", (e) => {
-          e.preventDefault();
-          const name = document.getElementById("localName").value.trim();
-          const address = document.getElementById("localAddress").value.trim();
-          const img = document.getElementById("localImg").value.trim();
-
-          if(!name || !address) return alert("Completa todos los campos");
-
-          const htmlContent = `
-<!DOCTYPE html>
+          // --- Pegá aquí tu index.html completo ---
+          let templateHTML = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${name}</title>
+<title>{{LOCAL_NAME}}</title>
 <style>
-body { font-family: Arial,sans-serif; padding:20px; background:#f4f4f4; }
-h1 { color:#333; }
-img { max-width:300px; display:block; margin-bottom:20px; }
+/* Aquí todo el CSS de index.html */
 </style>
 </head>
 <body>
-  <h1>${name}</h1>
-  <p>Dirección: ${address}</p>
-  ${img ? `<img src="${img}" alt="${name}">` : ''}
-  <p>Bienvenido a nuestro local.</p>
+<h1>{{LOCAL_NAME}}</h1>
+<!-- Resto del contenido de index.html -->
 </body>
-</html>
-          `;
-          const blob = new Blob([htmlContent], {type: "text/html"});
+</html>`;
+          templateHTML = templateHTML.replace(/{{LOCAL_NAME}}/g,name);
+
+          const blob = new Blob([templateHTML],{type:"text/html"});
           const link = document.createElement("a");
           link.href = URL.createObjectURL(blob);
-          link.download = `${name.replace(/\s+/g,"_")}.html`;
+          link.download=`${name.replace(/\s+/g,"_")}.html`;
           link.click();
-
-          document.getElementById("localMessage").innerText = "Archivo HTML generado y descargado.";
+          document.getElementById("localMessage").innerText="Archivo HTML generado y descargado.";
         });
-
       } else {
         document.getElementById("mainContent").innerHTML = `<h2>${section}</h2><p>Contenido de la sección ${section} aquí.</p>`;
       }
     });
   });
 
-  const toggleBtn = document.getElementById("toggleSidebarBtn");
-  toggleBtn.addEventListener("click", () => sidebar.classList.toggle("collapsed"));
+  const toggleBtn=document.getElementById("toggleSidebarBtn");
+  toggleBtn.addEventListener("click",()=>{ sidebar.classList.toggle("collapsed"); });
 });
 </script>
 
 <style>
-body{
-  margin:0;
-  font-family: Arial, sans-serif;
-  background:#ffffff;
-  color:#000;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-  overflow-x: hidden;
-}
+/* Mantener todo el estilo anterior */
 
-header{
-  width:100%;
-  padding:20px;
-  text-align:center;
-  font-size:24px;
-  font-weight:bold;
-  background:#ffffff;
-  border-bottom:1px solid #ccc;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-
-.header-subtitle{
-  font-size:16px;
-  font-weight:normal;
-  color:#555;
-  display:none;
-}
-
-#loginDiv{
-  flex:1;
-  display:flex;
-  justify-content:center;
-  align-items:flex-start;
-  padding-top:60px;
-}
-
-.form-container{
-  background:#171a21;
-  padding:20px;
-  border-radius:12px;
-  width:300px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  color:#fff;
-  align-items:center;
-  box-shadow:0 4px 15px rgba(0,0,0,0.3);
-}
-
-input{
-  padding:10px;
-  border-radius:8px;
-  border:none;
-  font-size:14px;
-  width:100%;
-}
-label{
-  font-size:14px;
-  display:flex;
-  align-items:center;
-  gap:6px;
-}
-button{
-  padding:10px;
-  border:none;
-  border-radius:8px;
-  background:#22c55e;
-  color:#fff;
-  font-weight:bold;
-  cursor:pointer;
-  width:100%;
-}
-
-/* Dashboard */
-#dashboardDiv{
-  display:none;
-  flex-direction:row;
-  height:100vh;
-  overflow-x:hidden;
-}
-
-#sidebar{
-  position:fixed;
-  top:0;
-  left:0;
-  width:220px;
-  height:100vh;
-  background:#171a21;
-  color:#fff;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  box-shadow:2px 0 5px rgba(0,0,0,0.2);
-  padding:0;
-  transition: width 0.3s;
-  overflow:hidden;
-}
-
-#sidebarTop{
-  display:flex;
-  justify-content:flex-end;
-  padding:10px;
-}
-
-#toggleSidebarBtn{
-  background:#22c55e;
-  color:#fff;
-  border:none;
-  border-radius:6px;
-  padding:6px 10px;
-  cursor:pointer;
-  font-weight:bold;
-}
-
-#sidebarMenu{
-  margin-top:20px;
-}
-
-#sidebarMenu ul{
-  list-style: none;
-  padding:0;
-  margin:0;
-}
-
-#sidebarMenu ul li{
-  padding:15px 20px;
-  cursor:pointer;
-  transition:0.2s;
-  border-left:4px solid transparent;
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-#sidebarMenu ul li:hover{
-  background:#1f222a;
-}
-
-#sidebarMenu ul li.active{
-  border-left:4px solid #22c55e;
-  background:#1f222a;
-}
-
-/* Sidebar colapsado */
-#sidebar.collapsed{
-  width:60px;
-}
-
-#sidebar.collapsed #sidebarMenu li{
-  justify-content:center;
-  padding:12px 0;
-}
-
-#sidebar.collapsed #sidebarMenu li span{
-  display:none;
-}
-
-#sidebar.collapsed #sidebarTop{
-  justify-content:center;
-}
-
-#sidebar.collapsed #toggleSidebarBtn{
-  padding:6px 8px;
-  margin:0;
-}
-
-/* Main content */
-#mainContent{
-  flex:1;
-  margin-left:220px;
-  max-width:calc(1000px + 300px);
-  padding:20px;
-  overflow-x:hidden;
-  transition: margin-left 0.3s;
-  display:flex;
-}
-
-#sidebar.collapsed + #mainContent{
-  margin-left:60px;
-}
-
-/* Logout */
-#logoutBtn{
-  background:#f43f5e;
-  color:#fff;
-  border:none;
-  padding:12px 25px;
-  border-radius:6px;
-  cursor:pointer;
-  font-weight:bold;
-  width:auto;
-  min-width:50px;
-  margin:20px auto;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:5px;
-}
-
-#logoutBtn::before{
-  content:"🚪";
-}
-
-#sidebar.collapsed #logoutBtn span{
-  display:none;
-}
-
-#sidebar.collapsed #logoutBtn{
-  width:40px;
-  padding:12px 0;
-}
-
-.menu-text{
-  display:inline;
-}
-
-#sidebar.collapsed .menu-text{
-  display:none;
-}
-
-/* Nuevo estilo para creación de usuarios */
-.user-page{
-  display:flex;
-  gap:20px;
-  width:100%;
-}
-
-.user-form{
-  background:#f4f4f4;
-  padding:20px;
-  border-radius:12px;
-  max-width:400px;
-  flex:1;
-  box-shadow:0 2px 10px rgba(0,0,0,0.1);
-}
-
-.user-form .form-group{
-  display:flex;
-  flex-direction:column;
-  margin-bottom:15px;
-}
-
-.user-form .form-group label{
-  font-weight:bold;
-  margin-bottom:5px;
-  color:#333;
-}
-
-.user-form .form-group input{
-  padding:10px;
-  border-radius:6px;
-  border:1px solid #ccc;
-  font-size:14px;
-}
-
-#saveUserBtn{
-  background:#22c55e;
-  color:#fff;
-  border:none;
-  padding:12px;
-  border-radius:6px;
-  font-weight:bold;
-  cursor:pointer;
-  width:100%;
-  transition:0.2s;
-}
-
-#saveUserBtn:hover{
-  background:#16a34a;
-}
-
-#userMessage{
-  margin-top:10px;
-  font-weight:bold;
-  color:#16a34a;
-}
-
-/* Panel derecho usuarios */
-.user-list{
-  background:#f4f4f4;
-  padding:20px;
-  border-radius:12px;
-  width:300px;
-  box-shadow:0 2px 10px rgba(0,0,0,0.1);
-  flex-shrink:0;
-}
-
-.user-list input{
-  width:100%;
-  padding:8px;
-  margin-bottom:10px;
-  border-radius:6px;
-  border:1px solid #ccc;
-}
-
-.user-row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:8px;
-  border-bottom:1px solid #ccc;
-}
-
-.user-actions button{
-  margin-left:5px;
-  padding:3px 6px;
-  border:none;
-  border-radius:4px;
-  cursor:pointer;
-  font-size:12px;
-}
-
-.user-actions .edit-btn{
-  background:#facc15;
-  color:#fff;
-}
-
-.user-actions .delete-btn{
-  background:#f43f5e;
-  color:#fff;
-}
+body{margin:0;font-family:Arial,sans-serif; background:#ffffff; color:#000; min-height:100vh; display:flex; flex-direction:column; overflow-x:hidden;}
+header{width:100%;padding:20px;text-align:center;font-size:24px;font-weight:bold;background:#ffffff; border-bottom:1px solid #ccc;display:flex;flex-direction:column;gap:8px;}
+.header-subtitle{font-size:16px;font-weight:normal;color:#555;display:none;}
+#loginDiv{flex:1; display:flex; justify-content:center; align-items:flex-start; padding-top:60px;}
+.form-container{background:#171a21; padding:20px; border-radius:12px; width:300px; display:flex; flex-direction:column; gap:12px; color:#fff; align-items:center; box-shadow:0 4px 15px rgba(0,0,0,0.3);}
+input{padding:10px; border-radius:8px; border:none; font-size:14px; width:100%;}
+label{font-size:14px; display:flex; align-items:center; gap:6px;}
+button{padding:10px; border:none; border-radius:8px; background:#22c55e; color:#fff; font-weight:bold; cursor:pointer; width:100%;}
+#dashboardDiv{display:none; flex-direction:row; height:100vh; overflow-x:hidden;}
+#sidebar{position:fixed; top:0; left:0; width:220px; height:100vh; background:#171a21; color:#fff; display:flex; flex-direction:column; justify-content:space-between; box-shadow:2px 0 5px rgba(0,0,0,0.2); padding:0; transition: width 0.3s; overflow:hidden;}
+#sidebarTop{display:flex; justify-content:flex-end; padding:10px;}
+#toggleSidebarBtn{background:#22c55e;color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-weight:bold;}
+#sidebarMenu{margin-top:20px;}
+#sidebarMenu ul{list-style:none;padding:0;margin:0;}
+#sidebarMenu ul li{padding:15px 20px; cursor:pointer; transition:0.2s; border-left:4px solid transparent; display:flex; align-items:center; gap:10px;}
+#sidebarMenu ul li:hover{background:#1f222a;}
+#sidebarMenu ul li.active{border-left:4px solid #22c55e;background:#1f222a;}
+#sidebar.collapsed{width:60px;}
+#sidebar.collapsed #sidebarMenu li{justify-content:center;padding:12px 0;}
+#sidebar.collapsed #sidebarMenu li span{display:none;}
+#sidebar.collapsed #sidebarTop{justify-content:center;}
+#sidebar.collapsed #toggleSidebarBtn{padding:6px 8px;margin:0;}
+#mainContent{flex:1;margin-left:220px; max-width:calc(1000px + 300px); padding:20px; overflow-x:hidden; transition: margin-left 0.3s; display:flex;}
+#sidebar.collapsed + #mainContent{margin-left:60px;}
+#logoutBtn{background:#f43f5e;color:#fff;border:none;padding:12px 25px;border-radius:6px;cursor:pointer;font-weight:bold;width:auto;min-width:50px;margin:20px auto;display:flex;align-items:center;justify-content:center;gap:5px;}
+#logoutBtn::before{content:"🚪";}
+#sidebar.collapsed #logoutBtn span{display:none;}
+#sidebar.collapsed #logoutBtn{width:40px;padding:12px 0;}
+.menu-text{display:inline;}
+#sidebar.collapsed .menu-text{display:none;}
+.user-page{display:flex; gap:20px; width:100%;}
+.user-form{background:#f4f4f4;padding:20px;border-radius:12px;max-width:400px;flex:1; box-shadow:0 2px 10px rgba(0,0,0,0.1);}
+.user-form .form-group{display:flex; flex-direction:column;margin-bottom:15px;}
+.user-form .form-group label{font-weight:bold;margin-bottom:5px;color:#333;}
+.user-form .form-group input{padding:10px;border-radius:6px;border:1px solid #ccc;font-size:14px;}
+#saveUserBtn,#generateLocalBtn{background:#22c55e;color:#fff;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;width:100%;transition:0.2s;}
+#saveUserBtn:hover,#generateLocalBtn:hover{background:#16a34a;}
+#userMessage,#localMessage{margin-top:10px;font-weight:bold;color:#16a34a;}
+.user-list{background:#f4f4f4;padding:20px;border-radius:12px;width:300px;box-shadow:0 2px 10px rgba(0,0,0,0.1); flex-shrink:0;}
+.user-list input{width:100%;padding:8px;margin-bottom:10px;border-radius:6px;border:1px solid #ccc;}
+.user-row{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #ccc;}
+.user-actions button{margin-left:5px;padding:3px 6px;border:none;border-radius:4px;cursor:pointer;font-size:12px;}
+.user-actions .edit-btn{background:#facc15;color:#fff;}
+.user-actions .delete-btn{background:#f43f5e;color:#fff;}
 </style>
 </head>
-
 <body>
 <header>
   <div class="header-title">Gestor de Locales/Usuarios</div>
@@ -606,13 +309,12 @@ button{
     <div id="sidebarMenu">
       <ul>
         <li data-section="Crear Usuarios">📄<span class="menu-text">Creación de Usuarios</span></li>
-        <li data-section="Gestión de Locales">🏢<span class="menu-text">Gestión Visual de Locales</span></li>
-        <li data-section="Generador de Locales">⚙️<span class="menu-text">Generador de Locales</span></li>
+        <li data-section="Generador de Locales">🏢<span class="menu-text">Generador de Locales</span></li>
+        <li data-section="Otra Sección">⚙️<span class="menu-text">Otra Sección</span></li>
       </ul>
     </div>
     <button id="logoutBtn"><span>Cerrar sesión</span></button>
   </div>
-
   <div id="mainContent">
     <!-- Contenido dinámico -->
   </div>
