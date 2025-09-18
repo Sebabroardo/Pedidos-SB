@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
       item.classList.add("active");
       const section = item.getAttribute("data-section");
 
-      // Crear Usuarios
+      // --- CREAR USUARIOS ---
       if(section === "Crear Usuarios"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -176,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loadUsers();
       }
 
-      // Generador de Locales simplificado
+      // --- GENERADOR DE LOCALES ---
       else if(section === "Generador de Locales"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -199,25 +199,35 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
           }
 
-          // Tomar Index.html como plantilla interna
-          fetch('Index.html')
-            .then(res => res.text())
-            .then(template => {
-              // Reemplazar ocurrencias de "Santa" por el nombre del local
-              const finalHTML = template.replace(/Santa Rotiseria|Santa/gi, name);
+          // Plantilla de Index interna
+          const template = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${name}</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>${name}</h1>
+</header>
+<main>
+  <p>Bienvenido a ${name}</p>
+</main>
+</body>
+</html>
+          `;
 
-              const blob = new Blob([finalHTML], {type:"text/html"});
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = `${name}.html`;
-              a.click();
+          const blob = new Blob([template], {type:"text/html"});
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `${name}.html`;
+          a.click();
 
-              document.getElementById("localMessage").innerText = "Local generado y descargado correctamente.";
-              document.getElementById("localName").value="";
-            })
-            .catch(err => {
-              document.getElementById("localMessage").innerText = "Error cargando la plantilla: "+err.message;
-            });
+          document.getElementById("localMessage").innerText = "Local generado correctamente.";
+          document.getElementById("localName").value = "";
         });
       }
 
@@ -228,7 +238,6 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <style>
-/* Estilos originales, formulario de usuarios y generador igual visual */
 body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#000;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;}
 header{width:100%;padding:20px;text-align:center;font-size:24px;font-weight:bold;background:#fff;border-bottom:1px solid #ccc;display:flex;flex-direction:column;gap:8px;}
 .header-subtitle{font-size:16px;font-weight:normal;color:#555;display:none;}
