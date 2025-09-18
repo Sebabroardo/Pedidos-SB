@@ -51,14 +51,13 @@ onAuthStateChanged(auth, (user) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-
-  // LOGIN
   const loginForm = document.getElementById("loginForm");
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
     const rememberMe = document.getElementById("rememberMe").checked;
+
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth,email,password);
@@ -67,13 +66,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // LOGOUT
   logoutBtn.addEventListener("click", async ()=>{ 
     try{ await signOut(auth); } 
     catch(err){ alert("Error al cerrar sesión: "+err.message); }
   });
 
-  // MENÚ LATERAL
   const menuItems = document.querySelectorAll("#sidebarMenu ul li");
   menuItems.forEach(item => {
     item.addEventListener("click", async () => {
@@ -81,7 +78,6 @@ document.addEventListener("DOMContentLoaded", () => {
       item.classList.add("active");
       const section = item.getAttribute("data-section");
 
-      // CREAR USUARIOS
       if(section === "Crear Usuarios"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -153,12 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button class="delete-btn">🗑️</button>
               </div>
             `;
-            userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{
-              if(confirm("¿Eliminar usuario?")){ 
-                await deleteDoc(doc(db,"Users",docSnap.id)); 
-                loadUsers(); 
-              }
-            });
+            userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{ if(confirm("¿Eliminar usuario?")){ await deleteDoc(doc(db,"Users",docSnap.id)); loadUsers(); }});
             userDiv.querySelector(".edit-btn").addEventListener("click", ()=>{
               document.getElementById("newUsername").value = userData.username;
               document.getElementById("newPassword").value = userData.password;
@@ -186,7 +177,6 @@ document.addEventListener("DOMContentLoaded", () => {
         loadUsers();
       }
 
-      // GENERADOR DE LOCALES
       else if(section === "Generador de Locales"){
         document.getElementById("mainContent").innerHTML = `
           <div class="user-page">
@@ -221,85 +211,90 @@ document.addEventListener("DOMContentLoaded", () => {
         const saveLocalBtn = document.getElementById("saveLocalBtn");
 
         logoInput.addEventListener("change", e=>{
-            const file = e.target.files[0];
-            if(file){ document.getElementById("previewLogo").src = URL.createObjectURL(file); document.getElementById("previewLogo").style.display="block"; }
+          const file = e.target.files[0];
+          if(file){ document.getElementById("previewLogo").src = URL.createObjectURL(file); document.getElementById("previewLogo").style.display="block"; }
         });
         bgInput.addEventListener("change", e=>{
-            const file = e.target.files[0];
-            if(file){ document.getElementById("previewBG").src = URL.createObjectURL(file); document.getElementById("previewBG").style.display="block"; }
+          const file = e.target.files[0];
+          if(file){ document.getElementById("previewBG").src = URL.createObjectURL(file); document.getElementById("previewBG").style.display="block"; }
         });
 
         saveLocalBtn.addEventListener("click", async ()=>{
-            const name = document.getElementById("localName").value.trim();
-            const instagram = document.getElementById("localInstagram").value.trim();
-            const logoFile = logoInput.files[0];
-            const bgFile = bgInput.files[0];
+          const name = document.getElementById("localName").value.trim();
+          const instagram = document.getElementById("localInstagram").value.trim();
+          const logoFile = document.getElementById("localLogo").files[0];
+          const bgFile = document.getElementById("localBackground").files[0];
 
-            if(!name){ document.getElementById("localMessage").innerText = "El nombre del local es obligatorio."; return; }
+          if(!name){
+            document.getElementById("localMessage").innerText = "El nombre del local es obligatorio.";
+            return;
+          }
 
-            try{
-              let logoURL="", bgURL="";
-              if(logoFile){
-                const logoRef = ref(storage, `locales/${name}/logo-${logoFile.name}`);
-                await uploadBytes(logoRef, logoFile);
-                logoURL = await getDownloadURL(logoRef);
-              }
-              if(bgFile){
-                const bgRef = ref(storage, `locales/${name}/bg-${bgFile.name}`);
-                await uploadBytes(bgRef, bgFile);
-                bgURL = await getDownloadURL(bgRef);
-              }
+          try{
+            let logoURL = "", bgURL = "";
 
-              await addDoc(collection(db,"Locales"), { name, instagram, logoURL, bgURL, createdAt: serverTimestamp() });
-
-              let template = `
-              <!DOCTYPE html>
-              <html lang="es">
-              <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${name}</title></head>
-              <body>
-                <header>
-                  <img id="logo" src="${logoURL}" alt="${name} Logo">
-                  <h1>${name}</h1>
-                </header>
-                <main>
-                  <img id="background" src="${bgURL}" alt="Fondo ${name}" style="width:100%;">
-                  <p>Síguenos en <a href="${instagram}" target="_blank">Instagram</a></p>
-                </main>
-              </body>
-              </html>
-              `;
-              const blob = new Blob([template], {type:"text/html"});
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = `${name}.html`;
-              a.click();
-
-              document.getElementById("localMessage").innerText = "Local generado y descargado correctamente.";
-              document.getElementById("localName").value="";
-              document.getElementById("localInstagram").value="";
-              logoInput.value=""; bgInput.value="";
-              document.getElementById("previewLogo").style.display="none";
-              document.getElementById("previewBG").style.display="none";
-
-            } catch(err){ 
-              console.error(err);
-              document.getElementById("localMessage").innerText = "Error generando local: "+err.message; 
+            if(logoFile){
+              const logoRef = ref(storage, `locales/${name}/logo-${logoFile.name}`);
+              await uploadBytes(logoRef, logoFile);
+              logoURL = await getDownloadURL(logoRef);
             }
-        });
+            if(bgFile){
+              const bgRef = ref(storage, `locales/${name}/bg-${bgFile.name}`);
+              await uploadBytes(bgRef, bgFile);
+              bgURL = await getDownloadURL(bgRef);
+            }
 
+            await addDoc(collection(db,"Locales"), { name, instagram, logoURL, bgURL, createdAt: serverTimestamp() });
+
+            let template = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>${name}</title>
+            </head>
+            <body>
+              <header>
+                <img id="logo" src="${logoURL}" alt="${name} Logo">
+                <h1>${name}</h1>
+              </header>
+              <main>
+                <img id="background" src="${bgURL}" alt="Fondo ${name}" style="width:100%;">
+                <p>Síguenos en <a href="${instagram}" target="_blank">Instagram</a></p>
+              </main>
+            </body>
+            </html>
+            `;
+
+            const blob = new Blob([template], {type:"text/html"});
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `${name}.html`;
+            a.click();
+
+            document.getElementById("localMessage").innerText = "Local generado y descargado correctamente.";
+            document.getElementById("localName").value = "";
+            document.getElementById("localInstagram").value = "";
+            document.getElementById("localLogo").value = "";
+            document.getElementById("localBackground").value = "";
+            document.getElementById("previewLogo").style.display="none";
+            document.getElementById("previewBG").style.display="none";
+
+          } catch(err){
+            console.error(err);
+            document.getElementById("localMessage").innerText = "Error generando local: " + err.message;
+          }
+        });
       }
 
-      // TOGGLE SIDEBAR
       document.getElementById("toggleSidebarBtn").addEventListener("click", ()=>{ sidebar.classList.toggle("collapsed"); });
-
     });
   });
-
 });
 </script>
 
 <style>
-/* Mantener todo el estilo original del Backdoor y formularios */
 body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#000;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;}
 header{width:100%;padding:20px;text-align:center;font-size:24px;font-weight:bold;background:#fff;border-bottom:1px solid #ccc;display:flex;flex-direction:column;gap:8px;}
 .header-subtitle{font-size:16px;font-weight:normal;color:#555;display:none;}
