@@ -114,6 +114,7 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
+  const position = parseInt(document.getElementById("position").value, 10); // 👈 NUEVO
   const category = document.getElementById("category").value;
   const imgFile = document.getElementById("img").files[0]; 
   const editIdField = document.getElementById("editId").value;
@@ -140,6 +141,7 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
       category,
       local: currentUserLocal,
       img: imgUrl,
+      position: isNaN(position) ? null : position, // 👈 NUEVO
       updatedAt: new Date()
     };
 
@@ -211,6 +213,7 @@ function filterProductsByLocal(){
         document.getElementById('name').value = data.name;
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
+        document.getElementById('position').value = data.position ?? ''; // 👈 NUEVO
         document.getElementById('category').value = data.category;
         document.getElementById('editId').value = d.id;
         document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
@@ -297,6 +300,7 @@ li span { flex:1; }
   <input type="text" id="name" placeholder="Nombre del producto" required>
   <input type="text" id="desc" placeholder="Descripción" required>
   <input type="number" id="price" placeholder="Precio" required>
+  <input type="number" id="position" placeholder="Orden (1,2,3...)" min="1"> <!-- 👈 NUEVO -->
   <input type="file" id="img" accept="image/*">
   <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
   <select id="category" required>
