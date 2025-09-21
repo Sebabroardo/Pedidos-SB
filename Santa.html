@@ -41,8 +41,9 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .main{ display:grid; grid-template-columns: 2fr 1fr; gap:16px; }
 @media (max-width:900px){ .main{ grid-template-columns: 1fr; } }
 
-/* Catálogo SIEMPRE visible (sin acordeón) */
-.category-title{
+/* Categorías desplegables */
+.category-btn{
+  cursor:pointer;
   font-size:18px;
   margin:12px 0;
   display:flex;
@@ -54,13 +55,21 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
   background: rgba(255,255,255,0.9);
   padding:8px 12px;
   border-radius:10px;
+  transition: background 0.2s ease;
 }
+.category-btn:hover{ background: rgba(255,255,255,1); }
+
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
   gap:16px;
   margin-top:8px;
+  transition:max-height 0.3s ease, opacity 0.3s ease;
+  overflow:hidden;
+  opacity:0;
+  max-height:0;
 }
+.grid.show{ opacity:1; max-height:2000px; }
 
 /* Cards de producto */
 .card{background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; padding:14px; backdrop-filter: blur(4px); display:flex; flex-direction:column;}
@@ -136,7 +145,7 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
   </section>
 
   <div class="main">
-    <!-- Catálogo dinámico (todas las cards visibles) -->
+    <!-- Catálogo dinámico (categorías desplegables) -->
     <section id="catalog" class="col-9"></section>
 
     <!-- Carrito -->
@@ -240,11 +249,12 @@ function getDiscountPercents(product){
   return { prod, cat, global: anyCat ? 0 : baseOther, combined, usedCat: anyCat };
 }
 
-// ====== CATALOGO (categorías SIEMPRE visibles) ======
+// ====== CATALOGO (categorías desplegables) ======
 const DEFAULT_ORDER = ['pizza','hamburguesa','papas','menu especial','extras'];
 const catalogEl = document.getElementById('catalog');
 let localCategories = null;
 let currentCatOrder = [];
+let openState = {}; // recuerda qué categorías están abiertas
 
 onSnapshot(doc(db,'locals', LOCAL_KEY), snap=>{
   if(snap.exists()){
@@ -278,6 +288,7 @@ onSnapshot(collection(db,'productos'), snapshot => {
     order = [...first, ...rest];
   }
 
+  // reconstruir si cambia el orden o es la primera vez
   if (!catalogEl.children.length || JSON.stringify(order) !== JSON.stringify(currentCatOrder)) {
     rebuildCatalog(order);
     currentCatOrder = order;
@@ -289,6 +300,7 @@ onSnapshot(collection(db,'productos'), snapshot => {
     return;
   }
 
+  // Rellenar cada grilla
   order.forEach(cat=>{
     const grid = document.getElementById(`cat-${slug(cat)}`);
     if(!grid) return;
@@ -322,24 +334,46 @@ onSnapshot(collection(db,'productos'), snapshot => {
 });
 
 function rebuildCatalog(categories){
+  // conservar estado abierto/cerrado entre renders
+  const prevOpen = { ...openState };
+
   catalogEl.innerHTML = '';
+  openState = {};
+
   categories.forEach(cat=>{
-    const id = `cat-${slug(cat)}`;
+    const s = slug(cat);
+    const id = `cat-${s}`;
 
-    const titleEl = document.createElement('div');
-    titleEl.className = 'category-title';
-    titleEl.textContent = prettyLabel(cat);
+    // botón de categoría
+    const btn = document.createElement('button');
+    btn.className = 'category-btn';
+    btn.dataset.target = id;
+    const isOpen = !!prevOpen[id]; // por defecto cerradas, salvo que ya estaba abierta
+    btn.textContent = `${prettyLabel(cat)} ${isOpen ? '▾' : '▸'}`;
 
+    // grilla
     const grid = document.createElement('div');
     grid.id = id;
     grid.className = 'grid';
+    if (isOpen) grid.classList.add('show');
 
-    catalogEl.appendChild(titleEl);
+    // listeners
+    btn.addEventListener('click', ()=>{
+      grid.classList.toggle('show');
+      const open = grid.classList.contains('show');
+      btn.textContent = `${prettyLabel(cat)} ${open ? '▾' : '▸'}`;
+      openState[id] = open;
+    });
+
+    // estado inicial
+    openState[id] = isOpen;
+
+    catalogEl.appendChild(btn);
     catalogEl.appendChild(grid);
   });
 }
 
-// + / - (delegado)
+// + / - (delegado en catálogo)
 catalogEl.addEventListener('click', async (e)=>{
   const productId = e.target.dataset.id;
   if(!productId) return;
