@@ -4,235 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Backdoor - Gestor de Locales/Usuarios</title>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
-  authDomain: "santa-roti.firebaseapp.com",
-  projectId: "santa-roti",
-  storageBucket: "santa-roti.appspot.com",
-  messagingSenderId: "66221970620",
-  appId: "1:66221970620:web:53083ce7727ff85e6d2cb9"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-const loginDiv = document.getElementById("loginDiv");
-const dashboardDiv = document.getElementById("dashboardDiv");
-const logoutBtn = document.getElementById("logoutBtn");
-const welcomeMessage = document.getElementById("welcomeMessage");
-const sidebar = document.getElementById("sidebar");
-
-welcomeMessage.style.display = "none";
-
-function showDashboard(user){
-  loginDiv.style.display = "none";
-  dashboardDiv.style.display = "flex";
-  welcomeMessage.style.display = "block";
-}
-
-function showLogin(){
-  dashboardDiv.style.display = "none";
-  loginDiv.style.display = "flex";
-  welcomeMessage.style.display = "none";
-}
-
-onAuthStateChanged(auth, (user) => {
-  if(user) showDashboard(user);
-  else showLogin();
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-  const loginForm = document.getElementById("loginForm");
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    const rememberMe = document.getElementById("rememberMe").checked;
-
-    try {
-      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-      await signInWithEmailAndPassword(auth,email,password);
-    } catch(err){
-      alert("Error: "+err.message);
-    }
-  });
-
-  logoutBtn.addEventListener("click", async ()=>{ 
-    try{ await signOut(auth); } 
-    catch(err){ alert("Error al cerrar sesión: "+err.message); }
-  });
-
-  const menuItems = document.querySelectorAll("#sidebarMenu ul li");
-  menuItems.forEach(item => {
-    item.addEventListener("click", async () => {
-      menuItems.forEach(i => i.classList.remove("active"));
-      item.classList.add("active");
-      const section = item.getAttribute("data-section");
-
-      if(section === "Crear Usuarios"){
-        document.getElementById("mainContent").innerHTML = `
-          <div class="user-page">
-            <div id="userFormContainer" class="user-form">
-              <h2>Creación de Usuarios</h2>
-              <div class="form-group">
-                <label for="newUsername">Nombre de Usuario:</label>
-                <input type="text" id="newUsername" placeholder="Ingrese nombre de usuario" required>
-              </div>
-              <div class="form-group">
-                <label for="newPassword">Contraseña:</label>
-                <input type="password" id="newPassword" placeholder="Ingrese contraseña" required>
-              </div>
-              <div class="form-group">
-                <label for="newLocal">Nombre de Local:</label>
-                <input type="text" id="newLocal" placeholder="Local asignado" required>
-              </div>
-              <button id="saveUserBtn">Guardar Usuario</button>
-              <div id="userMessage"></div>
-            </div>
-            <div id="userListContainer" class="user-list">
-              <h2>Usuarios Existentes</h2>
-              <input type="text" id="searchUser" placeholder="Buscar usuario...">
-              <div id="userGrid"></div>
-            </div>
-          </div>
-        `;
-
-        const saveUserBtn = document.getElementById("saveUserBtn");
-        const saveUserHandler = async () => {
-          const username = document.getElementById("newUsername").value.trim();
-          const password = document.getElementById("newPassword").value.trim();
-          const localName = document.getElementById("newLocal").value.trim();
-          if(!username || !password || !localName){
-            document.getElementById("userMessage").innerText = "Completa todos los campos.";
-            return;
-          }
-          try {
-            await addDoc(collection(db, "Users"), { username, password, local: localName, createdAt: serverTimestamp() });
-            document.getElementById("userMessage").innerText = "Usuario creado correctamente.";
-            document.getElementById("newUsername").value="";
-            document.getElementById("newPassword").value="";
-            document.getElementById("newLocal").value="";
-            loadUsers();
-          } catch(err){
-            document.getElementById("userMessage").innerText = "Error: "+err.message;
-          }
-        };
-        saveUserBtn.addEventListener("click", saveUserHandler);
-
-        async function loadUsers(search=""){
-          const userGrid = document.getElementById("userGrid");
-          userGrid.innerHTML = "";
-          let q = collection(db, "Users");
-          if(search){
-            q = query(collection(db, "Users"), where("username", ">=", search), where("username", "<=", search+"\uf8ff"));
-          }
-          const querySnapshot = await getDocs(q);
-          querySnapshot.forEach(docSnap => {
-            const userData = docSnap.data();
-            const date = userData.createdAt ? new Date(userData.createdAt.seconds*1000).toLocaleString() : "-";
-            const userDiv = document.createElement("div");
-            userDiv.classList.add("user-row");
-            userDiv.innerHTML = `
-              <span>${userData.username}</span>
-              <span>${date}</span>
-              <div class="user-actions">
-                <button class="edit-btn">✏️</button>
-                <button class="delete-btn">🗑️</button>
-              </div>
-            `;
-            userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{ if(confirm("¿Eliminar usuario?")){ await deleteDoc(doc(db,"Users",docSnap.id)); loadUsers(); }} );
-            userDiv.querySelector(".edit-btn").addEventListener("click", ()=>{
-              document.getElementById("newUsername").value = userData.username;
-              document.getElementById("newPassword").value = userData.password;
-              document.getElementById("newLocal").value = userData.local;
-              document.getElementById("userMessage").innerText = "Editando usuario, guardar cambios.";
-              saveUserBtn.onclick = async ()=>{
-                await updateDoc(doc(db,"Users",docSnap.id), {
-                  username: document.getElementById("newUsername").value,
-                  password: document.getElementById("newPassword").value,
-                  local: document.getElementById("newLocal").value
-                });
-                document.getElementById("userMessage").innerText = "Usuario actualizado correctamente.";
-                loadUsers();
-                document.getElementById("newUsername").value="";
-                document.getElementById("newPassword").value="";
-                document.getElementById("newLocal").value="";
-                saveUserBtn.onclick = saveUserHandler;
-              };
-            });
-            userGrid.appendChild(userDiv);
-          });
-        }
-
-        document.getElementById("searchUser").addEventListener("input", (e)=>{ loadUsers(e.target.value); });
-        loadUsers();
-      }
-
-      else if(section === "Generador de Locales"){
-        document.getElementById("mainContent").innerHTML = `
-          <div class="user-page">
-            <div id="localFormContainer" class="user-form">
-              <h2>Generador de Locales</h2>
-              <div class="form-group">
-                <label for="localName">Nombre del Local:</label>
-                <input type="text" id="localName" placeholder="Ingrese nombre del local" required>
-              </div>
-              <button id="saveLocalBtn">Generar Local</button>
-              <div id="localMessage"></div>
-            </div>
-          </div>
-        `;
-
-        document.getElementById("saveLocalBtn").addEventListener("click", async () => {
-          const name = document.getElementById("localName").value.trim();
-          if(!name){
-            document.getElementById("localMessage").innerText = "El nombre del local es obligatorio.";
-            return;
-          }
-          try{
-            const response = await fetch('Index.html');
-            if(!response.ok) throw new Error("No se pudo cargar Index.html");
-            let template = await response.text();
-
-            // Reemplazar nombre del local
-            template = template.replace(/{{LOCAL_NAME}}/g, name);
-
-            const blob = new Blob([template], {type:"text/html"});
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `${name}.html`;
-            a.click();
-
-            document.getElementById("localMessage").innerText = "Local generado correctamente desde plantilla Index.html.";
-            document.getElementById("localName").value = "";
-          } catch(err){
-            document.getElementById("localMessage").innerText = "Error: " + err.message;
-          }
-        });
-      }
-
-      document.getElementById("toggleSidebarBtn").addEventListener("click", ()=>{ sidebar.classList.toggle("collapsed"); });
-    });
-  });
-});
-</script>
-
 <style>
-/* Mantengo todo el estilo anterior intacto */
+/* Estilos (copiados y mantenidos) */
 body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#000;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;}
 header{width:100%;padding:20px;text-align:center;font-size:24px;font-weight:bold;background:#fff;border-bottom:1px solid #ccc;display:flex;flex-direction:column;gap:8px;}
 .header-subtitle{font-size:16px;font-weight:normal;color:#555;display:none;}
 #loginDiv{flex:1;display:flex;justify-content:center;align-items:flex-start;padding-top:60px;}
-.form-container{background:#171a21;padding:20px;border-radius:12px;width:300px;display:flex;flex-direction:column;gap:12px;color:#fff;align-items:center;box-shadow:0 4px 15px rgba(0,0,0,0.3);}
-input{padding:10px;border-radius:8px;border:none;font-size:14px;width:100%;}
-label{font-size:14px;display:flex;align-items:center;gap:6px;}
+.form-container{background:#171a21;padding:20px;border-radius:12px;width:320px;display:flex;flex-direction:column;gap:12px;color:#fff;align-items:center;box-shadow:0 4px 15px rgba(0,0,0,0.3);}
+/* inputs y botones */
+input, textarea{padding:10px;border-radius:8px;border:none;font-size:14px;width:100%;}
+label{font-size:14px;display:flex;align-items:center;gap:6px;color:#fff;}
 button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;font-weight:bold;cursor:pointer;width:100%;}
 #dashboardDiv{display:none;flex-direction:row;height:100vh;overflow-x:hidden;}
 #sidebar{position:fixed;top:0;left:0;width:220px;height:100vh;background:#171a21;color:#fff;display:flex;flex-direction:column;justify-content:space-between;box-shadow:2px 0 5px rgba(0,0,0,0.2);padding:0;transition:width 0.3s;overflow:hidden;}
@@ -257,22 +38,22 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
 .menu-text{display:inline;}
 #sidebar.collapsed .menu-text{display:none;}
 .user-page{display:flex;gap:20px;width:100%;}
-.user-form{background:#f4f4f4;padding:20px;border-radius:12px;max-width:400px;flex:1;box-shadow:0 2px 10px rgba(0,0,0,0.1);}
+.user-form{background:#f4f4f4;padding:20px;border-radius:12px;max-width:480px;flex:1;box-shadow:0 2px 10px rgba(0,0,0,0.1);}
 .user-form .form-group{display:flex;flex-direction:column;margin-bottom:15px;}
 .user-form .form-group label{font-weight:bold;margin-bottom:5px;color:#333;}
 .user-form .form-group input{padding:10px;border-radius:6px;border:1px solid #ccc;font-size:14px;}
 #saveUserBtn,#saveLocalBtn{background:#22c55e;color:#fff;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;width:100%;transition:0.2s;}
 #saveUserBtn:hover,#saveLocalBtn:hover{background:#16a34a;}
 #userMessage,#localMessage{margin-top:10px;font-weight:bold;color:#16a34a;}
-.user-list{background:#f4f4f4;padding:20px;border-radius:12px;width:300px;box-shadow:0 2px 10px rgba(0,0,0,0.1);flex-shrink:0;}
+.user-list{background:#f4f4f4;padding:20px;border-radius:12px;width:320px;box-shadow:0 2px 10px rgba(0,0,0,0.1);flex-shrink:0;}
 .user-list input{width:100%;padding:8px;margin-bottom:10px;border-radius:6px;border:1px solid #ccc;}
 .user-row{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #ccc;}
 .user-actions button{margin-left:5px;padding:3px 6px;border:none;border-radius:4px;cursor:pointer;font-size:12px;}
 .user-actions .edit-btn{background:#facc15;color:#fff;}
 .user-actions .delete-btn{background:#f43f5e;color:#fff;}
+.muted{color:#666;font-size:13px;}
 </style>
 </head>
-
 <body>
 <header>
   <div class="header-title">Gestor de Locales/Usuarios</div>
@@ -285,7 +66,7 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
   <form id="loginForm" class="form-container">
     <input type="email" id="email" placeholder="Correo electrónico" required>
     <input type="password" id="password" placeholder="Contraseña" required>
-    <label><input type="checkbox" id="rememberMe"> Recordar sesión</label>
+    <label style="color:#fff;"><input type="checkbox" id="rememberMe"> Recordar sesión</label>
     <button type="submit">Ingresar</button>
   </form>
 </div>
@@ -307,7 +88,352 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
 
   <div id="mainContent">
     <!-- Contenido dinámico -->
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="muted">Seleccioná una opción del menú para comenzar.</div>
+    </div>
   </div>
 </div>
+
+<script type="module">
+/*
+  Backdoor completo (script)
+  - Inicializa Firebase (SDK modular)
+  - Login (signInWithEmailAndPassword)
+  - onAuthStateChanged -> muestra dashboard o login
+  - Menú con delegación
+  - Crear Usuarios (Firestore)
+  - Generador de Locales: carga Index.html y reemplaza placeholders {{KEY}}
+*/
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+  authDomain: "santa-roti.firebaseapp.com",
+  projectId: "santa-roti",
+  storageBucket: "santa-roti.appspot.com",
+  messagingSenderId: "66221970620",
+  appId: "1:66221970620:web:53083ce7727ff85e6d2cb9"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+document.addEventListener("DOMContentLoaded", () => {
+  // Elementos
+  const loginDiv = document.getElementById("loginDiv");
+  const dashboardDiv = document.getElementById("dashboardDiv");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const welcomeMessage = document.getElementById("welcomeMessage");
+  const sidebar = document.getElementById("sidebar");
+  const sidebarMenu = document.getElementById("sidebarMenu");
+  const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
+  const mainContent = document.getElementById("mainContent");
+
+  welcomeMessage.style.display = "none";
+
+  function showDashboard(user){
+    loginDiv.style.display = "none";
+    dashboardDiv.style.display = "flex";
+    welcomeMessage.style.display = "block";
+    welcomeMessage.textContent = `Bienvenido ${user.email}`;
+  }
+
+  function showLogin(){
+    dashboardDiv.style.display = "none";
+    loginDiv.style.display = "flex";
+    welcomeMessage.style.display = "none";
+  }
+
+  // Auth state
+  onAuthStateChanged(auth, (user) => {
+    if(user) showDashboard(user);
+    else showLogin();
+  });
+
+  // Login form
+  const loginForm = document.getElementById("loginForm");
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const rememberMe = document.getElementById("rememberMe").checked;
+
+    try {
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      await signInWithEmailAndPassword(auth,email,password);
+      loginForm.reset();
+    } catch(err){
+      alert("Error: "+err.message);
+    }
+  });
+
+  // Logout
+  logoutBtn.addEventListener("click", async ()=>{ 
+    try{ await signOut(auth); } 
+    catch(err){ alert("Error al cerrar sesión: "+err.message); }
+  });
+
+  // Toggle sidebar (único listener)
+  toggleSidebarBtn.addEventListener("click", ()=>{ sidebar.classList.toggle("collapsed"); });
+
+  // Delegación del menú (un solo listener)
+  sidebarMenu.addEventListener("click", (ev) => {
+    const li = ev.target.closest('li[data-section]');
+    if(!li) return;
+    // marcar activo
+    sidebarMenu.querySelectorAll('li').forEach(i=>i.classList.remove('active'));
+    li.classList.add('active');
+    const section = li.getAttribute('data-section');
+
+    // Renders
+    if(section === "Crear Usuarios"){
+      renderCrearUsuarios();
+    } else if(section === "Gestión de Locales"){
+      renderGestionLocales();
+    } else if(section === "Generador de Locales"){
+      renderGeneradorLocales();
+    }
+  });
+
+  // ---------- RENDER: CREAR USUARIOS ----------
+  function renderCrearUsuarios(){
+    mainContent.innerHTML = `
+      <div class="user-page">
+        <div id="userFormContainer" class="user-form">
+          <h2>Creación de Usuarios</h2>
+          <div class="form-group">
+            <label for="newUsername">Nombre de Usuario:</label>
+            <input type="text" id="newUsername" placeholder="Ingrese nombre de usuario" required>
+          </div>
+          <div class="form-group">
+            <label for="newPassword">Contraseña (temporal):</label>
+            <input type="password" id="newPassword" placeholder="Ingrese contraseña" required>
+          </div>
+          <div class="form-group">
+            <label for="newLocal">Nombre de Local:</label>
+            <input type="text" id="newLocal" placeholder="Local asignado" required>
+          </div>
+          <button id="saveUserBtn">Guardar Usuario</button>
+          <div id="userMessage"></div>
+        </div>
+
+        <div id="userListContainer" class="user-list">
+          <h2>Usuarios Existentes</h2>
+          <input type="text" id="searchUser" placeholder="Buscar usuario...">
+          <div id="userGrid"></div>
+        </div>
+      </div>
+    `;
+
+    const saveUserBtn = document.getElementById("saveUserBtn");
+    const userMessage = document.getElementById("userMessage");
+
+    const saveUserHandler = async () => {
+      const username = document.getElementById("newUsername").value.trim();
+      const password = document.getElementById("newPassword").value.trim();
+      const localName = document.getElementById("newLocal").value.trim();
+      if(!username || !password || !localName){
+        userMessage.innerText = "Completa todos los campos.";
+        userMessage.style.color = '#f43f5e';
+        return;
+      }
+      try {
+        // Nota: en producción no guardes passwords en texto plano. Esto es un fallback rápido.
+        await addDoc(collection(db, "Users"), { username, password, local: localName, createdAt: serverTimestamp() });
+        userMessage.innerText = "Usuario creado correctamente.";
+        userMessage.style.color = '#16a34a';
+        document.getElementById("newUsername").value="";
+        document.getElementById("newPassword").value="";
+        document.getElementById("newLocal").value="";
+        loadUsers();
+      } catch(err){
+        userMessage.innerText = "Error: "+err.message;
+        userMessage.style.color = '#f43f5e';
+      }
+    };
+    saveUserBtn.addEventListener("click", saveUserHandler);
+
+    async function loadUsers(search=""){
+      const userGrid = document.getElementById("userGrid");
+      userGrid.innerHTML = "";
+      let qRef = collection(db, "Users");
+      if(search){
+        qRef = query(collection(db, "Users"), where("username", ">=", search), where("username", "<=", search+"\uf8ff"));
+      }
+      const querySnapshot = await getDocs(qRef);
+      querySnapshot.forEach(docSnap => {
+        const userData = docSnap.data();
+        const date = userData.createdAt ? new Date(userData.createdAt.seconds*1000).toLocaleString() : "-";
+        const userDiv = document.createElement("div");
+        userDiv.classList.add("user-row");
+        userDiv.innerHTML = `
+          <span style="min-width:120px">${userData.username}</span>
+          <span style="min-width:140px">${date}</span>
+          <div class="user-actions">
+            <button class="edit-btn">✏️</button>
+            <button class="delete-btn">🗑️</button>
+          </div>
+        `;
+        userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{ 
+          if(confirm("¿Eliminar usuario?")){
+            await deleteDoc(doc(db,"Users",docSnap.id));
+            loadUsers();
+          }
+        } );
+        userDiv.querySelector(".edit-btn").addEventListener("click", ()=>{ 
+          document.getElementById("newUsername").value = userData.username;
+          document.getElementById("newPassword").value = userData.password;
+          document.getElementById("newLocal").value = userData.local;
+          userMessage.innerText = "Editando usuario, guardar cambios.";
+          userMessage.style.color = '#f59e0b';
+          // sobrescribimos temporalmente el handler
+          saveUserBtn.onclick = async ()=> {
+            await updateDoc(doc(db,"Users",docSnap.id), {
+              username: document.getElementById("newUsername").value,
+              password: document.getElementById("newPassword").value,
+              local: document.getElementById("newLocal").value
+            });
+            userMessage.innerText = "Usuario actualizado correctamente.";
+            userMessage.style.color = '#16a34a';
+            loadUsers();
+            document.getElementById("newUsername").value="";
+            document.getElementById("newPassword").value="";
+            document.getElementById("newLocal").value="";
+            saveUserBtn.onclick = saveUserHandler;
+          };
+        });
+        userGrid.appendChild(userDiv);
+      });
+    }
+
+    document.getElementById("searchUser").addEventListener("input", (e)=>{ loadUsers(e.target.value); });
+    loadUsers();
+  }
+
+  // ---------- RENDER: GESTIÓN VISUAL DE LOCALES (placeholder simple) ----------
+  function renderGestionLocales(){
+    mainContent.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <h2>Gestión Visual de Locales</h2>
+        <div class="muted">Aquí podés ver/preview de locales. (Funcionalidad a expandir)</div>
+      </div>
+    `;
+  }
+
+  // ---------- RENDER: GENERADOR DE LOCALES (usa Index.html como plantilla) ----------
+  function renderGeneradorLocales(){
+    mainContent.innerHTML = `
+      <div class="user-page">
+        <div id="localFormContainer" class="user-form">
+          <h2>Generador de Locales desde plantilla Index.html</h2>
+
+          <div class="form-group">
+            <label for="localKey">Identificador (LOCAL_KEY):</label>
+            <input type="text" id="localKey" placeholder="ej: santa, norte, sur" required>
+          </div>
+          <div class="form-group">
+            <label for="localName">Nombre para mostrar (LOCAL_NAME):</label>
+            <input type="text" id="localName" placeholder="ej: Santa Rotisería" required>
+          </div>
+          <div class="form-group">
+            <label for="instagramHandle">Instagram (handle):</label>
+            <input type="text" id="instagramHandle" placeholder="ej: santa.roti">
+          </div>
+          <div class="form-group">
+            <label for="whatsE164">WhatsApp (E.164 sin +):</label>
+            <input type="text" id="whatsE164" placeholder="ej: 543537581341">
+          </div>
+          <div class="form-group">
+            <label for="addressText">Dirección (texto):</label>
+            <input type="text" id="addressText" placeholder="ej: Belgrano 123">
+          </div>
+          <div class="form-group">
+            <label for="mapUrl">URL de Google Maps:</label>
+            <input type="url" id="mapUrl" placeholder="https://maps.google.com/...">
+          </div>
+          <div class="form-group">
+            <label for="hoursText">Horarios (texto):</label>
+            <input type="text" id="hoursText" placeholder="ej: Vie-Sáb-Dom 20:00–23:30">
+          </div>
+
+          <button id="saveLocalBtn">Generar archivo</button>
+          <div id="localMessage"></div>
+        </div>
+      </div>
+    `;
+
+    const localMessage = document.getElementById("localMessage");
+
+    // Sanitize slug helper
+    const sanitizeSlug = (s) =>
+      s.toString().trim().toLowerCase()
+       .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+       .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+
+    // Reemplazo robusto de placeholders tipo {{ KEY }}
+    const replaceAllMap = (html, mapping) => {
+      for (const [key, value] of Object.entries(mapping)) {
+        // acepta espacios {{  KEY  }}
+        const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
+        html = html.replace(regex, value ?? '');
+      }
+      return html;
+    };
+
+    document.getElementById("saveLocalBtn").addEventListener("click", async () => {
+      const mapping = {
+        LOCAL_KEY: sanitizeSlug(document.getElementById("localKey").value || ''),
+        LOCAL_NAME: document.getElementById("localName").value || '',
+        INSTAGRAM_HANDLE: document.getElementById("instagramHandle").value || '',
+        WHATSAPP_E164: document.getElementById("whatsE164").value || '',
+        ADDRESS_TEXT: document.getElementById("addressText").value || '',
+        MAP_URL: document.getElementById("mapUrl").value || '',
+        HOURS_TEXT: document.getElementById("hoursText").value || '',
+      };
+
+      if(!mapping.LOCAL_KEY || !mapping.LOCAL_NAME){
+        localMessage.innerText = "Debes ingresar LOCAL_KEY y LOCAL_NAME.";
+        localMessage.style.color = '#f43f5e';
+        return;
+      }
+
+      try {
+        // Carga la plantilla Index.html (tu plantilla original)
+        const response = await fetch('Index.html', { cache: 'no-cache' });
+        if(!response.ok) throw new Error("No se pudo cargar Index.html. Asegurate que Index.html esté en la misma carpeta.");
+        let template = await response.text();
+
+        // Reemplaza placeholders
+        template = replaceAllMap(template, mapping);
+
+        // Descargar archivo generado
+        const blob = new Blob([template], {type:"text/html;charset=utf-8"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `index-${mapping.LOCAL_KEY}.html`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+
+        localMessage.innerText = `Archivo generado: index-${mapping.LOCAL_KEY}.html`;
+        localMessage.style.color = '#16a34a';
+      } catch(err){
+        localMessage.innerText = "Error: " + err.message;
+        localMessage.style.color = '#f43f5e';
+      }
+    });
+  }
+
+  // Inicial: mostrar una sección por defecto (opcional)
+  // activar primer item del menú
+  const firstLi = sidebarMenu.querySelector('li[data-section]');
+  if(firstLi) firstLi.classList.add('active');
+  // renderizamos la primera seccion por defecto
+  renderCrearUsuarios();
+});
+</script>
 </body>
 </html>
