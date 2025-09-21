@@ -1,1 +1,584 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Gestor de Productos por Local (categorías dinámicas)</title>
 
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import { 
+  getFirestore, collection, doc, getDocs, getDoc, query, where, 
+  onSnapshot, deleteDoc, addDoc, setDoc
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { 
+  getStorage, ref as storageRef, uploadBytes, getDownloadURL 
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
+  authDomain: "santa-roti.firebaseapp.com",
+  projectId: "santa-roti",
+  storageBucket: "santa-roti.firebasestorage.app",
+  messagingSenderId: "66221970620",
+  appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// ELEMENTOS
+const loginDiv = document.getElementById("loginDiv");
+const dashboardDiv = document.getElementById("dashboardDiv");
+const logoutBtn = document.getElementById("logoutBtn");
+const welcomeMessage = document.getElementById("welcomeMessage");
+
+// UI referencias (asignadas tras cargar dashboard)
+let productForm, categorySelect, productListsContainer, searchInput, discountsContainer;
+let submitBtn, cancelEditBtn, imgInput, imgPreview, editIdInput, nameInput, descInput, priceInput, posInput, prodDiscInput;
+
+// Estado
+let currentUserLocal = null;      // el valor de Users.local (puede ser nombre o key)
+let currentCategories = [];       // array dinámico de categorías del local (desde locals/{LOCAL_KEY})
+let unsubscribeProducts = null;   // para rehacer listener cuando cambian categorías
+
+// Helpers
+const slug = s => (s||'').toString().trim().toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+
+const DEFAULT_CATS = ['pizza','hamburguesa','papas','menu especial','extras'];
+
+const discountsDocRef = (localKey) => doc(db, "settings", "discounts_" + localKey);
+
+// ==== SESIÓN / LOGIN (simple con colección Users, como ya tenías) ====
+document.getElementById("loginForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const rememberMe = document.getElementById("rememberMe").checked;
+
+  if(!username || !password) return alert("Todos los campos son obligatorios");
+
+  try {
+    const usersRef = collection(db, "Users");
+    const q = query(usersRef, where("username", "==", username));
+    const querySnapshot = await getDocs(q);
+
+    if(querySnapshot.empty) return alert("Usuario no encontrado");
+
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+
+    if(userData.password !== password) return alert("Contraseña incorrecta");
+
+    const sess = JSON.stringify({username, local: userData.local});
+    if(rememberMe) localStorage.setItem("session", sess);
+    else sessionStorage.setItem("session", sess);
+
+    await showDashboard(userData.username, userData.local);
+
+  } catch(err){
+    console.error(err);
+    alert("Error al iniciar sesión: "+err.message);
+  }
+});
+
+document.addEventListener("DOMContentLoaded", async ()=>{
+  const session = localStorage.getItem("session") || sessionStorage.getItem("session");
+  if(session){
+    const data = JSON.parse(session);
+    await showDashboard(data.username, data.local);
+  }
+});
+
+logoutBtn.addEventListener("click", ()=>{
+  localStorage.removeItem("session");
+  sessionStorage.removeItem("session");
+  hideDashboard();
+});
+
+// ==== DASHBOARD ====
+async function showDashboard(username, local){
+  loginDiv.style.display = "none";
+  dashboardDiv.style.display = "flex";
+  welcomeMessage.style.display = "block";
+  logoutBtn.style.display = "block";
+
+  currentUserLocal = local;
+  welcomeMessage.textContent = `Bienvenido ${username}. Local: ${currentUserLocal}`;
+
+  // vincular refs de UI
+  productForm = document.getElementById("productForm");
+  categorySelect = document.getElementById("category");
+  productListsContainer = document.getElementById("productLists");
+  searchInput = document.getElementById('search');
+  discountsContainer = document.getElementById('discountsContainer');
+
+  submitBtn = document.getElementById('submitBtn');
+  cancelEditBtn = document.getElementById('cancelEditBtn');
+  imgInput = document.getElementById('img');
+  imgPreview = document.getElementById('imgPreview');
+  editIdInput = document.getElementById('editId');
+  nameInput = document.getElementById('name');
+  descInput = document.getElementById('desc');
+  priceInput = document.getElementById('price');
+  posInput = document.getElementById('position');
+  prodDiscInput = document.getElementById('productDiscount');
+
+  // 1) cargar categorías dinámicas desde locals/{LOCAL_KEY}
+  await initCategoriesFromLocal();
+
+  // 2) armar UI (select + listas + descuentos) según categorías
+  buildCategorySelect();
+  buildProductListsSkeleton();
+  buildDiscountsPanel();
+
+  // 3) listeners de productos
+  bindProductsHandlers();
+
+  // 4) listeners de búsqueda
+  if (searchInput) searchInput.addEventListener('input', applySearchFilter);
+}
+
+function hideDashboard(){
+  loginDiv.style.display = "flex";
+  dashboardDiv.style.display = "none";
+  welcomeMessage.style.display = "none";
+  logoutBtn.style.display = "none";
+  currentUserLocal = null;
+  currentCategories = [];
+  if (unsubscribeProducts) { unsubscribeProducts(); unsubscribeProducts = null; }
+}
+
+// ==== CATEGORÍAS DINÁMICAS ====
+// Toma locals/{LOCAL_KEY} (donde LOCAL_KEY = slug(Users.local)) y lee categories[]
+async function initCategoriesFromLocal(){
+  const key = slug(currentUserLocal);
+  const ref = doc(db, 'locals', key);
+  const snap = await getDoc(ref);
+  if (snap.exists()){
+    const data = snap.data() || {};
+    const cats = Array.isArray(data.categories) ? data.categories : [];
+    currentCategories = cats.length ? cats : DEFAULT_CATS;
+  } else {
+    currentCategories = DEFAULT_CATS;
+  }
+
+  // Además, suscribirse a cambios de categories en vivo
+  onSnapshot(ref, docSnap=>{
+    if(!docSnap.exists()) return;
+    const d = docSnap.data() || {};
+    const cats = Array.isArray(d.categories) ? d.categories : [];
+    const nextCats = cats.length ? cats : DEFAULT_CATS;
+
+    // Si cambió el set de categorías, rehacer UI
+    if(JSON.stringify(nextCats) !== JSON.stringify(currentCategories)){
+      currentCategories = nextCats;
+      buildCategorySelect();
+      buildProductListsSkeleton();
+      buildDiscountsPanel();
+      // Re-suscribir listado de productos a UI recién creada
+      bindProductsSnapshot();
+    }
+  });
+}
+
+function buildCategorySelect(){
+  categorySelect.innerHTML = `<option value="">Seleccionar categoría</option>`;
+  currentCategories.forEach(cat=>{
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = capitalize(cat);
+    categorySelect.appendChild(opt);
+  });
+}
+
+function buildProductListsSkeleton(){
+  // borra y crea secciones por categoría
+  productListsContainer.innerHTML = '';
+  currentCategories.forEach(cat=>{
+    const section = document.createElement('div');
+    section.className = 'category-section';
+    section.dataset.cat = cat;
+    section.innerHTML = `
+      <h3>${capitalize(cat)}</h3>
+      <ul id="list-${slug(cat)}"></ul>
+    `;
+    productListsContainer.appendChild(section);
+  });
+}
+
+function buildDiscountsPanel(){
+  discountsContainer.innerHTML = '';
+  currentCategories.forEach(cat=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'discount-input-wrapper';
+    wrap.dataset.cat = cat;
+
+    const label = document.createElement('label');
+    label.textContent = capitalize(cat);
+
+    const input = document.createElement('input');
+    input.type = 'number'; input.min = 0; input.max = 100; input.step = 1;
+    input.placeholder = "%";
+    input.className = 'discount-input';
+    input.dataset.cat = cat;
+
+    wrap.appendChild(label);
+    wrap.appendChild(input);
+    discountsContainer.appendChild(wrap);
+  });
+
+  // cargar valores desde settings/discounts_{LOCAL_KEY}
+  loadDiscounts();
+}
+
+function capitalize(s){ return (s||'').charAt(0).toUpperCase()+ (s||'').slice(1); }
+
+// ==== PRODUCTOS ====
+// Alta / edición
+function setEditMode(enabled){
+  submitBtn.textContent = enabled ? "Actualizar producto" : "Guardar producto";
+  cancelEditBtn.style.display = enabled ? "inline-flex" : "none";
+}
+
+function resetForm(){
+  productForm.reset();
+  editIdInput.value = "";
+  imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+  setEditMode(false);
+}
+
+function bindProductsHandlers(){
+  productForm.addEventListener("submit", onSaveProduct);
+  cancelEditBtn.addEventListener("click", (e)=>{ e.preventDefault(); resetForm(); });
+
+  imgInput.addEventListener("change", e=>{
+    const file = e.target.files[0];
+    if(file){
+      const reader = new FileReader();
+      reader.onload = ev => imgPreview.src = ev.target.result;
+      reader.readAsDataURL(file);
+    } else {
+      imgPreview.src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+    }
+  });
+
+  // arranca el snapshot inicial (o re-crea si cambian categorías)
+  bindProductsSnapshot();
+}
+
+function bindProductsSnapshot(){
+  // limpia anterior
+  if (unsubscribeProducts) { unsubscribeProducts(); unsubscribeProducts = null; }
+
+  const listsMap = {}; // cat -> <ul>
+  currentCategories.forEach(cat=>{
+    listsMap[cat] = document.getElementById(`list-${slug(cat)}`);
+  });
+
+  unsubscribeProducts = onSnapshot(collection(db, "productos"), snapshot => {
+    // limpiar listas
+    Object.values(listsMap).forEach(ul=>{ if(ul) ul.innerHTML=''; });
+
+    snapshot.forEach(d=>{
+      const data = d.data();
+      // Compatibilidad: puede que guardes local como nombre (no key)
+      if(data.local !== currentUserLocal && slug(data.local) !== slug(currentUserLocal)) return;
+
+      const cat = (data.category || '').toString().trim();
+      const ul = listsMap[cat]; // solo pinta si está en el set dinámico
+      if(!ul) return;
+
+      const li = document.createElement('li');
+      li.dataset.name = (data.name || '').toLowerCase();
+
+      const imgElement = document.createElement('img');
+      imgElement.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
+      imgElement.style.width = "50px";
+      imgElement.style.height = "50px";
+      imgElement.style.objectFit = "cover";
+      imgElement.style.borderRadius = "6px";
+      li.appendChild(imgElement);
+
+      const span = document.createElement('span');
+      const discountLabel = (Number(data.discountPct) || 0) > 0 ? ` — Desc: ${data.discountPct}%` : '';
+      span.textContent = `${data.name} — ${data.desc} — $${data.price}${discountLabel}`;
+      li.appendChild(span);
+
+      const btnEdit = document.createElement('button');
+      btnEdit.textContent = 'Editar';
+      btnEdit.className = 'btn-edit';
+      btnEdit.addEventListener('click', ()=>{
+        // precarga
+        nameInput.value = data.name || '';
+        descInput.value = data.desc || '';
+        priceInput.value = data.price || '';
+        posInput.value = (data.position ?? '');
+        prodDiscInput.value = (data.discountPct ?? 0);
+        categorySelect.value = data.category || '';
+        editIdInput.value = d.id;
+        imgPreview.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
+        setEditMode(true);
+        productForm.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+
+      const btnDelete = document.createElement('button');
+      btnDelete.textContent = 'Borrar';
+      btnDelete.className = 'btn-delete';
+      btnDelete.addEventListener('click', async ()=>{
+        if(confirm(`¿Eliminar ${data.name}?`)){
+          await deleteDoc(doc(db, "productos", d.id));
+        }
+      });
+
+      li.appendChild(btnEdit);
+      li.appendChild(btnDelete);
+      ul.appendChild(li);
+    });
+
+    applySearchFilter();
+  });
+}
+
+async function onSaveProduct(e){
+  e.preventDefault();
+  const name = nameInput.value.trim();
+  const desc = descInput.value.trim();
+  const price = parseFloat(priceInput.value);
+  const position = parseInt(posInput.value, 10);
+  const discountPct = parseInt(prodDiscInput.value, 10);
+  const category = categorySelect.value;
+  const imgFile = imgInput.files[0];
+  const editId = editIdInput.value;
+
+  if(!name || !desc || !price || !category){
+    alert("Completá nombre, descripción, precio y categoría");
+    return;
+  }
+  if(!currentCategories.includes(category)){
+    alert("La categoría elegida ya no existe en este local. Actualizá y probá de nuevo.");
+    return;
+  }
+
+  try {
+    let imgUrl = "";
+
+    if (imgFile) {
+      const safeName = imgFile.name.replace(/\s+/g, '_').replace(/[^\w.-]/g, '');
+      const imgStorageRef = storageRef(storage, `productos/${slug(currentUserLocal)}/${Date.now()}_${safeName}`);
+      await uploadBytes(imgStorageRef, imgFile);
+      imgUrl = await getDownloadURL(imgStorageRef);
+    } else if (editId) {
+      const docSnap = await getDoc(doc(db, "productos", editId));
+      if (docSnap.exists()) imgUrl = docSnap.data().img || "";
+    }
+
+    const productData = {
+      name,
+      desc,
+      price,
+      category,               // DINÁMICO
+      local: currentUserLocal, // compat con Index actuales
+      img: imgUrl,
+      position: isNaN(position) ? null : position,
+      discountPct: isNaN(discountPct) ? 0 : Math.max(0, Math.min(100, discountPct)),
+      updatedAt: new Date()
+    };
+
+    if (editId) {
+      await setDoc(doc(db, "productos", editId), productData);
+      alert("Producto actualizado correctamente");
+    } else {
+      productData.createdAt = new Date();
+      await addDoc(collection(db, "productos"), productData);
+      alert("Producto agregado correctamente");
+    }
+
+    resetForm();
+  } catch (err) {
+    console.error("Error al guardar producto:", err);
+    alert("❌ Error al guardar producto: " + err.message);
+  }
+}
+
+// ==== BÚSQUEDA ====
+function applySearchFilter(){
+  const q = (searchInput?.value || '').trim().toLowerCase();
+  const sections = document.querySelectorAll('#productLists .category-section');
+
+  sections.forEach(section => {
+    const items = section.querySelectorAll('li');
+    let visibleCount = 0;
+    items.forEach(li => {
+      const name = li.dataset.name || '';
+      const visible = !q || name.includes(q);
+      li.style.display = visible ? '' : 'none';
+      if (visible) visibleCount++;
+    });
+    section.style.display = q ? (visibleCount ? '' : 'none') : '';
+  });
+}
+
+// ==== DESCUENTOS DINÁMICOS POR CATEGORÍA ====
+function clampPercent(n){
+  n = isNaN(n) ? 0 : Number(n);
+  if (n < 0) return 0;
+  if (n > 100) return 100;
+  return n;
+}
+
+function loadDiscounts(){
+  const key = slug(currentUserLocal);
+  onSnapshot(discountsDocRef(key), snap => {
+    const data = snap.exists() ? snap.data() : {};
+    currentCategories.forEach(cat => {
+      const input = document.querySelector(`.discount-input[data-cat="${cat}"]`);
+      if(!input) return;
+      const value = clampPercent(Number(data?.[cat] ?? 0));
+      // no pisar mientras escribe
+      if (document.activeElement !== input) input.value = value;
+    });
+  });
+
+  // Botones
+  document.getElementById('saveDiscountsBtn').onclick = async ()=>{
+    const payload = { local: currentUserLocal };
+    currentCategories.forEach(cat=>{
+      const input = document.querySelector(`.discount-input[data-cat="${cat}"]`);
+      payload[cat] = clampPercent(parseInt(input?.value ?? '0', 10));
+    });
+    await setDoc(discountsDocRef(key), payload, { merge: true });
+    alert('Descuentos guardados');
+  };
+
+  document.getElementById('clearDiscountsBtn').onclick = async ()=>{
+    const payload = { local: currentUserLocal };
+    currentCategories.forEach(cat=> payload[cat] = 0);
+    // setear UI a 0 primero
+    currentCategories.forEach(cat=>{
+      const input = document.querySelector(`.discount-input[data-cat="${cat}"]`);
+      if(input) input.value = 0;
+    });
+    await setDoc(discountsDocRef(key), payload, { merge: true });
+    alert('Descuentos limpiados (0%)');
+  };
+}
+</script>
+
+<style>
+body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
+form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:340px;}
+label.field { font-size:12px; color:#9aa3b2; margin-top:6px; }
+input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
+button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
+ul { list-style:none; padding:0; margin-top:10px; width:100%; max-width:800px; }
+li { display:flex; justify-content:space-between; background:#171a21; padding:10px; border-radius:8px; margin-bottom:8px; align-items:center; gap:10px;}
+li span { flex:1; }
+.btn-delete { background:#f43f5e; color:#fff; }
+.btn-edit { background:#3b82f6; color:#fff; }
+#imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
+#dashboardDiv { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 920px; position: relative; }
+
+/* Panel de descuentos por categoría */
+.discount-panel { position: fixed; top: 20px; right: 20px; padding: 16px; background: #171a21; border-radius: 12px; width: 300px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
+.discount-panel h3 { margin: 0 0 6px 0; font-size: 16px; }
+.discount-input-wrapper { display:flex; justify-content:space-between; align-items:center; background:#11151c; padding:6px 10px; border-radius:8px; }
+.discount-input-wrapper label { font-size:14px; color:#9aa3b2; }
+.discount-input { width:72px; text-align:right; background:#171a21; color:#f5f7fb; border:1px solid #2a2f3a; border-radius:6px; padding:6px; }
+
+/* Acciones del panel de descuentos */
+.discount-actions { display:flex; gap:8px; }
+#saveDiscountsBtn { background:#22c55e; }
+#clearDiscountsBtn { background:#9ca3af; color:#0f1115; }
+
+/* Buscador */
+.search-wrapper { width:100%; max-width:920px; margin:10px 0 0 0; }
+#search { width:100%; background:#171a21; color:#f5f7fb; border:1px solid #2a2f3a; }
+#search::placeholder { color:#9aa3b2; }
+
+/* Botón cancelar edición */
+.actions-row { display:flex; gap:8px; }
+#cancelEditBtn { display:none; background:#9ca3af; color:#0f1115; }
+
+/* Contenedor de listas por categoría */
+#productLists .category-section { margin-top:18px; }
+#productLists .category-section h3 { margin:8px 0; }
+</style>
+
+</head>
+<body>
+
+<div id="loginDiv">
+  <form id="loginForm" class="form-container">
+    <input type="text" id="username" placeholder="Nombre de usuario" required>
+    <input type="password" id="password" placeholder="Contraseña" required>
+    <label><input type="checkbox" id="rememberMe"> Recordar sesión</label>
+    <button type="submit">Ingresar</button>
+  </form>
+</div>
+
+<div id="dashboardDiv">
+  <h1>Panel Admin — Productos del Local</h1>
+  <div id="welcomeMessage"></div>
+
+  <form id="productForm">
+    <input type="hidden" id="editId">
+
+    <label class="field" for="name">Nombre del producto</label>
+    <input type="text" id="name" placeholder="Ej: Pizza Muzza" required>
+
+    <label class="field" for="desc">Descripción</label>
+    <input type="text" id="desc" placeholder="Ej: Salsa, muzza, aceitunas" required>
+
+    <label class="field" for="price">Precio</label>
+    <input type="number" id="price" placeholder="Ej: 5000" required>
+
+    <label class="field" for="position">Orden (1,2,3...)</label>
+    <input type="number" id="position" placeholder="Ej: 1" min="1">
+
+    <label class="field" for="productDiscount">Descuento del producto (%)</label>
+    <input type="number" id="productDiscount" placeholder="0 a 100" min="0" max="100" step="1">
+
+    <label class="field" for="img">Imagen</label>
+    <input type="file" id="img" accept="image/*">
+    <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
+
+    <label class="field" for="category">Categoría</label>
+    <select id="category" required>
+      <!-- opciones dinámicas desde locals/{LOCAL_KEY}.categories -->
+    </select>
+
+    <div class="actions-row">
+      <button type="submit" id="submitBtn">Guardar producto</button>
+      <button id="cancelEditBtn">Cancelar edición</button>
+    </div>
+  </form>
+
+  <!-- Buscador en tiempo real -->
+  <div class="search-wrapper">
+    <input type="text" id="search" placeholder="Buscar por nombre..." autocomplete="off">
+  </div>
+
+  <h2>Productos existentes</h2>
+  <div id="productLists">
+    <!-- Secciones dinámicas por categoría -->
+  </div>
+
+  <!-- 🔸 Descuentos por categoría (dinámicos) -->
+  <div class="discount-panel">
+    <h3>Descuentos por categoría</h3>
+    <div id="discountsContainer"></div>
+    <div class="discount-actions">
+      <button id="saveDiscountsBtn">Guardar descuentos</button>
+      <button id="clearDiscountsBtn">Limpiar descuentos</button>
+    </div>
+  </div>
+
+  <button id="logoutBtn" style="display:none;">Cerrar sesión</button>
+</div>
+
+</body>
+</html>
