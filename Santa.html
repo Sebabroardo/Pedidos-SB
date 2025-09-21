@@ -321,6 +321,7 @@ onSnapshot(productsRef, snapshot => {
       card.innerHTML = `
         <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
         <h3>${product.name}</h3>
+        <p class="desc">${product.desc || ''}</p>
         <p class="price">${currency.format(product.price)}</p>
         <div class="actions">
           <button class="btn-minus" data-id="${uid}">-</button>
@@ -369,4 +370,3 @@ document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
-
