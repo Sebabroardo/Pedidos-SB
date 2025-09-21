@@ -53,6 +53,24 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
 .user-actions .edit-btn{background:#facc15;color:#fff;}
 .user-actions .delete-btn{background:#f43f5e;color:#fff;}
 .muted{color:#666;font-size:13px;}
+
+/* ==== Gestión Visual de Locales ==== */
+.locals-wrapper{display:flex;gap:16px;width:100%;}
+.locals-list{width:260px;background:#f4f4f4;border-radius:12px;padding:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);height:fit-content;}
+.locals-list h3{margin:0 0 8px 0;}
+.locals-list ul{list-style:none;margin:0;padding:0;max-height:420px;overflow:auto}
+.locals-list li{padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:6px;background:#fff;border:1px solid #ddd;}
+.locals-list li.active{border-color:#22c55e;background:#ecfdf5}
+.local-editor{flex:1;background:#f4f4f4;border-radius:12px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);}
+.local-editor .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.local-editor .row.single{grid-template-columns:1fr}
+.local-editor label{font-weight:600;color:#333;margin-top:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{background:#fff;border:1px solid #ddd;border-radius:999px;padding:6px 10px;display:inline-flex;gap:6px;align-items:center}
+.chip button{background:#f43f5e;color:#fff;border:none;border-radius:999px;padding:0 6px;height:20px;cursor:pointer;width:auto}
+.input-file{display:flex;align-items:center;gap:10px}
+.preview{width:64px;height:64px;border-radius:10px;object-fit:cover;border:1px solid #ddd;background:#fff}
+.save-row{display:flex;gap:8px;margin-top:12px}
 </style>
 </head>
 <body>
@@ -97,7 +115,8 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, where, serverTimestamp, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -111,6 +130,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 document.addEventListener("DOMContentLoaded", () => {
   const loginDiv = document.getElementById("loginDiv");
@@ -164,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
     else if(section === "Generador de Locales") renderGeneradorLocales();
   });
 
-  /* ====== CREAR USUARIOS (igual que antes) ====== */
+  /* ====== CREAR USUARIOS ====== */
   function renderCrearUsuarios(){
     mainContent.innerHTML = `
       <div class="user-page">
@@ -273,14 +293,282 @@ document.addEventListener("DOMContentLoaded", () => {
     loadUsers();
   }
 
-  /* ====== GESTIÓN VISUAL (placeholder por ahora) ====== */
+  /* ====== GESTIÓN VISUAL DE LOCALES ====== */
   function renderGestionLocales(){
     mainContent.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:12px;">
-        <h2>Gestión Visual de Locales</h2>
-        <div class="muted">Acá después cargamos y editamos los demás datos del local.</div>
+      <div class="locals-wrapper">
+        <div class="locals-list">
+          <h3>Locales</h3>
+          <div class="row single">
+            <input id="newLocalKey" placeholder="nuevo LOCAL_KEY (ej: santa)" />
+            <input id="newLocalName" placeholder="Nombre visible (ej: Santa)" />
+          </div>
+          <button id="btnCreateLocal" style="margin:8px 0;">➕ Crear local</button>
+          <ul id="localsUl"></ul>
+        </div>
+
+        <div class="local-editor" id="localEditor" style="display:none;">
+          <h3 id="editorTitle">Editar local</h3>
+
+          <div class="row">
+            <div>
+              <label>Nombre visible</label>
+              <input id="le_localName" placeholder="Ej: Santa Rotisería" />
+            </div>
+            <div>
+              <label>Instagram (handle)</label>
+              <input id="le_instagram" placeholder="ej: santa.roti" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>WhatsApp (E.164 sin +)</label>
+              <input id="le_whats" placeholder="ej: 543537581341" />
+            </div>
+            <div>
+              <label>Horarios</label>
+              <input id="le_hours" placeholder="ej: Vie-Sáb-Dom 20:00–23:30" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Dirección</label>
+              <input id="le_address" placeholder="Belgrano 123" />
+            </div>
+            <div>
+              <label>URL Google Maps</label>
+              <input id="le_map" placeholder="https://maps.google.com/..." />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input-file">
+              <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+                <label>Logo</label>
+                <input type="file" id="le_logoFile" accept="image/*" />
+                <small class="muted" id="le_logoUrlTxt"></small>
+              </div>
+              <img id="le_logoPreview" class="preview" alt="logo"/>
+            </div>
+
+            <div class="input-file">
+              <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+                <label>Fondo</label>
+                <input type="file" id="le_bgFile" accept="image/*" />
+                <small class="muted" id="le_bgUrlTxt"></small>
+              </div>
+              <img id="le_bgPreview" class="preview" alt="fondo"/>
+            </div>
+          </div>
+
+          <hr style="margin:16px 0">
+
+          <label>Categorías</label>
+          <div class="chips" id="le_categoriesChips"></div>
+          <div class="row single" style="margin-top:6px;">
+            <input id="le_newCat" placeholder="Nueva categoría (ej: empanadas)" />
+            <button id="le_addCatBtn" style="width:auto;">Agregar</button>
+          </div>
+
+          <div class="save-row">
+            <button id="le_saveBtn">💾 Guardar cambios</button>
+            <button id="le_refreshBtn" style="background:#9ca3af;color:#0f1115;">↻ Recargar</button>
+          </div>
+        </div>
       </div>
     `;
+
+    document.getElementById('btnCreateLocal').addEventListener('click', createLocalFromInputs);
+    loadLocales(); // lista al costado
+  }
+
+  // ---------- Firestore paths ----------
+  const localsCol = () => collection(db, 'locals');
+  const localDoc  = (key) => doc(db, 'locals', key);
+
+  // ---------- Utilidades ----------
+  const toSlug = s => (s||'').toString().trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+
+  async function uploadImage(file, path){
+    const ref = storageRef(storage, path);
+    await uploadBytes(ref, file);
+    return await getDownloadURL(ref);
+  }
+
+  function chipHtml(text, idx){
+    return `<span class="chip">${text}<button data-idx="${idx}" title="Quitar">×</button></span>`;
+  }
+
+  // ---------- Carga y selección de locales ----------
+  async function loadLocales(){
+    const ul = document.getElementById('localsUl');
+    ul.innerHTML = 'Cargando...';
+
+    const snap = await getDocs(localsCol());
+    const items = [];
+    snap.forEach(d => items.push({ key:d.id, ...d.data() }));
+
+    if(items.length === 0){
+      // fallback: inferir keys desde Users.local
+      const usersSnap = await getDocs(collection(db,'Users'));
+      const set = new Set();
+      usersSnap.forEach(u => { if(u.data()?.local) set.add(toSlug(u.data().local)); });
+      for (const k of set) items.push({ key:k, localName:k });
+    }
+
+    ul.innerHTML = '';
+    items.sort((a,b)=> (a.localName||a.key).localeCompare(b.localName||b.key,'es'));
+
+    items.forEach(loc=>{
+      const li = document.createElement('li');
+      li.textContent = loc.localName || loc.key;
+      li.dataset.key = loc.key;
+      li.addEventListener('click', ()=> selectLocal(li.dataset.key));
+      ul.appendChild(li);
+    });
+  }
+
+  async function selectLocal(localKey){
+    // marcar activo
+    document.querySelectorAll('#localsUl li').forEach(li=>{
+      li.classList.toggle('active', li.dataset.key===localKey);
+    });
+
+    const editor = document.getElementById('localEditor');
+    editor.style.display = 'block';
+    document.getElementById('editorTitle').textContent = `Editar local — ${localKey}`;
+
+    // Cargar doc
+    const ref = localDoc(localKey);
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? snap.data() : {
+      localKey,
+      localName: localKey,
+      instagramHandle: '',
+      whatsE164: '',
+      addressText: '',
+      mapUrl: '',
+      hoursText: '',
+      logoSrc: '',
+      backgroundImage: '',
+      categories: ['pizza','hamburguesa','papas','menu especial','extras']
+    };
+
+    // Pintar UI
+    document.getElementById('le_localName').value = data.localName || '';
+    document.getElementById('le_instagram').value = data.instagramHandle || '';
+    document.getElementById('le_whats').value = data.whatsE164 || '';
+    document.getElementById('le_address').value = data.addressText || '';
+    document.getElementById('le_map').value = data.mapUrl || '';
+    document.getElementById('le_hours').value = data.hoursText || '';
+    document.getElementById('le_logoPreview').src = data.logoSrc || 'https://via.placeholder.com/64?text=Logo';
+    document.getElementById('le_bgPreview').src = data.backgroundImage || 'https://via.placeholder.com/64?text=BG';
+    document.getElementById('le_logoUrlTxt').textContent = data.logoSrc || '';
+    document.getElementById('le_bgUrlTxt').textContent = data.backgroundImage || '';
+
+    renderCategoriesChips(data.categories || []);
+
+    // Bind de botones
+    document.getElementById('le_addCatBtn').onclick = ()=> addCategory(localKey);
+    document.getElementById('le_saveBtn').onclick = ()=> saveLocal(localKey);
+    document.getElementById('le_refreshBtn').onclick = ()=> selectLocal(localKey);
+
+    // Uploads
+    document.getElementById('le_logoFile').onchange = async (e)=>{
+      const file = e.target.files?.[0];
+      if(!file) return;
+      const url = await uploadImage(file, `locals/${localKey}/logo_${Date.now()}.png`);
+      document.getElementById('le_logoPreview').src = url;
+      document.getElementById('le_logoUrlTxt').textContent = url;
+    };
+    document.getElementById('le_bgFile').onchange = async (e)=>{
+      const file = e.target.files?.[0];
+      if(!file) return;
+      const url = await uploadImage(file, `locals/${localKey}/bg_${Date.now()}.png`);
+      document.getElementById('le_bgPreview').src = url;
+      document.getElementById('le_bgUrlTxt').textContent = url;
+    };
+  }
+
+  function renderCategoriesChips(arr){
+    const wrap = document.getElementById('le_categoriesChips');
+    wrap.innerHTML = '';
+    (arr||[]).forEach((c, idx)=>{
+      const div = document.createElement('div');
+      div.innerHTML = chipHtml(c, idx);
+      // click del botón ×
+      const btn = div.querySelector('button');
+      btn.addEventListener('click', ()=> {
+        const input = document.getElementById('le_newCat'); // temporal
+        // marcar para quitar en save (re-render lo hará al guardar o recargar)
+        const tmp = Array.from(wrap.querySelectorAll('.chip')).map(ch => ch.firstChild.textContent);
+        tmp.splice(idx,1);
+        renderCategoriesChips(tmp);
+      });
+      wrap.appendChild(div.firstChild);
+    });
+  }
+
+  function currentCategoriesFromUI(){
+    return Array.from(document.querySelectorAll('#le_categoriesChips .chip'))
+      .map(ch => (ch.firstChild?.textContent || '').toString().trim())
+      .filter(Boolean);
+  }
+
+  function addCategory(localKey){
+    const input = document.getElementById('le_newCat');
+    const v = (input.value || '').trim();
+    if(!v) return;
+    const cats = currentCategoriesFromUI();
+    if(!cats.includes(v)) cats.push(v);
+    renderCategoriesChips(cats);
+    input.value = '';
+  }
+
+  async function saveLocal(localKey){
+    const payload = {
+      localKey,
+      localName: document.getElementById('le_localName').value.trim(),
+      instagramHandle: document.getElementById('le_instagram').value.trim(),
+      whatsE164: document.getElementById('le_whats').value.trim(),
+      addressText: document.getElementById('le_address').value.trim(),
+      mapUrl: document.getElementById('le_map').value.trim(),
+      hoursText: document.getElementById('le_hours').value.trim(),
+      logoSrc: document.getElementById('le_logoUrlTxt').textContent.trim(),
+      backgroundImage: document.getElementById('le_bgUrlTxt').textContent.trim(),
+      categories: currentCategoriesFromUI()
+    };
+    await setDoc(localDoc(localKey), payload, { merge:true });
+    alert('Cambios guardados.');
+  }
+
+  async function createLocalFromInputs(){
+    const key = toSlug(document.getElementById('newLocalKey').value || '');
+    const name = (document.getElementById('newLocalName').value || '').trim();
+    if(!key || !name){ alert('Completá LOCAL_KEY y Nombre visible'); return; }
+    const exists = await getDoc(localDoc(key));
+    if(exists.exists()){ alert('Ese LOCAL_KEY ya existe'); return; }
+    await setDoc(localDoc(key), {
+      localKey:key,
+      localName:name,
+      instagramHandle:'',
+      whatsE164:'',
+      addressText:'',
+      mapUrl:'',
+      hoursText:'',
+      logoSrc:'',
+      backgroundImage:'',
+      categories:['pizza','hamburguesa','papas','menu especial','extras'],
+      createdAt: new Date()
+    });
+    document.getElementById('newLocalKey').value='';
+    document.getElementById('newLocalName').value='';
+    await loadLocales();
+    selectLocal(key);
   }
 
   /* ====== GENERADOR DE LOCALES: SOLO LOCAL_KEY y LOCAL_NAME ====== */
@@ -321,7 +609,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return html;
     };
 
-    // intenta varias rutas por si hay diferencia de mayúsculas/ruta
     const fetchTemplate = async () => {
       const candidates = ['Index.html','./Index.html','index.html'];
       let lastErr;
