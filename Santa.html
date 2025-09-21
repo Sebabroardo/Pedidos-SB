@@ -41,7 +41,7 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .main{ display:grid; grid-template-columns: 2fr 1fr; gap:16px; }
 @media (max-width:900px){ .main{ grid-template-columns: 1fr; } }
 
-/* Categorías desplegables */
+/* Categorías desplegables (FIX sin límite de altura) */
 .category-btn{
   cursor:pointer;
   font-size:18px;
@@ -64,12 +64,13 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
   grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
   gap:16px;
   margin-top:8px;
-  transition:max-height 0.3s ease, opacity 0.3s ease;
-  overflow:hidden;
-  opacity:0;
-  max-height:0;
+  overflow:hidden;           /* oculta mientras se anima */
+  max-height:0;              /* cerrado */
+  opacity:0;                 /* cerrado */
+  transition:max-height .35s ease, opacity .2s ease;
+  will-change:max-height;
 }
-.grid.show{ opacity:1; max-height:2000px; }
+.grid.show{ opacity:1; }      /* abierto: la altura se setea por JS a scrollHeight y luego a none */
 
 /* Cards de producto */
 .card{background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; padding:14px; backdrop-filter: blur(4px); display:flex; flex-direction:column;}
@@ -330,6 +331,11 @@ onSnapshot(collection(db,'productos'), snapshot => {
       `;
       grid.appendChild(card);
     });
+
+    // si está abierta, asegurar que no tenga límite
+    if (grid.classList.contains('show')) {
+      grid.style.maxHeight = 'none';
+    }
   });
 });
 
@@ -355,17 +361,44 @@ function rebuildCatalog(categories){
     const grid = document.createElement('div');
     grid.id = id;
     grid.className = 'grid';
-    if (isOpen) grid.classList.add('show');
 
-    // listeners
+    // listeners (ACORDEÓN DINÁMICO)
     btn.addEventListener('click', ()=>{
-      grid.classList.toggle('show');
-      const open = grid.classList.contains('show');
-      btn.textContent = `${prettyLabel(cat)} ${open ? '▾' : '▸'}`;
-      openState[id] = open;
+      const opened = grid.classList.contains('show');
+
+      if (opened) {
+        // cerrar: de altura actual a 0
+        if (grid.style.maxHeight === 'none') {
+          // si estaba sin límite, fijar al alto real para animar
+          grid.style.maxHeight = grid.scrollHeight + 'px';
+          void grid.offsetHeight; // reflow
+        }
+        grid.style.maxHeight = '0px';
+        grid.classList.remove('show');
+      } else {
+        // abrir: de 0 al alto real, luego liberar
+        grid.classList.add('show');
+        grid.style.maxHeight = grid.scrollHeight + 'px';
+      }
+
+      const openNow = !opened;
+      btn.textContent = `${prettyLabel(cat)} ${openNow ? '▾' : '▸'}`;
+      openState[id] = openNow;
+    });
+
+    // al terminar transición, si quedó abierta, liberar límite para que crezca con nuevos productos
+    grid.addEventListener('transitionend', (ev)=>{
+      if (ev.propertyName !== 'max-height') return;
+      if (grid.classList.contains('show')) {
+        grid.style.maxHeight = 'none';
+      }
     });
 
     // estado inicial
+    if (isOpen) {
+      grid.classList.add('show');
+      grid.style.maxHeight = 'none'; // abierta sin límite
+    }
     openState[id] = isOpen;
 
     catalogEl.appendChild(btn);
