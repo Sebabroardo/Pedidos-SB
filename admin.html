@@ -34,11 +34,11 @@ const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
 
-// 🔸 Panel de descuentos por categoría
+// Panel de descuentos por categoría
 const discountPanel = document.querySelector('.discount-panel');
 const CATEGORIES = ['pizza','hamburguesa','papas','menu especial','extras'];
 
-const searchInput = document.getElementById('search'); // buscador en vivo
+const searchInput = document.getElementById('search'); // buscador
 let currentUserLocal = null;
 
 // --- DASHBOARD ---
@@ -50,9 +50,9 @@ async function showDashboard(username, local){
   logoutBtn.style.display = "block";
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
-  renderDiscountInputs();   // crea inputs numéricos por categoría
+  renderDiscountInputs();   // inputs numéricos por categoría
   filterProductsByLocal();
-  loadDiscounts();          // escucha y sincroniza valores
+  loadDiscounts();          // sync en tiempo real
 }
 
 function hideDashboard(){
@@ -113,6 +113,22 @@ logoutBtn.addEventListener("click", ()=>{
   hideDashboard();
 });
 
+// Helpers edición
+function setEditMode(enabled){
+  const submitBtn = document.getElementById("submitBtn");
+  const cancelBtn = document.getElementById("cancelEditBtn");
+  submitBtn.textContent = enabled ? "Actualizar producto" : "Guardar producto";
+  cancelBtn.style.display = enabled ? "inline-flex" : "none";
+}
+
+function resetForm(){
+  const form = document.getElementById("productForm");
+  form.reset();
+  document.getElementById("editId").value = "";
+  document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
+  setEditMode(false);
+}
+
 // --- PRODUCTOS (Alta/Edición) ---
 document.getElementById("productForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -120,6 +136,7 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
   const position = parseInt(document.getElementById("position").value, 10);
+  const discountPct = parseInt(document.getElementById("productDiscount").value, 10);
   const category = document.getElementById("category").value;
   const imgFile = document.getElementById("img").files[0]; 
   const editIdField = document.getElementById("editId").value;
@@ -147,6 +164,7 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
       local: currentUserLocal,
       img: imgUrl,
       position: isNaN(position) ? null : position,
+      discountPct: isNaN(discountPct) ? 0 : Math.max(0, Math.min(100, discountPct)),
       updatedAt: new Date()
     };
 
@@ -159,13 +177,17 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
       alert("Producto agregado correctamente");
     }
 
-    e.target.reset();
-    document.getElementById("imgPreview").src = "https://via.placeholder.com/150x100?text=Sin+imagen";
-    document.getElementById("editId").value = "";
+    resetForm();
   } catch (err) {
     console.error("Error al guardar producto:", err);
     alert("❌ Error al guardar producto: " + err.message);
   }
+});
+
+// Cancelar edición
+document.getElementById("cancelEditBtn").addEventListener("click", (e)=>{
+  e.preventDefault();
+  resetForm();
 });
 
 // --- VISTA PREVIA DE IMAGEN ---
@@ -208,20 +230,27 @@ function filterProductsByLocal(){
       li.appendChild(imgElement);
 
       const span = document.createElement('span');
-      span.textContent = `${data.name} — ${data.desc} — $${data.price}`;
+      const discountLabel = (Number(data.discountPct) || 0) > 0 ? ` — Desc: ${data.discountPct}%` : '';
+      span.textContent = `${data.name} — ${data.desc} — $${data.price}${discountLabel}`;
       li.appendChild(span);
 
       const btnEdit = document.createElement('button');
       btnEdit.textContent = 'Editar';
       btnEdit.className = 'btn-edit';
       btnEdit.addEventListener('click', ()=>{
+        // precarga de campos
         document.getElementById('name').value = data.name;
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
         document.getElementById('position').value = data.position ?? '';
+        document.getElementById('productDiscount').value = data.discountPct ?? 0;
         document.getElementById('category').value = data.category;
         document.getElementById('editId').value = d.id;
         document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
+        // activar modo edición
+        setEditMode(true);
+        // scroll suave al formulario
+        document.getElementById('productForm').scrollIntoView({behavior:'smooth', block:'start'});
       });
 
       const btnDelete = document.createElement('button');
@@ -240,7 +269,7 @@ function filterProductsByLocal(){
       if(productLists[cat]) productLists[cat].appendChild(li);
     });
 
-    applySearchFilter();
+    applySearchFilter(); // mantener filtro tras re-render
   });
 }
 
@@ -355,6 +384,10 @@ li span { flex:1; }
 #search { width:100%; background:#171a21; color:#f5f7fb; border:1px solid #2a2f3a; }
 #search::placeholder { color:#9aa3b2; }
 
+/* Botón cancelar edición */
+.actions-row { display:flex; gap:8px; }
+#cancelEditBtn { display:none; background:#9ca3af; color:#0f1115; }
+
 #logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
 </style>
 
@@ -380,6 +413,7 @@ li span { flex:1; }
     <input type="text" id="desc" placeholder="Descripción" required>
     <input type="number" id="price" placeholder="Precio" required>
     <input type="number" id="position" placeholder="Orden (1,2,3...)" min="1">
+    <input type="number" id="productDiscount" placeholder="Descuento (%)" min="0" max="100" step="1">
     <input type="file" id="img" accept="image/*">
     <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
     <select id="category" required>
@@ -390,7 +424,10 @@ li span { flex:1; }
       <option value="menu especial">Menú especial</option>
       <option value="extras">Extras</option>
     </select>
-    <button type="submit">Guardar producto</button>
+    <div class="actions-row">
+      <button type="submit" id="submitBtn">Guardar producto</button>
+      <button id="cancelEditBtn">Cancelar edición</button>
+    </div>
   </form>
 
   <!-- Buscador en tiempo real -->
