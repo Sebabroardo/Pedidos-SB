@@ -19,7 +19,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
   authDomain: "santa-roti.firebaseapp.com",
   projectId: "santa-roti",
-  storageBucket: "santa-roti.firebasestorage.app", // 🔹 corregido
+  storageBucket: "santa-roti.firebasestorage.app",
   messagingSenderId: "66221970620",
   appId: "1:66221970620:web:53083ce7727ff85e6d2cb9",
 };
@@ -33,11 +33,13 @@ const loginDiv = document.getElementById("loginDiv");
 const dashboardDiv = document.getElementById("dashboardDiv");
 const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
+
+// 🔸 Panel de descuentos por categoría
 const discountPanel = document.querySelector('.discount-panel');
-const discountRadios = document.querySelectorAll("input[name='discount']");
-const searchInput = document.getElementById('search'); // 👈 NUEVO
+const CATEGORIES = ['pizza','hamburguesa','papas','menu especial','extras'];
+
+const searchInput = document.getElementById('search'); // buscador en vivo
 let currentUserLocal = null;
-let editId = null;
 
 // --- DASHBOARD ---
 async function showDashboard(username, local){
@@ -48,8 +50,9 @@ async function showDashboard(username, local){
   logoutBtn.style.display = "block";
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
+  renderDiscountInputs();   // crea inputs numéricos por categoría
   filterProductsByLocal();
-  loadDiscount();
+  loadDiscounts();          // escucha y sincroniza valores
 }
 
 function hideDashboard(){
@@ -82,8 +85,9 @@ document.getElementById("loginForm").addEventListener("submit", async (e)=>{
 
     if(userData.password !== password) return alert("Contraseña incorrecta");
 
-    if(rememberMe) localStorage.setItem("session", JSON.stringify({username, local: userData.local}));
-    else sessionStorage.setItem("session", JSON.stringify({username, local: userData.local}));
+    const sess = JSON.stringify({username, local: userData.local});
+    if(rememberMe) localStorage.setItem("session", sess);
+    else sessionStorage.setItem("session", sess);
 
     showDashboard(userData.username, userData.local);
 
@@ -109,13 +113,13 @@ logoutBtn.addEventListener("click", ()=>{
   hideDashboard();
 });
 
-// --- PRODUCTOS ---
+// --- PRODUCTOS (Alta/Edición) ---
 document.getElementById("productForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
-  const position = parseInt(document.getElementById("position").value, 10); // 👈 ya agregado antes
+  const position = parseInt(document.getElementById("position").value, 10);
   const category = document.getElementById("category").value;
   const imgFile = document.getElementById("img").files[0]; 
   const editIdField = document.getElementById("editId").value;
@@ -142,7 +146,7 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
       category,
       local: currentUserLocal,
       img: imgUrl,
-      position: isNaN(position) ? null : position, // 👈 ya agregado antes
+      position: isNaN(position) ? null : position,
       updatedAt: new Date()
     };
 
@@ -176,7 +180,7 @@ document.getElementById("img").addEventListener("change", e=>{
   }
 });
 
-// --- FILTRAR PRODUCTOS POR LOCAL + búsqueda tiempo real ---
+// --- LISTAS POR LOCAL + BÚSQUEDA EN VIVO ---
 function filterProductsByLocal(){
   const productLists = {
     pizza: document.getElementById('pizzaList'),
@@ -193,9 +197,8 @@ function filterProductsByLocal(){
       if(data.local !== currentUserLocal) return;
 
       const li = document.createElement('li');
-      li.dataset.name = (data.name || '').toLowerCase(); // 👈 para búsqueda por nombre
+      li.dataset.name = (data.name || '').toLowerCase();
 
-      // Crear imagen del producto
       const imgElement = document.createElement('img');
       imgElement.src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
       imgElement.style.width = "50px";
@@ -237,12 +240,11 @@ function filterProductsByLocal(){
       if(productLists[cat]) productLists[cat].appendChild(li);
     });
 
-    // aplicar filtro actual después de re-renderizar
     applySearchFilter();
   });
 }
 
-// Filtro en tiempo real por nombre
+// Búsqueda en vivo
 function applySearchFilter(){
   const q = (searchInput?.value || '').trim().toLowerCase();
   const sections = document.querySelectorAll('#productLists .category-section');
@@ -256,38 +258,74 @@ function applySearchFilter(){
       li.style.display = visible ? '' : 'none';
       if (visible) visibleCount++;
     });
-    // si hay búsqueda activa, ocultar secciones vacías
     section.style.display = q ? (visibleCount ? '' : 'none') : '';
   });
 }
 
-// Listener del input de búsqueda
 if (searchInput) {
   searchInput.addEventListener('input', applySearchFilter);
 }
 
-// --- PANEL DE DESCUENTOS ---
-discountRadios.forEach(radio => {
-  radio.addEventListener('change', async () => {
-    if(!currentUserLocal) return;
-    const value = parseInt(radio.value);
-    try {
-      await setDoc(doc(db,"settings","discount_" + currentUserLocal), { 
-        value, 
-        local: currentUserLocal
-      }, { merge: true });
-    } catch(err){
-      console.error("Error guardando descuento:", err);
-    }
-  });
-});
+// ============ DESCUENTOS POR CATEGORÍA (INPUT NUMÉRICO) ============
 
-function loadDiscount(){
-  onSnapshot(doc(db,"settings","discount_" + currentUserLocal), snapshot => {
-    if(snapshot.exists()){
-      const data = snapshot.data();
-      discountRadios.forEach(r => r.checked = (parseInt(r.value) === data.value));
-    }
+function discountsDocRef(){
+  return doc(db, "settings", "discounts_" + currentUserLocal);
+}
+
+function renderDiscountInputs(){
+  const container = document.getElementById('discountsContainer');
+  container.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'discount-input-wrapper';
+    wrapper.dataset.cat = cat;
+
+    const label = document.createElement('label');
+    label.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = 0;
+    input.max = 100;
+    input.step = 1;
+    input.placeholder = "%";
+    input.className = 'discount-input';
+    input.dataset.cat = cat;
+
+    input.addEventListener('change', async ()=>{
+      const val = clampPercent(parseInt(input.value,10));
+      input.value = String(val);
+      try {
+        await setDoc(discountsDocRef(), { 
+          local: currentUserLocal, 
+          [cat]: val 
+        }, { merge: true });
+      } catch (err){
+        console.error('Error guardando descuento:', err);
+      }
+    });
+
+    wrapper.appendChild(label);
+    wrapper.appendChild(input);
+    container.appendChild(wrapper);
+  });
+}
+
+function clampPercent(n){
+  n = isNaN(n) ? 0 : n;
+  if (n < 0) return 0;
+  if (n > 100) return 100;
+  return n;
+}
+
+function loadDiscounts(){
+  onSnapshot(discountsDocRef(), snap => {
+    const data = snap.exists() ? snap.data() : {};
+    CATEGORIES.forEach(cat => {
+      const value = clampPercent(Number(data?.[cat] ?? 0));
+      const input = document.querySelector(`.discount-input[data-cat="${cat}"]`);
+      if (input) input.value = value;
+    });
   });
 }
 </script>
@@ -304,13 +342,20 @@ li span { flex:1; }
 .btn-edit { background:#3b82f6; color:#fff; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
 #dashboardDiv { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; position: relative; }
-.discount-panel { position: fixed; top: 20px; right: 20px; padding: 20px; background: #171a21; border-radius: 12px; width: 200px; display: none; flex-direction: column; z-index: 1000; }
-#logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
 
-/* Estilos del buscador */
+/* Panel de descuentos por categoría */
+.discount-panel { position: fixed; top: 20px; right: 20px; padding: 16px; background: #171a21; border-radius: 12px; width: 260px; display: none; flex-direction: column; gap: 10px; z-index: 1000; }
+.discount-panel h3 { margin: 0 0 6px 0; font-size: 16px; }
+.discount-input-wrapper { display:flex; justify-content:space-between; align-items:center; background:#11151c; padding:6px 10px; border-radius:8px; }
+.discount-input-wrapper label { font-size:14px; color:#9aa3b2; }
+.discount-input { width:60px; text-align:right; background:#171a21; color:#f5f7fb; border:1px solid #2a2f3a; border-radius:6px; padding:6px; }
+
+/* Buscador */
 .search-wrapper { width:100%; max-width:600px; margin:10px 0 0 0; }
 #search { width:100%; background:#171a21; color:#f5f7fb; border:1px solid #2a2f3a; }
 #search::placeholder { color:#9aa3b2; }
+
+#logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
 </style>
 
 </head>
@@ -326,66 +371,64 @@ li span { flex:1; }
 </div>
 
 <div id="dashboardDiv">
-<h1>Panel Admin — Agregar / Editar Producto</h1>
-<div id="welcomeMessage"></div>
+  <h1>Panel Admin — Agregar / Editar Producto</h1>
+  <div id="welcomeMessage"></div>
 
-<form id="productForm">
-  <input type="hidden" id="editId">
-  <input type="text" id="name" placeholder="Nombre del producto" required>
-  <input type="text" id="desc" placeholder="Descripción" required>
-  <input type="number" id="price" placeholder="Precio" required>
-  <input type="number" id="position" placeholder="Orden (1,2,3...)" min="1">
-  <input type="file" id="img" accept="image/*">
-  <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
-  <select id="category" required>
-    <option value="">Seleccionar categoría</option>
-    <option value="pizza">Pizza</option>
-    <option value="hamburguesa">Hamburguesa</option>
-    <option value="papas">Papas</option>
-    <option value="menu especial">Menú especial</option>
-    <option value="extras">Extras</option>
-  </select>
-  <button type="submit">Guardar producto</button>
-</form>
+  <form id="productForm">
+    <input type="hidden" id="editId">
+    <input type="text" id="name" placeholder="Nombre del producto" required>
+    <input type="text" id="desc" placeholder="Descripción" required>
+    <input type="number" id="price" placeholder="Precio" required>
+    <input type="number" id="position" placeholder="Orden (1,2,3...)" min="1">
+    <input type="file" id="img" accept="image/*">
+    <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
+    <select id="category" required>
+      <option value="">Seleccionar categoría</option>
+      <option value="pizza">Pizza</option>
+      <option value="hamburguesa">Hamburguesa</option>
+      <option value="papas">Papas</option>
+      <option value="menu especial">Menú especial</option>
+      <option value="extras">Extras</option>
+    </select>
+    <button type="submit">Guardar producto</button>
+  </form>
 
-<!-- 👇 Buscador en tiempo real -->
-<div class="search-wrapper">
-  <input type="text" id="search" placeholder="Buscar por nombre..." autocomplete="off">
-</div>
+  <!-- Buscador en tiempo real -->
+  <div class="search-wrapper">
+    <input type="text" id="search" placeholder="Buscar por nombre..." autocomplete="off">
+  </div>
 
-<h2>Productos existentes</h2>
-<div id="productLists">
-  <div class="category-section">
-    <h3>Pizzas</h3>
-    <ul id="pizzaList"></ul>
+  <h2>Productos existentes</h2>
+  <div id="productLists">
+    <div class="category-section">
+      <h3>Pizzas</h3>
+      <ul id="pizzaList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Hamburguesas</h3>
+      <ul id="hamburguesaList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Papas</h3>
+      <ul id="papasList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Menú Especial</h3>
+      <ul id="menuEspecialList"></ul>
+    </div>
+    <div class="category-section">
+      <h3>Extras</h3>
+      <ul id="extrasList"></ul>
+    </div>
   </div>
-  <div class="category-section">
-    <h3>Hamburguesas</h3>
-    <ul id="hamburguesaList"></ul>
-  </div>
-  <div class="category-section">
-    <h3>Papas</h3>
-    <ul id="papasList"></ul>
-  </div>
-  <div class="category-section">
-    <h3>Menú Especial</h3>
-    <ul id="menuEspecialList"></ul>
-  </div>
-  <div class="category-section">
-    <h3>Extras</h3>
-    <ul id="extrasList"></ul>
-  </div>
-</div>
 
-<div class="discount-panel">
-  <h3>Descuentos</h3>
-  <label><input type="radio" name="discount" value="0" checked> Sin descuento</label>
-  <label><input type="radio" name="discount" value="10"> 10%</label>
-  <label><input type="radio" name="discount" value="20"> 20%</label>
-  <label><input type="radio" name="discount" value="30"> 30%</label>
-</div>
+  <!-- 🔸 Descuentos por categoría -->
+  <div class="discount-panel">
+    <h3>Descuentos por categoría</h3>
+    <div id="discountsContainer"></div>
+  </div>
 
-<button id="logoutBtn">Cerrar sesión</button>
+  <button id="logoutBtn">Cerrar sesión</button>
 </div>
 
 </body>
