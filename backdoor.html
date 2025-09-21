@@ -5,13 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Backdoor - Gestor de Locales/Usuarios</title>
 <style>
-/* Estilos (copiados y mantenidos) */
+/* Estilos base */
 body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#000;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;}
 header{width:100%;padding:20px;text-align:center;font-size:24px;font-weight:bold;background:#fff;border-bottom:1px solid #ccc;display:flex;flex-direction:column;gap:8px;}
 .header-subtitle{font-size:16px;font-weight:normal;color:#555;display:none;}
 #loginDiv{flex:1;display:flex;justify-content:center;align-items:flex-start;padding-top:60px;}
 .form-container{background:#171a21;padding:20px;border-radius:12px;width:320px;display:flex;flex-direction:column;gap:12px;color:#fff;align-items:center;box-shadow:0 4px 15px rgba(0,0,0,0.3);}
-/* inputs y botones */
 input, textarea{padding:10px;border-radius:8px;border:none;font-size:14px;width:100%;}
 label{font-size:14px;display:flex;align-items:center;gap:6px;color:#fff;}
 button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;font-weight:bold;cursor:pointer;width:100%;}
@@ -44,7 +43,9 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
 .user-form .form-group input{padding:10px;border-radius:6px;border:1px solid #ccc;font-size:14px;}
 #saveUserBtn,#saveLocalBtn{background:#22c55e;color:#fff;border:none;padding:12px;border-radius:6px;font-weight:bold;cursor:pointer;width:100%;transition:0.2s;}
 #saveUserBtn:hover,#saveLocalBtn:hover{background:#16a34a;}
-#userMessage,#localMessage{margin-top:10px;font-weight:bold;color:#16a34a;}
+#userMessage,#localMessage{margin-top:10px;font-weight:bold;}
+#userMessage.success,#localMessage.success{color:#16a34a;}
+#userMessage.error,#localMessage.error{color:#f43f5e;}
 .user-list{background:#f4f4f4;padding:20px;border-radius:12px;width:320px;box-shadow:0 2px 10px rgba(0,0,0,0.1);flex-shrink:0;}
 .user-list input{width:100%;padding:8px;margin-bottom:10px;border-radius:6px;border:1px solid #ccc;}
 .user-row{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #ccc;}
@@ -87,7 +88,6 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
   </div>
 
   <div id="mainContent">
-    <!-- Contenido dinámico -->
     <div style="display:flex;flex-direction:column;gap:10px;">
       <div class="muted">Seleccioná una opción del menú para comenzar.</div>
     </div>
@@ -95,16 +95,6 @@ button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;
 </div>
 
 <script type="module">
-/*
-  Backdoor completo (script)
-  - Inicializa Firebase (SDK modular)
-  - Login (signInWithEmailAndPassword)
-  - onAuthStateChanged -> muestra dashboard o login
-  - Menú con delegación
-  - Crear Usuarios (Firestore)
-  - Generador de Locales: carga Index.html y reemplaza placeholders {{KEY}}
-*/
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
@@ -123,7 +113,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Elementos
   const loginDiv = document.getElementById("loginDiv");
   const dashboardDiv = document.getElementById("dashboardDiv");
   const logoutBtn = document.getElementById("logoutBtn");
@@ -141,65 +130,41 @@ document.addEventListener("DOMContentLoaded", () => {
     welcomeMessage.style.display = "block";
     welcomeMessage.textContent = `Bienvenido ${user.email}`;
   }
-
   function showLogin(){
     dashboardDiv.style.display = "none";
     loginDiv.style.display = "flex";
     welcomeMessage.style.display = "none";
   }
 
-  // Auth state
-  onAuthStateChanged(auth, (user) => {
-    if(user) showDashboard(user);
-    else showLogin();
-  });
+  onAuthStateChanged(auth, (user) => { user ? showDashboard(user) : showLogin(); });
 
-  // Login form
   const loginForm = document.getElementById("loginForm");
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
     const rememberMe = document.getElementById("rememberMe").checked;
-
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await signInWithEmailAndPassword(auth,email,password);
       loginForm.reset();
-    } catch(err){
-      alert("Error: "+err.message);
-    }
+    } catch(err){ alert("Error: "+err.message); }
   });
 
-  // Logout
-  logoutBtn.addEventListener("click", async ()=>{ 
-    try{ await signOut(auth); } 
-    catch(err){ alert("Error al cerrar sesión: "+err.message); }
-  });
-
-  // Toggle sidebar (único listener)
+  logoutBtn.addEventListener("click", async ()=>{ try{ await signOut(auth); } catch(err){ alert("Error al cerrar sesión: "+err.message); }});
   toggleSidebarBtn.addEventListener("click", ()=>{ sidebar.classList.toggle("collapsed"); });
 
-  // Delegación del menú (un solo listener)
   sidebarMenu.addEventListener("click", (ev) => {
-    const li = ev.target.closest('li[data-section]');
-    if(!li) return;
-    // marcar activo
+    const li = ev.target.closest('li[data-section]'); if(!li) return;
     sidebarMenu.querySelectorAll('li').forEach(i=>i.classList.remove('active'));
     li.classList.add('active');
     const section = li.getAttribute('data-section');
-
-    // Renders
-    if(section === "Crear Usuarios"){
-      renderCrearUsuarios();
-    } else if(section === "Gestión de Locales"){
-      renderGestionLocales();
-    } else if(section === "Generador de Locales"){
-      renderGeneradorLocales();
-    }
+    if(section === "Crear Usuarios") renderCrearUsuarios();
+    else if(section === "Gestión de Locales") renderGestionLocales();
+    else if(section === "Generador de Locales") renderGeneradorLocales();
   });
 
-  // ---------- RENDER: CREAR USUARIOS ----------
+  /* ====== CREAR USUARIOS (igual que antes) ====== */
   function renderCrearUsuarios(){
     mainContent.innerHTML = `
       <div class="user-page">
@@ -218,7 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <input type="text" id="newLocal" placeholder="Local asignado" required>
           </div>
           <button id="saveUserBtn">Guardar Usuario</button>
-          <div id="userMessage"></div>
+          <div id="userMessage" class="muted"></div>
         </div>
 
         <div id="userListContainer" class="user-list">
@@ -237,22 +202,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const password = document.getElementById("newPassword").value.trim();
       const localName = document.getElementById("newLocal").value.trim();
       if(!username || !password || !localName){
-        userMessage.innerText = "Completa todos los campos.";
-        userMessage.style.color = '#f43f5e';
+        userMessage.textContent = "Completa todos los campos.";
+        userMessage.className = "error";
         return;
       }
       try {
-        // Nota: en producción no guardes passwords en texto plano. Esto es un fallback rápido.
         await addDoc(collection(db, "Users"), { username, password, local: localName, createdAt: serverTimestamp() });
-        userMessage.innerText = "Usuario creado correctamente.";
-        userMessage.style.color = '#16a34a';
+        userMessage.textContent = "Usuario creado correctamente.";
+        userMessage.className = "success";
         document.getElementById("newUsername").value="";
         document.getElementById("newPassword").value="";
         document.getElementById("newLocal").value="";
         loadUsers();
       } catch(err){
-        userMessage.innerText = "Error: "+err.message;
-        userMessage.style.color = '#f43f5e';
+        userMessage.textContent = "Error: "+err.message;
+        userMessage.className = "error";
       }
     };
     saveUserBtn.addEventListener("click", saveUserHandler);
@@ -279,26 +243,22 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `;
         userDiv.querySelector(".delete-btn").addEventListener("click", async ()=>{ 
-          if(confirm("¿Eliminar usuario?")){
-            await deleteDoc(doc(db,"Users",docSnap.id));
-            loadUsers();
-          }
-        } );
+          if(confirm("¿Eliminar usuario?")){ await deleteDoc(doc(db,"Users",docSnap.id)); loadUsers(); }
+        });
         userDiv.querySelector(".edit-btn").addEventListener("click", ()=>{ 
           document.getElementById("newUsername").value = userData.username;
           document.getElementById("newPassword").value = userData.password;
           document.getElementById("newLocal").value = userData.local;
-          userMessage.innerText = "Editando usuario, guardar cambios.";
-          userMessage.style.color = '#f59e0b';
-          // sobrescribimos temporalmente el handler
+          userMessage.textContent = "Editando usuario, guardar cambios.";
+          userMessage.className = "muted";
           saveUserBtn.onclick = async ()=> {
             await updateDoc(doc(db,"Users",docSnap.id), {
               username: document.getElementById("newUsername").value,
               password: document.getElementById("newPassword").value,
               local: document.getElementById("newLocal").value
             });
-            userMessage.innerText = "Usuario actualizado correctamente.";
-            userMessage.style.color = '#16a34a';
+            userMessage.textContent = "Usuario actualizado correctamente.";
+            userMessage.className = "success";
             loadUsers();
             document.getElementById("newUsername").value="";
             document.getElementById("newPassword").value="";
@@ -309,22 +269,21 @@ document.addEventListener("DOMContentLoaded", () => {
         userGrid.appendChild(userDiv);
       });
     }
-
     document.getElementById("searchUser").addEventListener("input", (e)=>{ loadUsers(e.target.value); });
     loadUsers();
   }
 
-  // ---------- RENDER: GESTIÓN VISUAL DE LOCALES (placeholder simple) ----------
+  /* ====== GESTIÓN VISUAL (placeholder por ahora) ====== */
   function renderGestionLocales(){
     mainContent.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:12px;">
         <h2>Gestión Visual de Locales</h2>
-        <div class="muted">Aquí podés ver/preview de locales. (Funcionalidad a expandir)</div>
+        <div class="muted">Acá después cargamos y editamos los demás datos del local.</div>
       </div>
     `;
   }
 
-  // ---------- RENDER: GENERADOR DE LOCALES (usa Index.html como plantilla) ----------
+  /* ====== GENERADOR DE LOCALES: SOLO LOCAL_KEY y LOCAL_NAME ====== */
   function renderGeneradorLocales(){
     mainContent.innerHTML = `
       <div class="user-page">
@@ -333,105 +292,82 @@ document.addEventListener("DOMContentLoaded", () => {
 
           <div class="form-group">
             <label for="localKey">Identificador (LOCAL_KEY):</label>
-            <input type="text" id="localKey" placeholder="ej: santa, norte, sur" required>
+            <input type="text" id="localKey" placeholder="ej: honey, norte, sur" required>
           </div>
+
           <div class="form-group">
             <label for="localName">Nombre para mostrar (LOCAL_NAME):</label>
-            <input type="text" id="localName" placeholder="ej: Santa Rotisería" required>
-          </div>
-          <div class="form-group">
-            <label for="instagramHandle">Instagram (handle):</label>
-            <input type="text" id="instagramHandle" placeholder="ej: santa.roti">
-          </div>
-          <div class="form-group">
-            <label for="whatsE164">WhatsApp (E.164 sin +):</label>
-            <input type="text" id="whatsE164" placeholder="ej: 543537581341">
-          </div>
-          <div class="form-group">
-            <label for="addressText">Dirección (texto):</label>
-            <input type="text" id="addressText" placeholder="ej: Belgrano 123">
-          </div>
-          <div class="form-group">
-            <label for="mapUrl">URL de Google Maps:</label>
-            <input type="url" id="mapUrl" placeholder="https://maps.google.com/...">
-          </div>
-          <div class="form-group">
-            <label for="hoursText">Horarios (texto):</label>
-            <input type="text" id="hoursText" placeholder="ej: Vie-Sáb-Dom 20:00–23:30">
+            <input type="text" id="localName" placeholder="ej: Honey Rotisería" required>
           </div>
 
           <button id="saveLocalBtn">Generar archivo</button>
-          <div id="localMessage"></div>
+          <div id="localMessage" class="muted"></div>
         </div>
       </div>
     `;
 
     const localMessage = document.getElementById("localMessage");
 
-    // Sanitize slug helper
     const sanitizeSlug = (s) =>
       s.toString().trim().toLowerCase()
        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
        .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 
-    // Reemplazo robusto de placeholders tipo {{ KEY }}
     const replaceAllMap = (html, mapping) => {
       for (const [key, value] of Object.entries(mapping)) {
-        // acepta espacios {{  KEY  }}
         const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
         html = html.replace(regex, value ?? '');
       }
       return html;
     };
 
-    document.getElementById("saveLocalBtn").addEventListener("click", async () => {
-      const mapping = {
-        LOCAL_KEY: sanitizeSlug(document.getElementById("localKey").value || ''),
-        LOCAL_NAME: document.getElementById("localName").value || '',
-        INSTAGRAM_HANDLE: document.getElementById("instagramHandle").value || '',
-        WHATSAPP_E164: document.getElementById("whatsE164").value || '',
-        ADDRESS_TEXT: document.getElementById("addressText").value || '',
-        MAP_URL: document.getElementById("mapUrl").value || '',
-        HOURS_TEXT: document.getElementById("hoursText").value || '',
-      };
+    // intenta varias rutas por si hay diferencia de mayúsculas/ruta
+    const fetchTemplate = async () => {
+      const candidates = ['Index.html','./Index.html','index.html'];
+      let lastErr;
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url, { cache: 'no-cache' });
+          if(res.ok) return await res.text();
+          lastErr = `HTTP ${res.status}`;
+        } catch(e){ lastErr = e.message; }
+      }
+      throw new Error(`No se pudo cargar la plantilla (Intenté: ${candidates.join(', ')}). ${lastErr||''}`);
+    };
 
-      if(!mapping.LOCAL_KEY || !mapping.LOCAL_NAME){
-        localMessage.innerText = "Debes ingresar LOCAL_KEY y LOCAL_NAME.";
-        localMessage.style.color = '#f43f5e';
+    document.getElementById("saveLocalBtn").addEventListener("click", async () => {
+      const LOCAL_KEY = sanitizeSlug(document.getElementById("localKey").value || '');
+      const LOCAL_NAME = document.getElementById("localName").value || '';
+
+      if(!LOCAL_KEY || !LOCAL_NAME){
+        localMessage.textContent = "Debes ingresar LOCAL_KEY y LOCAL_NAME.";
+        localMessage.className = "error";
         return;
       }
 
       try {
-        // Carga la plantilla Index.html (tu plantilla original)
-        const response = await fetch('Index.html', { cache: 'no-cache' });
-        if(!response.ok) throw new Error("No se pudo cargar Index.html. Asegurate que Index.html esté en la misma carpeta.");
-        let template = await response.text();
+        let template = await fetchTemplate();
+        template = replaceAllMap(template, { LOCAL_KEY, LOCAL_NAME });
 
-        // Reemplaza placeholders
-        template = replaceAllMap(template, mapping);
-
-        // Descargar archivo generado
         const blob = new Blob([template], {type:"text/html;charset=utf-8"});
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `index-${mapping.LOCAL_KEY}.html`;
+        a.download = `index-${LOCAL_KEY}.html`;
         a.click();
         URL.revokeObjectURL(a.href);
 
-        localMessage.innerText = `Archivo generado: index-${mapping.LOCAL_KEY}.html`;
-        localMessage.style.color = '#16a34a';
+        localMessage.textContent = `Archivo generado: index-${LOCAL_KEY}.html`;
+        localMessage.className = "success";
       } catch(err){
-        localMessage.innerText = "Error: " + err.message;
-        localMessage.style.color = '#f43f5e';
+        localMessage.textContent = "Error: " + err.message;
+        localMessage.className = "error";
       }
     });
   }
 
-  // Inicial: mostrar una sección por defecto (opcional)
-  // activar primer item del menú
+  // Inicial: primera sección
   const firstLi = sidebarMenu.querySelector('li[data-section]');
   if(firstLi) firstLi.classList.add('active');
-  // renderizamos la primera seccion por defecto
   renderCrearUsuarios();
 });
 </script>
