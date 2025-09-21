@@ -35,6 +35,7 @@ const logoutBtn = document.getElementById("logoutBtn");
 const welcomeMessage = document.getElementById("welcomeMessage");
 const discountPanel = document.querySelector('.discount-panel');
 const discountRadios = document.querySelectorAll("input[name='discount']");
+const searchInput = document.getElementById('search'); // 👈 NUEVO
 let currentUserLocal = null;
 let editId = null;
 
@@ -114,7 +115,7 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
   const name = document.getElementById("name").value.trim();
   const desc = document.getElementById("desc").value.trim();
   const price = parseFloat(document.getElementById("price").value);
-  const position = parseInt(document.getElementById("position").value, 10); // 👈 NUEVO
+  const position = parseInt(document.getElementById("position").value, 10); // 👈 ya agregado antes
   const category = document.getElementById("category").value;
   const imgFile = document.getElementById("img").files[0]; 
   const editIdField = document.getElementById("editId").value;
@@ -141,7 +142,7 @@ document.getElementById("productForm").addEventListener("submit", async (e) => {
       category,
       local: currentUserLocal,
       img: imgUrl,
-      position: isNaN(position) ? null : position, // 👈 NUEVO
+      position: isNaN(position) ? null : position, // 👈 ya agregado antes
       updatedAt: new Date()
     };
 
@@ -175,7 +176,7 @@ document.getElementById("img").addEventListener("change", e=>{
   }
 });
 
-// --- FILTRAR PRODUCTOS POR LOCAL ---
+// --- FILTRAR PRODUCTOS POR LOCAL + búsqueda tiempo real ---
 function filterProductsByLocal(){
   const productLists = {
     pizza: document.getElementById('pizzaList'),
@@ -192,6 +193,7 @@ function filterProductsByLocal(){
       if(data.local !== currentUserLocal) return;
 
       const li = document.createElement('li');
+      li.dataset.name = (data.name || '').toLowerCase(); // 👈 para búsqueda por nombre
 
       // Crear imagen del producto
       const imgElement = document.createElement('img');
@@ -213,7 +215,7 @@ function filterProductsByLocal(){
         document.getElementById('name').value = data.name;
         document.getElementById('desc').value = data.desc;
         document.getElementById('price').value = data.price;
-        document.getElementById('position').value = data.position ?? ''; // 👈 NUEVO
+        document.getElementById('position').value = data.position ?? '';
         document.getElementById('category').value = data.category;
         document.getElementById('editId').value = d.id;
         document.getElementById('imgPreview').src = data.img || "https://via.placeholder.com/150x100?text=Sin+imagen";
@@ -234,7 +236,34 @@ function filterProductsByLocal(){
       const cat = data.category?.trim().toLowerCase();
       if(productLists[cat]) productLists[cat].appendChild(li);
     });
+
+    // aplicar filtro actual después de re-renderizar
+    applySearchFilter();
   });
+}
+
+// Filtro en tiempo real por nombre
+function applySearchFilter(){
+  const q = (searchInput?.value || '').trim().toLowerCase();
+  const sections = document.querySelectorAll('#productLists .category-section');
+
+  sections.forEach(section => {
+    const items = section.querySelectorAll('li');
+    let visibleCount = 0;
+    items.forEach(li => {
+      const name = li.dataset.name || '';
+      const visible = !q || name.includes(q);
+      li.style.display = visible ? '' : 'none';
+      if (visible) visibleCount++;
+    });
+    // si hay búsqueda activa, ocultar secciones vacías
+    section.style.display = q ? (visibleCount ? '' : 'none') : '';
+  });
+}
+
+// Listener del input de búsqueda
+if (searchInput) {
+  searchInput.addEventListener('input', applySearchFilter);
 }
 
 // --- PANEL DE DESCUENTOS ---
@@ -277,6 +306,11 @@ li span { flex:1; }
 #dashboardDiv { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; position: relative; }
 .discount-panel { position: fixed; top: 20px; right: 20px; padding: 20px; background: #171a21; border-radius: 12px; width: 200px; display: none; flex-direction: column; z-index: 1000; }
 #logoutBtn { position: fixed; bottom: 20px; right: 20px; padding:12px 25px; border-radius:12px; background:#f43f5e; color:#fff; border:none; cursor:pointer; font-weight:bold; display:none; }
+
+/* Estilos del buscador */
+.search-wrapper { width:100%; max-width:600px; margin:10px 0 0 0; }
+#search { width:100%; background:#171a21; color:#f5f7fb; border:1px solid #2a2f3a; }
+#search::placeholder { color:#9aa3b2; }
 </style>
 
 </head>
@@ -300,7 +334,7 @@ li span { flex:1; }
   <input type="text" id="name" placeholder="Nombre del producto" required>
   <input type="text" id="desc" placeholder="Descripción" required>
   <input type="number" id="price" placeholder="Precio" required>
-  <input type="number" id="position" placeholder="Orden (1,2,3...)" min="1"> <!-- 👈 NUEVO -->
+  <input type="number" id="position" placeholder="Orden (1,2,3...)" min="1">
   <input type="file" id="img" accept="image/*">
   <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
   <select id="category" required>
@@ -313,6 +347,11 @@ li span { flex:1; }
   </select>
   <button type="submit">Guardar producto</button>
 </form>
+
+<!-- 👇 Buscador en tiempo real -->
+<div class="search-wrapper">
+  <input type="text" id="search" placeholder="Buscar por nombre..." autocomplete="off">
+</div>
 
 <h2>Productos existentes</h2>
 <div id="productLists">
