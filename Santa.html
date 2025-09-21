@@ -314,6 +314,14 @@ onSnapshot(productsRef, snapshot => {
     grid.innerHTML = '';
     if(wasOpen) grid.classList.add('show');
 
+    /* 👉 ORDEN POR POSITION (asc) y luego por nombre como fallback */
+    categories[cat].sort((a, b) => {
+      const pa = Number(a.position ?? 999999);
+      const pb = Number(b.position ?? 999999);
+      if (pa !== pb) return pa - pb;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
     categories[cat].forEach(product => {
       const uid = product.id;
       const card = document.createElement('div');
