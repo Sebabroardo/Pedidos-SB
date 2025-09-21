@@ -177,7 +177,7 @@ const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS
 
 // ====== DESCUENTOS ======
 let globalDiscount = 0; // fallback global
-let catDiscounts = {};  // por categoría (si existe, tiene prioridad)
+let catDiscounts = {};  // por categoría (si existe)
 const discountsDocRef = doc(db, "settings", "discounts_Santa");
 const discountDocRef = doc(db, "settings", "discount_Santa");
 
@@ -185,7 +185,6 @@ const discountDocRef = doc(db, "settings", "discount_Santa");
 onSnapshot(discountsDocRef, snap => {
   if (snap.exists()) {
     const data = snap.data() || {};
-    // claves esperadas: pizza, hamburguesa, papas, "menu especial", extras
     catDiscounts = {
       'pizza': Number(data['pizza'] ?? 0),
       'hamburguesa': Number(data['hamburguesa'] ?? 0),
@@ -210,18 +209,27 @@ onSnapshot(discountDocRef, snapshot => {
   renderCart();
 });
 
+function clampPercent(n){
+  n = Number(n) || 0;
+  if (n < 0) return 0;
+  if (n > 100) return 100;
+  return n;
+}
+
 // Normaliza nombre de categoría
 function catKeyOf(product){
   return (product.category || '').toString().trim().toLowerCase();
 }
 
-// Devuelve % de descuento aplicable (prioriza por categoría)
-function getDiscountPercent(product){
+// Devuelve los % aplicables y el total combinado (cap 100%)
+function getDiscountPercents(product){
   const key = catKeyOf(product);
-  const catPct = (catDiscounts && typeof catDiscounts[key] === 'number') ? catDiscounts[key] : 0;
+  const prod = clampPercent(product.discountPct || 0);
+  const cat = clampPercent(catDiscounts[key] || 0);
   const anyCatHasDiscount = Object.values(catDiscounts || {}).some(v => Number(v) > 0);
-  if (anyCatHasDiscount) return catPct; // hay configuración por cat → se usa
-  return globalDiscount || 0; // fallback al global
+  const baseOther = anyCatHasDiscount ? cat : clampPercent(globalDiscount || 0);
+  const combined = clampPercent(prod + baseOther);
+  return { prod, cat, global: anyCatHasDiscount ? 0 : baseOther, combined, usedCat: anyCatHasDiscount };
 }
 
 // ====== CARRITO ======
@@ -230,23 +238,33 @@ function renderCart() {
   list.innerHTML = '';
   let total = 0;
   let totalSavings = 0;
-  const savingsByCat = {}; // {categoria: ahorro}
+  const savingsByKey = {}; // {clave: ahorro} (clave: 'prod:<id>', 'cat:<cat>', 'global')
 
   Object.values(state.cart).forEach(({ uid, product, extra }) => {
     const base = Number(product.price) || 0;
     const extraAdd = (extra && product.category==='hamburguesa') ? 3000 : 0;
 
-    const pct = getDiscountPercent(product);
-    const cat = catKeyOf(product);
+    const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
 
-    // ⚠️ Por defecto solo se descuenta el precio base, NO el extra.
-    // Si querés incluir el extra en el descuento, reemplazá `base` por `(base + extraAdd)` en la línea siguiente.
-    const discountAmount = Math.round(base * (pct/100));
+    // ⚠️ Por defecto se descuenta solo sobre el precio base. Para incluir el extra, reemplazar base por (base + extraAdd).
+    const discountAmount = Math.round(base * (combined/100));
     const discountedLineTotal = (base - discountAmount) + extraAdd;
 
     total += discountedLineTotal;
     totalSavings += discountAmount;
-    savingsByCat[cat] = (savingsByCat[cat] || 0) + discountAmount;
+
+    if (prod > 0) savingsByKey[`prod:${product.name}`] = (savingsByKey[`prod:${product.name}`] || 0) + Math.round(base * (prod/100));
+    const otherPct = usedCat ? cat : global;
+    if (otherPct > 0) {
+      const key = usedCat ? `cat:${catKeyOf(product)}` : 'global';
+      savingsByKey[key] = (savingsByKey[key] || 0) + Math.round(base * (otherPct/100));
+    }
+
+    const detailParts = [];
+    if (prod > 0) detailParts.push(`prod ${prod}%`);
+    if (usedCat && cat > 0) detailParts.push(`cat ${cat}%`);
+    if (!usedCat && global > 0) detailParts.push(`global ${global}%`);
+    const detail = detailParts.length ? ` (desc. ${detailParts.join(' + ')})` : '';
 
     const row = document.createElement('div');
     row.className='cart-item';
@@ -256,15 +274,15 @@ function renderCart() {
           ${product.name}${extra?' (Agrandado)':''} — ${currency.format(discountedLineTotal)}
         </div>
         ${
-          pct>0
-            ? `<div class="note">Descuento ${pct}% (${currency.format(discountAmount)}) — ${cat || 'sin categoría'}</div>`
+          combined>0
+            ? `<div class="note">Ahorro ${currency.format(discountAmount)}${detail}</div>`
             : ''
         }
         ${
           product.category==='hamburguesa'
             ? `<label style="font-size:12px;">
                  <input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra?'checked':''}>
-                 Agrandar Pedido +$3.000${pct>0 ? ' (no se descuenta)' : ''}
+                 Agrandar Pedido +$3.000${combined>0 ? ' (no se descuenta)' : ''}
                </label>`
             : ''
         }
@@ -303,10 +321,14 @@ function renderCart() {
     discountInfo.style.display = 'block';
     discountInfo.textContent = `¡Descuentos aplicados! Ahorrás ${currency.format(totalSavings)}.`;
 
-    // breakdown por categoría (solo donde hubo ahorro)
-    const parts = Object.entries(savingsByCat)
+    // breakdown por origen de descuento
+    const parts = Object.entries(savingsByKey)
       .filter(([_, amt]) => amt > 0)
-      .map(([cat, amt]) => `${(cat||'sin categoría')}: ${currency.format(amt)}`);
+      .map(([k, amt]) => {
+        if (k.startsWith('prod:')) return `${k.replace('prod:','Producto ')}: ${currency.format(amt)}`;
+        if (k.startsWith('cat:')) return `Categoría ${k.replace('cat:','')}: ${currency.format(amt)}`;
+        return `Global: ${currency.format(amt)}`;
+      });
     breakdown.style.display = parts.length ? 'block' : 'none';
     breakdown.textContent = parts.join(' · ');
   } else {
@@ -325,31 +347,48 @@ function buildWhatsAppMessage() {
 
   let total = 0;
   let totalSavings = 0;
-  const savingsByCat = {};
+  const savingsByKey = {};
 
   entries.forEach(({ product, extra })=>{
     const base = Number(product.price) || 0;
     const extraAdd = (extra && product.category==='hamburguesa') ? 3000 : 0;
-    const pct = getDiscountPercent(product);
-    const cat = catKeyOf(product);
-    const discountAmount = Math.round(base * (pct/100));
+
+    const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
+
+    const discountAmount = Math.round(base * (combined/100));
     const discountedLineTotal = (base - discountAmount) + extraAdd;
 
     total += discountedLineTotal;
     totalSavings += discountAmount;
-    savingsByCat[cat] = (savingsByCat[cat] || 0) + discountAmount;
 
-    lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(discountedLineTotal)}${pct>0?` (desc. ${pct}%)`:''}`);
+    if (prod > 0) savingsByKey[`prod:${product.name}`] = (savingsByKey[`prod:${product.name}`] || 0) + Math.round(base * (prod/100));
+    const otherPct = usedCat ? cat : global;
+    if (otherPct > 0) {
+      const key = usedCat ? `cat:${catKeyOf(product)}` : 'global';
+      savingsByKey[key] = (savingsByKey[key] || 0) + Math.round(base * (otherPct/100));
+    }
+
+    const detailParts = [];
+    if (prod > 0) detailParts.push(`prod ${prod}%`);
+    if (usedCat && cat > 0) detailParts.push(`cat ${cat}%`);
+    if (!usedCat && global > 0) detailParts.push(`global ${global}%`);
+    const detail = detailParts.length ? ` (${detailParts.join(' + ')})` : '';
+
+    lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(discountedLineTotal)}${detail}`);
   });
 
   lines.push('');
 
   if(totalSavings > 0){
-    const parts = Object.entries(savingsByCat)
+    const parts = Object.entries(savingsByKey)
       .filter(([_, amt]) => amt > 0)
-      .map(([cat, amt]) => `${(cat||'sin categoría')}: ${currency.format(amt)}`);
+      .map(([k, amt]) => {
+        if (k.startsWith('prod:')) return `${k.replace('prod:','Producto ')}: ${currency.format(amt)}`;
+        if (k.startsWith('cat:')) return `Categoría ${k.replace('cat:','')}: ${currency.format(amt)}`;
+        return `Global: ${currency.format(amt)}`;
+      });
     lines.push(`*Ahorro total:* ${currency.format(totalSavings)}`);
-    if(parts.length) lines.push(`*Ahorro por categoría:* ${parts.join(' · ')}`);
+    if(parts.length) lines.push(`*Ahorro detallado:* ${parts.join(' · ')}`);
   }
 
   lines.push(`*Total:* ${currency.format(total)}`);
