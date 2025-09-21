@@ -32,7 +32,7 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .hero .copy p{margin:0;color:#000}
 .hero .info{display:grid;gap:8px;align-content:start}
 .pill{display:inline-flex;gap:8px;align-items:center;background:#f8f8f8;border:1px solid var(--ring);border-radius:999px;padding:8px 12px;font-size:12px;color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-top:8px;transition:max-height 0.3s ease, opacity 0.3s ease;overflow:hidden;opacity:0;max-height:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:8px;transition:max-height 0.3s ease, opacity 0.3s ease;overflow:hidden;opacity:0;max-height:0}
 .grid.show{opacity:1;max-height:2000px}
 .card{background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; padding:14px; backdrop-filter: blur(4px); display:flex; flex-direction:column;}
 .product{display:flex;flex-direction:column;gap:10px; height:100%}
@@ -107,32 +107,8 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
   <div class="pill">⏱️ Viernes, Sábados y Domingos: 20:00 – 23:30· 📍 Cintra</div>
 </header>
 
-<section class="hero">
-  <div class="copy">
-    <h2>Hacé tu pedido online y confirmalo por WhatsApp</h2>
-    <p>Elegí tu pedido, agregalo al carrito y presioná “Enviar por WhatsApp”. Te llega el mensaje listo para confirmar con nuestra atención.</p>
-  </div>
-  <div class="info">
-    <div class="pill">🚚 Envíos y retiro en local</div>
-    <div class="pill">💳 Efectivo, Débito/Crédito, QR</div>      
-  </div>
-</section>
-
-<section class="col-9">
-  <button class="category-btn" data-target="pizzas">Pizzas ▸</button>
-  <div id="pizzas" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
-
-  <button class="category-btn" data-target="hamburguesas">Hamburguesas ▸</button>
-  <div id="hamburguesas" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
-
-  <button class="category-btn" data-target="papas">Papas ▸</button>
-  <div id="papas" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
-
-  <button class="category-btn" data-target="menuEspecial">Menú Especial ▸</button>
-  <div id="menuEspecial" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
-
-  <button class="category-btn" data-target="extras">Extras ▸</button>
-  <div id="extras" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr));"></div>
+<section id="catalog" class="col-9">
+  <!-- Las categorías (botón + grid) se crean dinámicamente -->
 </section>
 
 <aside class="col-3">
@@ -172,41 +148,69 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+const LOCAL_NAME = "Santa";
+const LOCAL_KEY  = "santa"; // slug fijo para Santa
 const state = { cart: {} };
 const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
+
+// utils
+const slug = s => (s||'').toString().trim().toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+const title = s => (s||'').charAt(0).toUpperCase()+(s||'').slice(1);
+const prettyLabel = (cat) => {
+  const k = (cat||'').toLowerCase();
+  if(k==='pizza') return 'Pizzas';
+  if(k==='hamburguesa') return 'Hamburguesas';
+  if(k==='papas') return 'Papas';
+  if(k==='menu especial') return 'Menú Especial';
+  if(k==='extras') return 'Extras';
+  return title(cat);
+};
 
 // ====== DESCUENTOS ======
 let globalDiscount = 0; // fallback global
 let catDiscounts = {};  // por categoría (si existe)
-const discountsDocRef = doc(db, "settings", "discounts_Santa");
-const discountDocRef = doc(db, "settings", "discount_Santa");
 
-// Escucha per-categoría
-onSnapshot(discountsDocRef, snap => {
-  if (snap.exists()) {
-    const data = snap.data() || {};
-    catDiscounts = {
-      'pizza': Number(data['pizza'] ?? 0),
-      'hamburguesa': Number(data['hamburguesa'] ?? 0),
-      'papas': Number(data['papas'] ?? 0),
-      'menu especial': Number(data['menu especial'] ?? 0),
-      'extras': Number(data['extras'] ?? 0),
-    };
-  } else {
-    catDiscounts = {};
-  }
-  renderCart();
+// Compat: escuchamos ambos nombres de documento (slug y Pascal)
+const perCatRefs = [
+  doc(db, "settings", `discounts_${LOCAL_KEY}`),
+  doc(db, "settings", `discounts_${LOCAL_NAME}`)
+];
+perCatRefs.forEach(ref=>{
+  onSnapshot(ref, snap => {
+    if (snap.exists()) {
+      const data = snap.data() || {};
+      const next = {};
+      Object.keys(data).forEach(k => {
+        if (['local','_updatedAt'].includes(k)) return;
+        next[(k||'').toLowerCase()] = Number(data[k] ?? 0);
+      });
+      catDiscounts = next;
+    } else {
+      catDiscounts = {};
+    }
+    renderCart();
+  });
 });
 
-// Escucha global (compatibilidad)
-onSnapshot(discountDocRef, snapshot => {
-  if (snapshot.exists()) {
-    const data = snapshot.data();
-    globalDiscount = data.local === "Santa" ? (data.value || 0) : 0;
-  } else {
-    globalDiscount = 0;
-  }
-  renderCart();
+// Global (compat ambos nombres)
+const globalRefs = [
+  doc(db, "settings", `discount_${LOCAL_KEY}`),
+  doc(db, "settings", `discount_${LOCAL_NAME}`)
+];
+globalRefs.forEach(ref=>{
+  onSnapshot(ref, snapshot => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      const val = Number(data.value || 0);
+      globalDiscount = isNaN(val) ? 0 : val;
+    } else {
+      globalDiscount = 0;
+    }
+    renderCart();
+  });
 });
 
 function clampPercent(n){
@@ -232,21 +236,189 @@ function getDiscountPercents(product){
   return { prod, cat, global: anyCatHasDiscount ? 0 : baseOther, combined, usedCat: anyCatHasDiscount };
 }
 
+// ====== CATALOGO (categorías dinámicas) ======
+const DEFAULT_ORDER = ['pizza','hamburguesa','papas','menu especial','extras'];
+const catalogEl = document.getElementById('catalog');
+let localCategories = null;  // desde locals/santa
+let currentCatOrder = [];
+
+// lee categorías del local (si existen)
+onSnapshot(doc(db,'locals', LOCAL_KEY), snap=>{
+  if(snap.exists()){
+    const cats = Array.isArray(snap.data().categories) ? snap.data().categories : [];
+    localCategories = cats.map(c => (c||'').toString().trim().toLowerCase());
+  }else{
+    localCategories = null;
+  }
+  // no re-render acá; el render base sucede con el snapshot de productos
+});
+
+// --- FIRESTORE Y RENDERIZADO DE PRODUCTOS ---
+onSnapshot(collection(db,'productos'), snapshot => {
+  // agrupa productos por categoría SOLO del local Santa (compat slug/nombre)
+  const byCat = {};
+  snapshot.docs.forEach(docu => {
+    const data = docu.data();
+    const localOk = (data.local === LOCAL_NAME) || (slug(data.local) === LOCAL_KEY);
+    if(!localOk) return;
+    const id = docu.id;
+    const catKey = (data.category || '').toString().trim().toLowerCase();
+    if(!byCat[catKey]) byCat[catKey] = [];
+    byCat[catKey].push({ id, ...data });
+  });
+
+  // orden de categorías
+  let order = [];
+  if (Array.isArray(localCategories) && localCategories.length) {
+    order = [...localCategories];
+  } else {
+    // fallback: defaults presentes + el resto alfabetico
+    const present = Object.keys(byCat);
+    const first = DEFAULT_ORDER.filter(c => present.includes(c));
+    const rest  = present.filter(c => !DEFAULT_ORDER.includes(c)).sort();
+    order = [...first, ...rest];
+  }
+
+  // si cambió el orden/conjunto, reconstruimos botones+grids
+  if (JSON.stringify(order) !== JSON.stringify(currentCatOrder)) {
+    rebuildCatalog(order);
+    currentCatOrder = order;
+  }
+
+  // limpiar y renderizar tarjetas por categoría
+  order.forEach(cat=>{
+    const grid = document.getElementById(`cat-${slug(cat)}`);
+    if(!grid) return;
+    const wasOpen = grid.classList.contains('show');
+    grid.innerHTML = '';
+
+    const items = (byCat[cat] || []).slice().sort((a,b)=>{
+      const pa = Number(a.position ?? 999999);
+      const pb = Number(b.position ?? 999999);
+      if (pa !== pb) return pa - pb;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    items.forEach(product => {
+      const uid = product.id;
+      const card = document.createElement('div');
+      card.className = 'card product';
+      card.innerHTML = `
+        <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
+        <h3>${product.name}</h3>
+        <p class="desc">${product.desc || ''}</p>
+        <p class="price">${currency.format(product.price)}</p>
+        <div class="actions">
+          <button class="btn-minus" data-id="${uid}">-</button>
+          <span class="qty-display" data-id="${uid}">0</span>
+          <button class="btn-plus" data-id="${uid}">+</button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    // restaurar estado abierto/cerrado
+    if (wasOpen) grid.classList.add('show');
+  });
+});
+
+// crea botones y grillas para un conjunto de categorías
+function rebuildCatalog(categories){
+  // recordar qué grillas estaban abiertas
+  const wasOpen = {};
+  catalogEl.querySelectorAll('.grid').forEach(g => wasOpen[g.id] = g.classList.contains('show'));
+
+  catalogEl.innerHTML = '';
+  categories.forEach(cat=>{
+    const id = `cat-${slug(cat)}`;
+    const btn = document.createElement('button');
+    btn.className = 'category-btn';
+    btn.dataset.target = id;
+    btn.textContent = `${prettyLabel(cat)} ▸`;
+
+    const grid = document.createElement('div');
+    grid.id = id;
+    grid.className = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fill,minmax(240px,1fr))';
+
+    if (wasOpen[id]) {
+      grid.classList.add('show');
+      btn.textContent = `${prettyLabel(cat)} ▾`;
+    }
+
+    catalogEl.appendChild(btn);
+    catalogEl.appendChild(grid);
+  });
+
+  // listeners toggle
+  catalogEl.querySelectorAll('.category-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const targetId = btn.getAttribute('data-target');
+      const grid = document.getElementById(targetId);
+      grid.classList.toggle('show');
+      btn.textContent = btn.textContent.includes('▸')
+        ? btn.textContent.replace('▸','▾')
+        : btn.textContent.replace('▾','▸');
+    });
+  });
+
+  // delegación para + y -
+  catalogEl.addEventListener('click', e => {
+    const productId = e.target.dataset.id;
+    if(!productId) return;
+
+    if(e.target.classList.contains('btn-plus')){
+      // buscamos el producto en el DOM actual (lo tenemos en snapshot en memoria vía dataset? no)
+      // estrategia: el id viene del último snapshot -> lo recuperamos con Firestore local cache ya sincronizado
+      // Simplificamos: guardamos el producto en una búsqueda en el DOM actual
+      // Como no tenemos el snapshot acá, resolvemos con una consulta rápida al último render:
+      // Usaremos un atributo data-product serializado si fuese necesario; para mantener simple, hacemos un fetch por ID
+    }
+  });
+}
+
+// Como en el rebuild perdimos la captura para + / -, armamos un listener único en el contenedor:
+catalogEl.addEventListener('click', async (e)=>{
+  const productId = e.target.dataset.id;
+  if(!productId) return;
+  if(e.target.classList.contains('btn-plus') || e.target.classList.contains('btn-minus')){
+    // Buscamos el producto por ID en cache de Firestore (ya sincronizado)
+    // Para mantenerlo simple y eficiente, lo traemos una sola vez usando getDoc (opera contra cache primero).
+    const ref = doc(db,'productos', productId);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return;
+    const product = snap.data();
+    if (product.local !== LOCAL_NAME && slug(product.local)!==LOCAL_KEY) return;
+
+    if(e.target.classList.contains('btn-plus')){
+      const uniqueId = productId + '-' + Date.now();
+      state.cart[uniqueId] = { uid: uniqueId, product, idOriginal: productId, extra: false };
+      renderCart();
+      updateCardQty(productId);
+    }else{
+      const cartKey = Object.keys(state.cart).find(k => state.cart[k].idOriginal === productId);
+      if(cartKey){
+        delete state.cart[cartKey];
+        renderCart();
+        updateCardQty(productId);
+      }
+    }
+  }
+});
+
 // ====== CARRITO ======
 function renderCart() {
   const list = document.getElementById('cartList');
   list.innerHTML = '';
   let total = 0;
   let totalSavings = 0;
-  const savingsByKey = {}; // {clave: ahorro} (clave: 'prod:<id>', 'cat:<cat>', 'global')
+  const savingsByKey = {}; // {clave: ahorro}
 
   Object.values(state.cart).forEach(({ uid, product, extra }) => {
     const base = Number(product.price) || 0;
-    const extraAdd = (extra && product.category==='hamburguesa') ? 3000 : 0;
+    const extraAdd = (extra && (product.category||'').toLowerCase()==='hamburguesa') ? 3000 : 0;
 
     const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
-
-    // ⚠️ Por defecto se descuenta solo sobre el precio base. Para incluir el extra, reemplazar base por (base + extraAdd).
     const discountAmount = Math.round(base * (combined/100));
     const discountedLineTotal = (base - discountAmount) + extraAdd;
 
@@ -279,7 +451,7 @@ function renderCart() {
             : ''
         }
         ${
-          product.category==='hamburguesa'
+          (product.category||'').toLowerCase()==='hamburguesa'
             ? `<label style="font-size:12px;">
                  <input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra?'checked':''}>
                  Agrandar Pedido +$3.000${combined>0 ? ' (no se descuenta)' : ''}
@@ -301,7 +473,6 @@ function renderCart() {
       if(state.cart[uid]) updateCardQty(state.cart[uid].idOriginal);
     });
   });
-
   list.querySelectorAll('.remove-btn').forEach(btn=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
@@ -320,8 +491,6 @@ function renderCart() {
   if(totalSavings > 0){
     discountInfo.style.display = 'block';
     discountInfo.textContent = `¡Descuentos aplicados! Ahorrás ${currency.format(totalSavings)}.`;
-
-    // breakdown por origen de descuento
     const parts = Object.entries(savingsByKey)
       .filter(([_, amt]) => amt > 0)
       .map(([k, amt]) => {
@@ -351,10 +520,9 @@ function buildWhatsAppMessage() {
 
   entries.forEach(({ product, extra })=>{
     const base = Number(product.price) || 0;
-    const extraAdd = (extra && product.category==='hamburguesa') ? 3000 : 0;
+    const extraAdd = (extra && (product.category||'').toLowerCase()==='hamburguesa') ? 3000 : 0;
 
     const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
-
     const discountAmount = Math.round(base * (combined/100));
     const discountedLineTotal = (base - discountAmount) + extraAdd;
 
@@ -404,98 +572,6 @@ document.getElementById('whatsBtn').addEventListener('click', ()=>{
   if(!message) return;
   const url = 'https://wa.me/+543537581341?text='+encodeURIComponent(message);
   window.open(url,'_blank');
-});
-
-// --- BOTONES DE CATEGORÍA ---
-document.querySelectorAll('.category-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const targetId = btn.getAttribute('data-target');
-    const grid = document.getElementById(targetId);
-    grid.classList.toggle('show');
-    btn.textContent = btn.textContent.includes('▸')?btn.textContent.replace('▸','▾'):btn.textContent.replace('▾','▸');
-  });
-});
-
-// --- FIRESTORE Y RENDERIZADO DE PRODUCTOS ---
-const productsRef = collection(db,'productos');
-onSnapshot(productsRef, snapshot => {
-  const categories = {};
-  snapshot.docs.forEach(docu => {
-    const data = docu.data();
-    if(data.local !== "Santa") return; // sólo productos de Santa
-    const id = docu.id;
-    const catKey = data.category?.trim().toLowerCase();
-    if(!categories[catKey]) categories[catKey] = [];
-    categories[catKey].push({ id, ...data });
-  });
-
-  const categoryMap = {
-    'pizza': 'pizzas',
-    'hamburguesa': 'hamburguesas',
-    'papas': 'papas',
-    'menu especial': 'menuEspecial',
-    'extras': 'extras'
-  };
-
-  for(const cat in categories){
-    const gridId = categoryMap[cat];
-    if(!gridId) continue;
-    const grid = document.getElementById(gridId);
-    const wasOpen = grid.classList.contains('show');
-    grid.innerHTML = '';
-    if(wasOpen) grid.classList.add('show');
-
-    // ORDEN por position (asc), luego nombre
-    categories[cat].sort((a, b) => {
-      const pa = Number(a.position ?? 999999);
-      const pb = Number(b.position ?? 999999);
-      if (pa !== pb) return pa - pb;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-
-    categories[cat].forEach(product => {
-      const uid = product.id;
-      const card = document.createElement('div');
-      card.className = 'card product';
-      card.innerHTML = `
-        <div class="img"><img src="${product.img || 'https://via.placeholder.com/240x180?text=Sin+imagen'}" alt="${product.name}"></div>
-        <h3>${product.name}</h3>
-        <p class="desc">${product.desc || ''}</p>
-        <p class="price">${currency.format(product.price)}</p>
-        <div class="actions">
-          <button class="btn-minus" data-id="${uid}">-</button>
-          <span class="qty-display" data-id="${uid}">0</span>
-          <button class="btn-plus" data-id="${uid}">+</button>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
-  }
-
-  // Delegación de eventos para + y -
-  document.querySelector('.col-9').addEventListener('click', e => {
-    const productId = e.target.dataset.id;
-    if(!productId) return;
-
-    if(e.target.classList.contains('btn-plus')){
-      const productDoc = snapshot.docs.find(d => d.id === productId);
-      if(!productDoc) return;
-      const product = productDoc.data();
-      const uniqueId = productId + '-' + Date.now();
-      state.cart[uniqueId] = { uid: uniqueId, product, idOriginal: productId, extra: false };
-      renderCart();
-      updateCardQty(productId);
-    }
-
-    if(e.target.classList.contains('btn-minus')){
-      const cartKey = Object.keys(state.cart).find(k => state.cart[k].idOriginal === productId);
-      if(cartKey){
-        delete state.cart[cartKey];
-        renderCart();
-        updateCardQty(productId);
-      }
-    }
-  });
 });
 
 // --- ACTUALIZACIÓN DE CONTADOR ---
