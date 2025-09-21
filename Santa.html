@@ -18,6 +18,8 @@
 *{box-sizing:border-box}
 html, body { margin:0; height:100%; font-family:STAATLICHES,sans-serif; background:url('Fondo.png') repeat center center; background-size:auto; color:var(--text); }
 .container{max-width:1100px;margin:0 auto;padding:24px}
+
+/* Header */
 header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-radius: 20px; padding: 18px; margin-bottom: 18px; display:flex; align-items:flex-start; justify-content:space-between; }
 .brand-wrapper { display:flex; gap:12px; align-items:center; }
 .logo {width:64px;height:64px;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:none;}
@@ -36,16 +38,10 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .pill{display:inline-flex;gap:8px;align-items:center;background:#f8f8f8;border:1px solid var(--ring);border-radius:999px;padding:8px 12px;font-size:12px;color:var(--muted)}
 
 /* Layout 2 columnas */
-.main{
-  display:grid;
-  grid-template-columns: 2fr 1fr;
-  gap:16px;
-}
-@media (max-width:900px){
-  .main{ grid-template-columns: 1fr; }
-}
+.main{ display:grid; grid-template-columns: 2fr 1fr; gap:16px; }
+@media (max-width:900px){ .main{ grid-template-columns: 1fr; } }
 
-/* Catálogo */
+/* Catálogo SIEMPRE visible (sin acordeón) */
 .category-title{
   font-size:18px;
   margin:12px 0;
@@ -58,11 +54,15 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
   background: rgba(255,255,255,0.9);
   padding:8px 12px;
   border-radius:10px;
-  cursor: default;
 }
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:8px;transition:max-height 0.3s ease, opacity 0.3s ease;overflow:hidden;}
-.grid.show{opacity:1;max-height:2000px}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:16px;
+  margin-top:8px;
+}
 
+/* Cards de producto */
 .card{background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; padding:14px; backdrop-filter: blur(4px); display:flex; flex-direction:column;}
 .product{display:flex;flex-direction:column;gap:10px; height:100%}
 .product .img{height:140px;border-radius:14px;background:#ffffff;border:1px dashed #d1d5db;display:grid;place-items:center;font-size:12px;color:#6b7280;overflow:hidden}
@@ -74,10 +74,7 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .actions button{width:28px;height:28px;border-radius:8px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text);cursor:pointer;}
 .actions span{min-width:20px;text-align:center;display:inline-block;}
 
-.col-9{grid-column:span 9}
-.col-3{grid-column:span 3}
-@media (max-width:900px){.hero{grid-template-columns:1fr}.col-9,.col-3{grid-column:1/-1}}
-
+/* Carrito */
 .cart{position:sticky;top:12px;display:grid;gap:10px;background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; backdrop-filter: blur(4px);}
 .cart h3{margin:0 0 6px}
 .cart-list{display:grid;gap:8px;max-height:360px;overflow:auto;padding-right:6px}
@@ -103,20 +100,8 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
   .pill {font-size:12px; padding:6px 10px; text-align:center;}
 }
 
-#discountInfo {
-  display: none;
-  font-size: 14px;
-  font-weight: 600;
-  color: #16a34a;
-  background: #d1fae5;
-  padding: 6px 10px;
-  border-radius: 8px;
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-#discountInfo::before { content: "💸"; }
+#discountInfo { display:none; font-size:14px; font-weight:600; color:#16a34a; background:#d1fae5; padding:6px 10px; border-radius:8px; margin-top:6px; align-items:center; gap:6px; }
+#discountInfo::before { content:"💸"; }
 #discountBreakdown { margin-top:4px; color:#16a34a; font-size:12px; display:none; }
 </style>
 </head>
@@ -255,7 +240,7 @@ function getDiscountPercents(product){
   return { prod, cat, global: anyCat ? 0 : baseOther, combined, usedCat: anyCat };
 }
 
-// ====== CATALOGO (categorías dinámicas, SIEMPRE visibles) ======
+// ====== CATALOGO (categorías SIEMPRE visibles) ======
 const DEFAULT_ORDER = ['pizza','hamburguesa','papas','menu especial','extras'];
 const catalogEl = document.getElementById('catalog');
 let localCategories = null;
@@ -347,8 +332,7 @@ function rebuildCatalog(categories){
 
     const grid = document.createElement('div');
     grid.id = id;
-    grid.className = 'grid show';
-    grid.style.gridTemplateColumns = 'repeat(auto-fill,minmax(240px,1fr))';
+    grid.className = 'grid';
 
     catalogEl.appendChild(titleEl);
     catalogEl.appendChild(grid);
