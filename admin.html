@@ -51,8 +51,9 @@ async function showDashboard(username, local){
   welcomeMessage.textContent = `Bienvenido ${username}. Local asignado: ${local}`;
   currentUserLocal = local;
   renderDiscountInputs();   // inputs numéricos por categoría
+  bindDiscountButtons();    // listeners de Guardar / Limpiar
   filterProductsByLocal();
-  loadDiscounts();          // sync en tiempo real
+  loadDiscounts();          // sync en tiempo real desde Firestore
 }
 
 function hideDashboard(){
@@ -295,7 +296,7 @@ if (searchInput) {
   searchInput.addEventListener('input', applySearchFilter);
 }
 
-// ============ DESCUENTOS POR CATEGORÍA (INPUT NUMÉRICO) ============
+// ============ DESCUENTOS POR CATEGORÍA (INPUT NUMÉRICO + BOTONES) ============
 
 function discountsDocRef(){
   return doc(db, "settings", "discounts_" + currentUserLocal);
@@ -321,18 +322,7 @@ function renderDiscountInputs(){
     input.className = 'discount-input';
     input.dataset.cat = cat;
 
-    input.addEventListener('change', async ()=>{
-      const val = clampPercent(parseInt(input.value,10));
-      input.value = String(val);
-      try {
-        await setDoc(discountsDocRef(), { 
-          local: currentUserLocal, 
-          [cat]: val 
-        }, { merge: true });
-      } catch (err){
-        console.error('Error guardando descuento:', err);
-      }
-    });
+    // Ya no guardamos on-change; se guardan todos con el botón "Guardar descuentos"
 
     wrapper.appendChild(label);
     wrapper.appendChild(input);
@@ -341,7 +331,7 @@ function renderDiscountInputs(){
 }
 
 function clampPercent(n){
-  n = isNaN(n) ? 0 : n;
+  n = isNaN(n) ? 0 : Number(n);
   if (n < 0) return 0;
   if (n > 100) return 100;
   return n;
@@ -353,15 +343,58 @@ function loadDiscounts(){
     CATEGORIES.forEach(cat => {
       const value = clampPercent(Number(data?.[cat] ?? 0));
       const input = document.querySelector(`.discount-input[data-cat="${cat}"]`);
-      if (input) input.value = value;
+      if (input && document.activeElement !== input) { // no pisar mientras el usuario escribe
+        input.value = value;
+      }
     });
+  });
+}
+
+function bindDiscountButtons(){
+  const saveBtn = document.getElementById('saveDiscountsBtn');
+  const clearBtn = document.getElementById('clearDiscountsBtn');
+
+  saveBtn.addEventListener('click', async ()=>{
+    if(!currentUserLocal) return;
+    const payload = { local: currentUserLocal };
+    CATEGORIES.forEach(cat => {
+      const input = document.querySelector(`.discount-input[data-cat="${cat}"]`);
+      payload[cat] = clampPercent(parseInt(input?.value ?? '0', 10));
+    });
+    try{
+      await setDoc(discountsDocRef(), payload, { merge: true });
+      alert('Descuentos guardados');
+    }catch(err){
+      console.error('Error guardando descuentos:', err);
+      alert('Error al guardar descuentos');
+    }
+  });
+
+  clearBtn.addEventListener('click', async ()=>{
+    if(!currentUserLocal) return;
+    const payload = { local: currentUserLocal };
+    CATEGORIES.forEach(cat => payload[cat] = 0);
+    try{
+      // primero setear inputs a 0 localmente
+      CATEGORIES.forEach(cat => {
+        const input = document.querySelector(`.discount-input[data-cat="${cat}"]`);
+        if (input) input.value = 0;
+      });
+      // luego persistir en Firestore
+      await setDoc(discountsDocRef(), payload, { merge: true });
+      alert('Descuentos limpiados (0%)');
+    }catch(err){
+      console.error('Error limpiando descuentos:', err);
+      alert('Error al limpiar descuentos');
+    }
   });
 }
 </script>
 
 <style>
 body { font-family: Arial, sans-serif; background:#0f1115; color:#f5f7fb; display:flex; flex-direction:column; align-items:center; padding:20px;}
-form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:320px;}
+form { display:flex; flex-direction:column; gap:10px; background:#171a21; padding:20px; border-radius:12px; width:340px;}
+label.field { font-size:12px; color:#9aa3b2; margin-top:6px; }
 input, select, button { padding:10px; border-radius:8px; border:none; font-size:14px;}
 button { background:#22c55e; color:#fff; cursor:pointer; font-weight:bold;}
 ul { list-style:none; padding:0; margin-top:10px; width:100%; max-width:500px; }
@@ -370,17 +403,22 @@ li span { flex:1; }
 .btn-delete { background:#f43f5e; color:#fff; }
 .btn-edit { background:#3b82f6; color:#fff; }
 #imgPreview { margin-top:10px; border-radius:8px; width:150px; height:100px; object-fit:cover; border:1px solid #333; }
-#dashboardDiv { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; position: relative; }
+#dashboardDiv { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 720px; position: relative; }
 
 /* Panel de descuentos por categoría */
-.discount-panel { position: fixed; top: 20px; right: 20px; padding: 16px; background: #171a21; border-radius: 12px; width: 260px; display: none; flex-direction: column; gap: 10px; z-index: 1000; }
+.discount-panel { position: fixed; top: 20px; right: 20px; padding: 16px; background: #171a21; border-radius: 12px; width: 280px; display: none; flex-direction: column; gap: 10px; z-index: 1000; }
 .discount-panel h3 { margin: 0 0 6px 0; font-size: 16px; }
 .discount-input-wrapper { display:flex; justify-content:space-between; align-items:center; background:#11151c; padding:6px 10px; border-radius:8px; }
 .discount-input-wrapper label { font-size:14px; color:#9aa3b2; }
-.discount-input { width:60px; text-align:right; background:#171a21; color:#f5f7fb; border:1px solid #2a2f3a; border-radius:6px; padding:6px; }
+.discount-input { width:72px; text-align:right; background:#171a21; color:#f5f7fb; border:1px solid #2a2f3a; border-radius:6px; padding:6px; }
+
+/* Acciones del panel de descuentos */
+.discount-actions { display:flex; gap:8px; }
+#saveDiscountsBtn { background:#22c55e; }
+#clearDiscountsBtn { background:#9ca3af; color:#0f1115; }
 
 /* Buscador */
-.search-wrapper { width:100%; max-width:600px; margin:10px 0 0 0; }
+.search-wrapper { width:100%; max-width:720px; margin:10px 0 0 0; }
 #search { width:100%; background:#171a21; color:#f5f7fb; border:1px solid #2a2f3a; }
 #search::placeholder { color:#9aa3b2; }
 
@@ -409,13 +447,27 @@ li span { flex:1; }
 
   <form id="productForm">
     <input type="hidden" id="editId">
-    <input type="text" id="name" placeholder="Nombre del producto" required>
-    <input type="text" id="desc" placeholder="Descripción" required>
-    <input type="number" id="price" placeholder="Precio" required>
-    <input type="number" id="position" placeholder="Orden (1,2,3...)" min="1">
-    <input type="number" id="productDiscount" placeholder="Descuento (%)" min="0" max="100" step="1">
+
+    <label class="field" for="name">Nombre del producto</label>
+    <input type="text" id="name" placeholder="Ej: Pizza Muzza" required>
+
+    <label class="field" for="desc">Descripción</label>
+    <input type="text" id="desc" placeholder="Ej: Salsa, muzza, aceitunas" required>
+
+    <label class="field" for="price">Precio</label>
+    <input type="number" id="price" placeholder="Ej: 5000" required>
+
+    <label class="field" for="position">Orden (1,2,3...)</label>
+    <input type="number" id="position" placeholder="Ej: 1" min="1">
+
+    <label class="field" for="productDiscount">Descuento del producto (%)</label>
+    <input type="number" id="productDiscount" placeholder="0 a 100" min="0" max="100" step="1">
+
+    <label class="field" for="img">Imagen</label>
     <input type="file" id="img" accept="image/*">
     <img id="imgPreview" src="https://via.placeholder.com/150x100?text=Sin+imagen" alt="Vista previa">
+
+    <label class="field" for="category">Categoría</label>
     <select id="category" required>
       <option value="">Seleccionar categoría</option>
       <option value="pizza">Pizza</option>
@@ -424,6 +476,7 @@ li span { flex:1; }
       <option value="menu especial">Menú especial</option>
       <option value="extras">Extras</option>
     </select>
+
     <div class="actions-row">
       <button type="submit" id="submitBtn">Guardar producto</button>
       <button id="cancelEditBtn">Cancelar edición</button>
@@ -463,6 +516,10 @@ li span { flex:1; }
   <div class="discount-panel">
     <h3>Descuentos por categoría</h3>
     <div id="discountsContainer"></div>
+    <div class="discount-actions">
+      <button id="saveDiscountsBtn">Guardar descuentos</button>
+      <button id="clearDiscountsBtn">Limpiar descuentos</button>
+    </div>
   </div>
 
   <button id="logoutBtn">Cerrar sesión</button>
