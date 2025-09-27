@@ -102,6 +102,11 @@ ul.items li img{width:50px;height:50px;border-radius:6px;object-fit:cover}
 .discount-item label{color:#f5f7fb}
 .discount-actions{display:flex;gap:8px;margin-top:12px}
 @media (max-width:800px){.discount-grid{grid-template-columns:1fr}}
+
+/* ✅ NUEVO: estilos para inactivos/toggle en listado */
+ul.items li.inactive{opacity:.55;filter:grayscale(1)}
+.badge-inactive{background:#ef4444;color:#fff;border-radius:6px;padding:2px 6px;font-size:11px;margin-left:6px}
+.toggle-wrap{margin-left:auto;display:flex;align-items:center;gap:6px}
 </style>
 </head>
 <body>
@@ -305,6 +310,12 @@ function renderProductosPage(){
         <label class="field" for="category">Categoría</label>
         <select id="category" required></select>
 
+        <!-- ✅ NUEVO: estado activo/inactivo -->
+        <label class="field" for="isActive">Estado</label>
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="isActive" checked /> Producto activo
+        </label>
+
         <div class="actions-row">
           <button class="primary" id="submitBtn" type="submit">Guardar producto</button>
           <button class="secondary" id="cancelEditBtn" type="button" style="display:none">Cancelar edición</button>
@@ -333,6 +344,7 @@ function renderProductosPage(){
   const catSelect = document.getElementById('category');
   const searchInput = document.getElementById('search');
   const productLists = document.getElementById('productLists');
+  const isActiveInput = document.getElementById('isActive'); /* ✅ */
 
   // Select categorías
   catSelect.innerHTML = `<option value="">Seleccionar categoría</option>`;
@@ -360,6 +372,7 @@ function renderProductosPage(){
     productForm.reset();
     editIdInput.value='';
     imgPreview.src="https://via.placeholder.com/150x100?text=Sin+imagen";
+    isActiveInput.checked = true; /* ✅ default activo */
     setEditMode(false);
   }
   imgInput.addEventListener('change', e=>{
@@ -377,6 +390,7 @@ function renderProductosPage(){
     const position = parseInt(posInput.value,10);
     const discountPct = parseInt(prodDiscInput.value,10);
     const category = catSelect.value;
+    const active = !!isActiveInput.checked; /* ✅ */
     if(!name||!desc||!price||!category) return alert('Completá los campos obligatorios');
 
     try{
@@ -399,11 +413,12 @@ function renderProductosPage(){
         img: imgUrl,
         position: isNaN(position)?null:position,
         discountPct: isNaN(discountPct)?0:Math.max(0,Math.min(100,discountPct)),
+        active, /* ✅ guardamos estado */
         updatedAt: new Date()
       };
 
       if(editId){
-        await setDoc(doc(db,'productos',editId), productData);
+        await setDoc(doc(db,'productos',editId), productData); /* dejamos tu comportamiento */
         alert('Producto actualizado');
       }else{
         await addDoc(collection(db,'productos'), { ...productData, createdAt: new Date() });
@@ -428,6 +443,7 @@ function renderProductosPage(){
 
       const li = document.createElement('li');
       li.dataset.name = (p.name||'').toLowerCase();
+      if(p.active===false){ li.classList.add('inactive'); } /* ✅ atenuar inactivos */
 
       const img = document.createElement('img');
       img.src = p.img || 'https://via.placeholder.com/150x100?text=Sin+imagen';
@@ -435,8 +451,32 @@ function renderProductosPage(){
 
       const span = document.createElement('span');
       span.style.flex='1';
-      span.textContent = `${p.name} — ${p.desc} — $${p.price}${(p.discountPct||0)>0?` — Desc ${p.discountPct}%`:''}`;
+      span.innerHTML = `${p.name} — ${p.desc} — $${p.price}${(p.discountPct||0)>0?` — Desc ${p.discountPct}%`:''} ${p.active===false?'<span class="badge-inactive">Inactivo</span>':''}`;
       li.appendChild(span);
+
+      /* ✅ Toggle Activo/Inactivo en el listado */
+      const toggleWrap = document.createElement('div');
+      toggleWrap.className = 'toggle-wrap';
+      const label = document.createElement('label');
+      label.style.fontSize='12px';
+      label.style.display='flex';
+      label.style.alignItems='center';
+      label.style.gap='6px';
+      const chk = document.createElement('input');
+      chk.type='checkbox';
+      chk.checked = (p.active !== false); /* activo por defecto */
+      chk.addEventListener('change', async ()=>{
+        try{
+          await setDoc(doc(db,'productos',d.id), { active: chk.checked, updatedAt: new Date() }, { merge:true });
+        }catch(err){
+          alert('No se pudo actualizar: '+err.message);
+          chk.checked = !chk.checked;
+        }
+      });
+      label.appendChild(chk);
+      label.appendChild(document.createTextNode('Activo'));
+      toggleWrap.appendChild(label);
+      li.appendChild(toggleWrap);
 
       const btnE = document.createElement('button');
       btnE.className='btn-edit'; btnE.textContent='Editar';
@@ -449,6 +489,7 @@ function renderProductosPage(){
         catSelect.value = p.category||'';
         editIdInput.value = d.id;
         imgPreview.src = p.img || 'https://via.placeholder.com/150x100?text=Sin+imagen';
+        isActiveInput.checked = (p.active !== false); /* ✅ refleja estado actual */
         setEditMode(true);
         productForm.scrollIntoView({behavior:'smooth'});
       };
@@ -548,4 +589,4 @@ function renderDescuentosPage(){
 }
 </script>
 </body>
-</html
+</html>
