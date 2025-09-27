@@ -41,7 +41,7 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .main{ display:grid; grid-template-columns: 2fr 1fr; gap:16px; }
 @media (max-width:900px){ .main{ grid-template-columns: 1fr; } }
 
-/* Categorías desplegables (FIX sin límite de altura) */
+/* Categorías desplegables (acordeón) */
 .category-btn{
   cursor:pointer;
   font-size:18px;
@@ -64,13 +64,13 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
   grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
   gap:16px;
   margin-top:8px;
-  overflow:hidden;           /* oculta mientras se anima */
-  max-height:0;              /* cerrado */
-  opacity:0;                 /* cerrado */
+  overflow:hidden;
+  max-height:0;
+  opacity:0;
   transition:max-height .35s ease, opacity .2s ease;
   will-change:max-height;
 }
-.grid.show{ opacity:1; }      /* abierto: la altura se setea por JS a scrollHeight y luego a none */
+.grid.show{ opacity:1; }
 
 /* Cards de producto */
 .card{background: rgba(255,255,255,0.95); border:1px solid var(--ring); border-radius:18px; padding:14px; backdrop-filter: blur(4px); display:flex; flex-direction:column; position:relative;}
@@ -81,7 +81,7 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .product p{margin:0;color:var(--muted);font-size:13px}
 .price{font-weight:700}
 .actions { display: flex; gap:6px; justify-content:flex-end; align-items:center; margin-top:auto; }
-.actions button{width:28px;height:28px;border-radius:8px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text);cursor:pointer;}
+.actions button{width:28px;height:28px;border-radius:8px;border:1px solid var(--ring);background:#f8f8f8;color:#var(--text);cursor:pointer;}
 .actions span{min-width:20px;text-align:center;display:inline-block;}
 
 /* ✅ Inactivos */
@@ -110,7 +110,7 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .tot{display:flex;align-items:center;justify-content:space-between;font-weight:800}
 .muted{color:var(--muted);font-size:12px}
 .inputs{display:grid;gap:10px}
-.inputs input, .inputs textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text)}
+.inputs input, .inputs textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#f8f8f8;color:#000}
 .inputs textarea{min-height:72px;resize:vertical}
 .card img { width:100%; height:180px; object-fit:cover; border-top-left-radius:12px; border-top-right-radius:12px; display:block;}
 footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center; background: rgba(255,255,255,0.9); padding:10px; border-radius:12px; }
@@ -161,7 +161,7 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
   </section>
 
   <div class="main">
-    <!-- Catálogo dinámico (categorías desplegables) -->
+    <!-- Catálogo dinámico -->
     <section id="catalog" class="col-9"></section>
 
     <!-- Carrito -->
@@ -205,7 +205,6 @@ const LOCAL_KEY  = "santa";
 const state = { cart: {} };
 const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
 
-// utils
 const slug = s => (s||'').toString().trim().toLowerCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
@@ -224,7 +223,7 @@ const prettyLabel = (cat) => {
 let globalDiscount = 0;
 let catDiscounts = {};
 
-// per-categoría (compat slug y Pascal)
+// per-categoría
 [ doc(db,"settings",`discounts_${LOCAL_KEY}`), doc(db,"settings",`discounts_${LOCAL_NAME}`) ]
   .forEach(ref => onSnapshot(ref, snap=>{
     if (snap.exists()) {
@@ -241,7 +240,7 @@ let catDiscounts = {};
     renderCart();
   }));
 
-// global (compat slug y Pascal)
+// global
 [ doc(db,"settings",`discount_${LOCAL_KEY}`), doc(db,"settings",`discount_${LOCAL_NAME}`) ]
   .forEach(ref => onSnapshot(ref, snap=>{
     if (snap.exists()) {
@@ -265,12 +264,12 @@ function getDiscountPercents(product){
   return { prod, cat, global: anyCat ? 0 : baseOther, combined, usedCat: anyCat };
 }
 
-// ====== CATALOGO (categorías desplegables) ======
+// ====== CATALOGO ======
 const DEFAULT_ORDER = ['pizza','hamburguesa','papas','menu especial','extras'];
 const catalogEl = document.getElementById('catalog');
 let localCategories = null;
 let currentCatOrder = [];
-let openState = {}; // recuerda qué categorías están abiertas
+let openState = {};
 
 onSnapshot(doc(db,'locals', LOCAL_KEY), snap=>{
   if(snap.exists()){
@@ -281,7 +280,6 @@ onSnapshot(doc(db,'locals', LOCAL_KEY), snap=>{
   }
 });
 
-// productos + render
 onSnapshot(collection(db,'productos'), snapshot => {
   const byCat = {};
   snapshot.docs.forEach(docu=>{
@@ -304,7 +302,6 @@ onSnapshot(collection(db,'productos'), snapshot => {
     order = [...first, ...rest];
   }
 
-  // reconstruir si cambia el orden o es la primera vez
   if (!catalogEl.children.length || JSON.stringify(order) !== JSON.stringify(currentCatOrder)) {
     rebuildCatalog(order);
     currentCatOrder = order;
@@ -316,7 +313,6 @@ onSnapshot(collection(db,'productos'), snapshot => {
     return;
   }
 
-  // Rellenar cada grilla
   order.forEach(cat=>{
     const grid = document.getElementById(`cat-${slug(cat)}`);
     if(!grid) return;
@@ -331,7 +327,7 @@ onSnapshot(collection(db,'productos'), snapshot => {
 
     items.forEach(product=>{
       const uid = product.id;
-      const isActive = product.active !== false; // activo por defecto
+      const isActive = product.active !== false; // default activo
       const card = document.createElement('div');
       card.className = `card product${isActive ? '' : ' inactive'}`;
       card.innerHTML = `
@@ -349,7 +345,6 @@ onSnapshot(collection(db,'productos'), snapshot => {
       grid.appendChild(card);
     });
 
-    // si está abierta, asegurar que no tenga límite
     if (grid.classList.contains('show')) {
       grid.style.maxHeight = 'none';
     }
@@ -357,9 +352,7 @@ onSnapshot(collection(db,'productos'), snapshot => {
 });
 
 function rebuildCatalog(categories){
-  // conservar estado abierto/cerrado entre renders
   const prevOpen = { ...openState };
-
   catalogEl.innerHTML = '';
   openState = {};
 
@@ -367,22 +360,18 @@ function rebuildCatalog(categories){
     const s = slug(cat);
     const id = `cat-${s}`;
 
-    // botón de categoría
     const btn = document.createElement('button');
     btn.className = 'category-btn';
     btn.dataset.target = id;
-    const isOpen = !!prevOpen[id]; // por defecto cerradas, salvo que ya estaba abierta
+    const isOpen = !!prevOpen[id];
     btn.textContent = `${prettyLabel(cat)} ${isOpen ? '▾' : '▸'}`;
 
-    // grilla
     const grid = document.createElement('div');
     grid.id = id;
     grid.className = 'grid';
 
-    // listeners (ACORDEÓN DINÁMICO)
     btn.addEventListener('click', ()=>{
       const opened = grid.classList.contains('show');
-
       if (opened) {
         if (grid.style.maxHeight === 'none') {
           grid.style.maxHeight = grid.scrollHeight + 'px';
@@ -394,7 +383,6 @@ function rebuildCatalog(categories){
         grid.classList.add('show');
         grid.style.maxHeight = grid.scrollHeight + 'px';
       }
-
       const openNow = !opened;
       btn.textContent = `${prettyLabel(cat)} ${openNow ? '▾' : '▸'}`;
       openState[id] = openNow;
@@ -402,12 +390,9 @@ function rebuildCatalog(categories){
 
     grid.addEventListener('transitionend', (ev)=>{
       if (ev.propertyName !== 'max-height') return;
-      if (grid.classList.contains('show')) {
-        grid.style.maxHeight = 'none';
-      }
+      if (grid.classList.contains('show')) grid.style.maxHeight = 'none';
     });
 
-    // estado inicial
     if (isOpen) {
       grid.classList.add('show');
       grid.style.maxHeight = 'none';
@@ -430,7 +415,7 @@ catalogEl.addEventListener('click', async (e)=>{
   const ok = (product.local === LOCAL_NAME) || (slug(product.local) === LOCAL_KEY);
   if(!ok) return;
 
-  // ✅ bloquear interacción para inactivos
+  // bloquear interacción para inactivos
   if(product.active === false) return;
 
   if(e.target.classList.contains('btn-plus')){
@@ -581,8 +566,7 @@ function buildWhatsAppMessage() {
   }
   lines.push(`*Total:* ${currency.format(total)}`);
   lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
-  const custName = document.getElementById('customerName').value.trim();
-  const notes = document.getElementById('customerNotes').value.trim();
+  /* FIX: eliminado duplicado de const custName/notes aquí */
   if(custName) lines.push(`*Nombre:* ${custName}`);
   if(notes) lines.push(`*Notas:* ${notes}`);
   lines.push('','Enviado desde la web de pedidos ✅');
