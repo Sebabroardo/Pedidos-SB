@@ -200,8 +200,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const LOCAL_NAME = "Santa";
-const LOCAL_KEY  = "santa";
+const LOCAL_NAME = "Santa"; // informativo
+const LOCAL_KEY  = "santa"; // clave real usada en settings/locals
 const state = { cart: {} };
 const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
 
@@ -219,40 +219,19 @@ const prettyLabel = (cat) => {
   return title(cat);
 };
 
-// ====== DESCUENTOS ======
+// ====== DESCUENTOS (solo por LOCAL_KEY) ======
 let globalDiscount = 0;
 let catDiscounts = {};
 
-// per-categoría
-[ doc(db,"settings",`discounts_${LOCAL_KEY}`), doc(db,"settings",`discounts_${LOCAL_NAME}`) ]
-  .forEach(ref => onSnapshot(ref, snap=>{
-    if (snap.exists()) {
-      const d = snap.data() || {};
-      const next = {};
-      Object.keys(d).forEach(k=>{
-        if (['local','_updatedAt'].includes(k)) return;
-        next[(k||'').toLowerCase()] = Number(d[k] ?? 0);
-      });
-      catDiscounts = next;
-    } else {
-      catDiscounts = {};
-    }
-    renderCart();
-  }));
-
-// global
-[ doc(db,"settings",`discount_${LOCAL_KEY}`), doc(db,"settings",`discount_${LOCAL_NAME}`) ]
-  .forEach(ref => onSnapshot(ref, snap=>{
-    if (snap.exists()) {
-      const v = Number((snap.data().value)||0);
-      globalDiscount = isNaN(v) ? 0 : v;
-    } else {
-      globalDiscount = 0;
-    }
-    renderCart();
-  }));
-
 function clampPercent(n){ n=Number(n)||0; return n<0?0:n>100?100:n; }
+function mapLower(d){
+  const out={};
+  Object.keys(d||{}).forEach(k=>{
+    if (['local','_updatedAt','value'].includes(k)) return;
+    out[(k||'').toLowerCase()] = Number(d[k] ?? 0);
+  });
+  return out;
+}
 function catKeyOf(product){ return (product.category || '').toString().trim().toLowerCase(); }
 function getDiscountPercents(product){
   const key = catKeyOf(product);
@@ -263,6 +242,23 @@ function getDiscountPercents(product){
   const combined = clampPercent(prod + baseOther);
   return { prod, cat, global: anyCat ? 0 : baseOther, combined, usedCat: anyCat };
 }
+
+// per-categoría (settings/discounts_{LOCAL_KEY})
+onSnapshot(doc(db,"settings",`discounts_${LOCAL_KEY}`), snap=>{
+  catDiscounts = snap.exists() ? mapLower(snap.data()) : {};
+  renderCart();
+});
+
+// global (settings/discount_{LOCAL_KEY})
+onSnapshot(doc(db,"settings",`discount_${LOCAL_KEY}`), snap=>{
+  if (snap.exists()) {
+    const v = Number((snap.data().value)||0);
+    globalDiscount = isNaN(v) ? 0 : v;
+  } else {
+    globalDiscount = 0;
+  }
+  renderCart();
+});
 
 // ====== CATALOGO ======
 const DEFAULT_ORDER = ['pizza','hamburguesa','papas','menu especial','extras'];
@@ -566,7 +562,6 @@ function buildWhatsAppMessage() {
   }
   lines.push(`*Total:* ${currency.format(total)}`);
   lines.push(`*Retiro:* Retira por Local, En calle Belgrano (https://www.google.com/maps?q=-32.307741,-62.650254)`);
-  /* FIX: eliminado duplicado de const custName/notes aquí */
   if(custName) lines.push(`*Nombre:* ${custName}`);
   if(notes) lines.push(`*Notas:* ${notes}`);
   lines.push('','Enviado desde la web de pedidos ✅');
