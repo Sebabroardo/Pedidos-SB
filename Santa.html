@@ -518,6 +518,11 @@ function buildWhatsAppMessage() {
   const entries = Object.values(state.cart);
   if(entries.length===0){ alert('Agregá al menos 1 producto al carrito.'); return null; }
   const custName = document.getElementById('customerName').value.trim();
+  if(!custName){  // 👈 validación obligatoria
+    alert('Por favor, ingresá tu nombre antes de continuar.');
+    document.getElementById('customerName').focus();
+    return null;
+  }
   const notes = document.getElementById('customerNotes').value.trim();
   const lines = ['🧾 *Nuevo pedido — Santa*',''];
 
@@ -585,3 +590,4 @@ document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
+
