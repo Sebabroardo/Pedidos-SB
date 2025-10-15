@@ -356,60 +356,12 @@ function renderProductosPage(){
 
   // Listas por categoría
   productLists.innerHTML = '';
- currentCategories.forEach(cat=>{
-  const sec = document.createElement('div');
-  sec.className='category-section';
-  sec.dataset.cat = cat;
-
-  // 🔹 encabezado con checkbox de activar/inactivar categoría
-  const header = document.createElement('div');
-  header.style.display = 'flex';
-  header.style.alignItems = 'center';
-  header.style.gap = '10px';
-  header.style.marginBottom = '6px';
-
-  const title = document.createElement('h3');
-  title.textContent = capitalize(cat);
-  title.style.margin = '0';
-
-  const toggleAll = document.createElement('input');
-  toggleAll.type = 'checkbox';
-  toggleAll.checked = true;
-  toggleAll.title = 'Activar/Inactivar todos los productos de esta categoría';
-
-  // 🔸 manejador de evento
-  toggleAll.addEventListener('change', async ()=>{
-    const activar = toggleAll.checked;
-    const confirmMsg = activar
-      ? `¿Activar todos los productos de "${capitalize(cat)}"?`
-      : `¿Inactivar todos los productos de "${capitalize(cat)}"?`;
-    if(!confirm(confirmMsg)){ toggleAll.checked = !activar; return; }
-
-    try {
-      const q = query(collection(db, 'productos'), where('local', '==', currentUserLocal), where('category', '==', cat));
-      const qs = await getDocs(q);
-      const updates = qs.docs.map(d => 
-        setDoc(doc(db, 'productos', d.id), { active: activar, updatedAt: new Date() }, { merge: true })
-      );
-      await Promise.all(updates);
-      alert(`Productos de "${capitalize(cat)}" ${activar ? 'activados' : 'inactivados'}.`);
-    } catch(err){
-      console.error(err);
-      alert('Error al actualizar productos: ' + err.message);
-    }
+  currentCategories.forEach(cat=>{
+    const sec = document.createElement('div');
+    sec.className='category-section'; sec.dataset.cat=cat;
+    sec.innerHTML = `<h3>${capitalize(cat)}</h3><ul class="items" id="list-${slug(cat)}"></ul>`;
+    productLists.appendChild(sec);
   });
-
-  header.appendChild(title);
-  header.appendChild(toggleAll);
-  sec.appendChild(header);
-
-  const list = document.createElement('ul');
-  list.className = 'items';
-  list.id = `list-${slug(cat)}`;
-  sec.appendChild(list);
-
-  productLists.appendChild(sec);
-});
 
   // Helpers form
   function setEditMode(on){
