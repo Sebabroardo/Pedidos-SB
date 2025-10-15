@@ -180,6 +180,27 @@ const slug = s => (s||'').toString().trim().toLowerCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 
+/* ---------- Persistencia de toggle por categoría (por LOCAL) ---------- */
+function _togglesKey() {
+  return `catToggles:${slug(currentUserLocal || '')}`;
+}
+function _readToggles() {
+  try { return JSON.parse(localStorage.getItem(_togglesKey())) || {}; }
+  catch { return {}; }
+}
+function _writeToggles(map) {
+  localStorage.setItem(_togglesKey(), JSON.stringify(map || {}));
+}
+function getCatToggle(cat) {
+  const map = _readToggles();
+  return (cat in map) ? !!map[cat] : true; // por defecto activado
+}
+function setCatToggle(cat, value) {
+  const map = _readToggles();
+  map[cat] = !!value;
+  _writeToggles(map);
+}
+
 /* ---------- DOM ---------- */
 const loginDiv = document.getElementById('loginDiv');
 const dashboardDiv = document.getElementById('dashboardDiv');
@@ -374,7 +395,7 @@ function renderProductosPage(){
 
   const toggleAll = document.createElement('input');
   toggleAll.type = 'checkbox';
-  toggleAll.checked = true;
+  toggleAll.checked = getCatToggle(cat); /* ✅ persistencia */
   toggleAll.title = 'Activar/Inactivar todos los productos de esta categoría';
 
   // 🔸 manejador de evento
@@ -392,10 +413,12 @@ function renderProductosPage(){
         setDoc(doc(db, 'productos', d.id), { active: activar, updatedAt: new Date() }, { merge: true })
       );
       await Promise.all(updates);
+      setCatToggle(cat, activar); /* ✅ guardamos estado elegido */
       alert(`Productos de "${capitalize(cat)}" ${activar ? 'activados' : 'inactivados'}.`);
     } catch(err){
       console.error(err);
       alert('Error al actualizar productos: ' + err.message);
+      toggleAll.checked = !activar; /* ✅ revertir visual si falla */
     }
   });
 
