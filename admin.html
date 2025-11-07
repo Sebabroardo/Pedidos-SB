@@ -51,23 +51,23 @@ body{
   transition: background .25s ease, color .25s ease;
 }
 
-/* Header (will be placed inside dashboardDiv so it's hidden before login) */
+/* Header */
 .header-container header{
   width:100%;
-  padding:12px 18px;
+  padding:12px 16px;
   background:transparent;
   border-bottom:1px solid rgba(255,255,255,0.02);
   display:flex;
   align-items:center;
-  gap:12px;
+  gap:10px;
   position:sticky;
   top:0;
   z-index:40;
   backdrop-filter: blur(6px);
 }
-.header-left{display:flex;flex-direction:column;flex:1}
-.header-title{font-size:18px;font-weight:700;letter-spacing:0.2px}
-#welcomeMessage{font-size:13px;color:var(--muted);margin-top:3px}
+.header-left{display:flex;flex-direction:column;flex:1;min-width:0}
+.header-title{font-size:18px;font-weight:700;letter-spacing:0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#welcomeMessage{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.35}
 
 /* Header controls */
 .header-controls{display:flex;align-items:center;gap:8px}
@@ -85,7 +85,6 @@ body{
 }
 .icon-btn:hover{ transform:translateY(-2px) }
 #themeToggleBtn{font-weight:600}
-.search-inline{display:none}
 
 /* ========== AUTH CARD ========== */
 #loginDiv{flex:1;display:flex;align-items:flex-start;justify-content:center;padding-top:60px}
@@ -119,7 +118,7 @@ body{
 
 /* ========== APP LAYOUT ========== */
 #dashboardDiv{display:none;flex:1;min-height:0;opacity:0;transition:opacity .35s ease}
-#dashboardDiv.visible{display:block;opacity:1} /* fade in class */
+#dashboardDiv.visible{display:block;opacity:1}
 .app{display:flex;height:calc(100vh - 66px);position:relative}
 
 /* Sidebar */
@@ -133,7 +132,7 @@ body{
   box-shadow:2px 0 12px rgba(2,6,23,0.6);
   border-right:1px solid var(--surface-border);
   transition:width .22s ease,left .22s ease,background .25s ease, transform .25s ease;
-  z-index:30;
+  z-index:90; /* ⬆ SOBRE el header */
 }
 #sidebarTop{display:flex;justify-content:flex-end;padding:10px}
 #toggleSidebarBtn{
@@ -204,7 +203,7 @@ ul.items li img{width:50px;height:50px;border-radius:6px;object-fit:cover}
 .btn-edit{background:#3b82f6;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer;border:none}
 .btn-delete{background:#f43f5e;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer;border:none}
 
-/* ✅ FIX 2: buena adaptación de acciones en pantallas chicas (no desfasar) */
+/* Botones bien en móvil (no desfasados) */
 @media (max-width:600px){
   ul.items li{ flex-wrap:wrap; }
   ul.items li > img{ flex:0 0 56px; }
@@ -225,7 +224,7 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 /* Toggle-wrap alignment */
 .toggle-wrap{margin-left:auto;display:flex;align-items:center;gap:6px}
 
-/* Search */
+/* Search (solo el de la página de productos) */
 .search-wrapper{width:100%;max-width:920px;margin:14px 0;}
 #search{
   width:100%;
@@ -253,11 +252,13 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 
 /* responsive */
 @media (max-width:900px){
-  #sidebar{position:fixed;left:-260px;top:66px;height:calc(100vh - 66px);transform:translateX(0);transition:left .25s ease, box-shadow .25s ease}
-  #sidebar.open{left:0} /* ya existía la clase open, la usamos con el botón de header */
+  /* Sidebar ahora cubre TODO (por encima del header) */
+  #sidebar{
+    position:fixed;left:-260px;top:0;height:100vh;transform:translateX(0);
+    transition:left .25s ease, box-shadow .25s ease
+  }
+  #sidebar.open{left:0}
   .app{padding-left:0}
-  .search-inline{display:block}
-  .search-inline .search-wrapper{max-width:360px}
   #mainContent{padding:16px}
 }
 
@@ -266,20 +267,20 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
   .form-container{width:92%}
   #toggleSidebarBtn{padding:8px 10px}
   .header-left .header-title{font-size:16px}
-  /* ✅ FIX 2 extra: que los botones no se salgan en muy chico */
+  #welcomeMessage{font-size:12px}
   .btn-edit,.btn-delete{padding:10px}
 }
 
 /* global transitions */
 button,input,select,textarea,a{transition:all .15s ease}
 
-/* ✅ FIX 1: capa semitransparente al abrir sidebar en móvil (mejor UX, opcional) */
+/* Capa semitransparente al abrir sidebar en móvil */
 @media (max-width:900px){
   body.sidebar-open::after{
     content:"";
     position:fixed;inset:0;
     background:rgba(0,0,0,.35);
-    z-index:25;
+    z-index:80; /* debajo del sidebar (90) y encima del resto */
   }
 }
 </style>
@@ -298,7 +299,6 @@ button,input,select,textarea,a{transition:all .15s ease}
 
 <!-- APP (oculto hasta login) -->
 <div id="dashboardDiv" aria-hidden="true">
-  <!-- Header colocado dentro del dashboard para que no sea visible antes del login -->
   <div class="header-container">
     <header>
       <div class="header-left">
@@ -307,20 +307,13 @@ button,input,select,textarea,a{transition:all .15s ease}
       </div>
 
       <div class="header-controls">
-        <!-- ✅ FIX 1: botón de menú para móvil (para poder abrir el sidebar) -->
-        <button id="openSidebarBtn" class="icon-btn" title="Abrir menú" aria-label="Abrir menú" style="display:none">☰</button>
+        <!-- Botón de menú para móvil -->
+        <button id="openSidebarBtn" class="icon-btn" title="Abrir menú" aria-label="Abrir menú">☰</button>
 
-        <div class="search-inline">
-          <div class="search-wrapper"><input id="searchInline" placeholder="Buscar..." autocomplete="off"/></div>
-        </div>
-
+        <!-- Botón tema -->
         <button id="themeToggleBtn" class="icon-btn" title="Alternar modo" aria-label="Alternar modo">
           <span id="themeIcon">☀️</span>
           <span style="font-weight:600">Tema</span>
-        </button>
-
-        <button id="mobileSearchBtn" class="icon-btn" title="Buscar (móvil)" style="display:none">
-          🔎
         </button>
       </div>
     </header>
@@ -349,7 +342,7 @@ button,input,select,textarea,a{transition:all .15s ease}
 </div>
 
 <script type="module">
-/* ================== MANTENGO TUS IMPORTS ORIGINALES ================== */
+/* ================== IMPORTS ================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
   getFirestore, collection, doc, getDocs, getDoc, query, where, 
@@ -401,9 +394,6 @@ const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const themeToggleBtn = document.getElementById('themeToggleBtn');
 const themeIcon = document.getElementById('themeIcon');
-const mobileSearchBtn = document.getElementById('mobileSearchBtn');
-const searchInline = document.getElementById('searchInline');
-/* ✅ FIX 1: botón de header para abrir sidebar en móvil */
 const openSidebarBtn = document.getElementById('openSidebarBtn');
 
 /* ========== Theme init ========== */
@@ -437,11 +427,9 @@ function applySidebarState(collapsed){
   }
   writeSidebar(collapsed);
 }
-// apply stored sidebar preference
 applySidebarState(readSidebar());
 
 toggleSidebarBtn.addEventListener('click', ()=>{
-  // on small screens toggle overlay open/close since el botón está dentro del sidebar
   if(window.matchMedia("(max-width:900px)").matches){
     const willOpen = !sidebar.classList.contains('open');
     sidebar.classList.toggle('open');
@@ -452,7 +440,6 @@ toggleSidebarBtn.addEventListener('click', ()=>{
   }
 });
 
-/* ✅ FIX 1: abrir sidebar desde el header en móvil */
 openSidebarBtn?.addEventListener('click', ()=>{
   if(window.matchMedia("(max-width:900px)").matches){
     sidebar.classList.add('open');
@@ -474,7 +461,7 @@ document.addEventListener('click', (e)=>{
   }
 });
 
-/* ========== ORIGINAL AUTH (Users) CODE (sin tocar la lógica) ========== */
+/* ========== AUTH (Users) ========== */
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const username = document.getElementById("username").value.trim();
@@ -510,7 +497,7 @@ logoutBtn.addEventListener('click', ()=>{
   hideDashboard();
 });
 
-/* ========== Layout: sidebar menu navigation ========== */
+/* ========== Sidebar menu navigation ========== */
 sidebarMenu.addEventListener('click', (e)=>{
   const li = e.target.closest('li[data-section]'); if(!li) return;
   sidebarMenu.querySelectorAll('li').forEach(el=>el.classList.remove('active'));
@@ -522,35 +509,28 @@ sidebarMenu.addEventListener('click', (e)=>{
 
 /* ========== Dashboard show/hide (con fade) ========== */
 async function showDashboard(username, local){
-  // hide login with fade out
   loginDiv.style.opacity = '0';
   loginDiv.style.transform = 'translateY(8px)';
   loginDiv.style.pointerEvents = 'none';
-  // small delay to allow visual fade
   setTimeout(()=>{
     loginDiv.style.display='none';
-    // reveal dashboard with smooth fade-in
     dashboardDiv.classList.add('visible');
     dashboardDiv.setAttribute('aria-hidden','false');
   }, 180);
 
+  /* Mensaje más compacto y claro */
   welcomeMessage.textContent = `Bienvenido ${username}. Local: ${local}`;
   currentUserLocal = local;
 
   await initCategoriesFromLocal();
-  // default: productos view
   renderProductosPage();
-
-  // ensure main content is focused for accessibility
   setTimeout(()=>{ mainContent.focus(); }, 350);
 }
 function hideDashboard(){
-  // hide dashboard with fade out
   dashboardDiv.classList.remove('visible');
   dashboardDiv.setAttribute('aria-hidden','true');
-  // small delay then show login
   setTimeout(()=>{
-    dashboardDiv.style.display = 'block'; // ensure not removed
+    dashboardDiv.style.display = 'block';
     loginDiv.style.display='flex';
     loginDiv.style.opacity='1';
     loginDiv.style.transform='translateY(0)';
@@ -561,7 +541,7 @@ function hideDashboard(){
   if(unsubscribeProducts){unsubscribeProducts(); unsubscribeProducts=null;}
 }
 
-/* ========== Categorías dinámicas (sin tocar mayormente) ========== */
+/* ========== Categorías dinámicas ========== */
 async function initCategoriesFromLocal(){
   const key = slug(currentUserLocal);
   const ref = doc(db, 'locals', key);
@@ -616,7 +596,6 @@ function renderProductosPage(){
         <label class="field" for="category">Categoría</label>
         <select id="category" required></select>
 
-        <!-- ✅ NUEVO: estado activo/inactivo -->
         <label class="field" for="isActive">Estado</label>
         <label style="display:flex;align-items:center;gap:8px">
           <input type="checkbox" id="isActive" checked /> Producto activo
@@ -662,63 +641,61 @@ function renderProductosPage(){
 
   // Listas por categoría
   productLists.innerHTML = '';
- currentCategories.forEach(cat=>{
-  const sec = document.createElement('div');
-  sec.className='category-section';
-  sec.dataset.cat = cat;
+  currentCategories.forEach(cat=>{
+    const sec = document.createElement('div');
+    sec.className='category-section';
+    sec.dataset.cat = cat;
 
-  // encabezado con checkbox de activar/inactivar categoría
-  const header = document.createElement('div');
-  header.style.display = 'flex';
-  header.style.alignItems = 'center';
-  header.style.gap = '10px';
-  header.style.marginBottom = '6px';
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.gap = '10px';
+    header.style.marginBottom = '6px';
 
-  const title = document.createElement('h3');
-  title.textContent = capitalize(cat);
-  title.style.margin = '0';
+    const title = document.createElement('h3');
+    title.textContent = capitalize(cat);
+    title.style.margin = '0';
 
-  const toggleAll = document.createElement('input');
-  toggleAll.type = 'checkbox';
-  toggleAll.checked = getCatToggle(cat);
-  toggleAll.title = 'Activar/Inactivar todos los productos de esta categoría';
+    const toggleAll = document.createElement('input');
+    toggleAll.type = 'checkbox';
+    toggleAll.checked = getCatToggle(cat);
+    toggleAll.title = 'Activar/Inactivar todos los productos de esta categoría';
 
-  toggleAll.addEventListener('change', async ()=>{
-    const activar = toggleAll.checked;
-    const confirmMsg = activar
-      ? `¿Activar todos los productos de "${capitalize(cat)}"?`
-      : `¿Inactivar todos los productos de "${capitalize(cat)}"?`;
-    if(!confirm(confirmMsg)){ toggleAll.checked = !activar; return; }
+    toggleAll.addEventListener('change', async ()=>{
+      const activar = toggleAll.checked;
+      const confirmMsg = activar
+        ? `¿Activar todos los productos de "${capitalize(cat)}"?`
+        : `¿Inactivar todos los productos de "${capitalize(cat)}"?`;
+      if(!confirm(confirmMsg)){ toggleAll.checked = !activar; return; }
 
-    try {
-      const q = query(collection(db, 'productos'), where('local', '==', currentUserLocal), where('category', '==', cat));
-      const qs = await getDocs(q);
-      const updates = qs.docs.map(d => 
-        setDoc(doc(db, 'productos', d.id), { active: activar, updatedAt: new Date() }, { merge: true })
-      );
-      await Promise.all(updates);
-      setCatToggle(cat, activar);
-      alert(`Productos de "${capitalize(cat)}" ${activar ? 'activados' : 'inactivados'}.`);
-    } catch(err){
-      console.error(err);
-      alert('Error al actualizar productos: ' + err.message);
-      toggleAll.checked = !activar;
-    }
+      try {
+        const q = query(collection(db, 'productos'), where('local', '==', currentUserLocal), where('category', '==', cat));
+        const qs = await getDocs(q);
+        const updates = qs.docs.map(d => 
+          setDoc(doc(db, 'productos', d.id), { active: activar, updatedAt: new Date() }, { merge: true })
+        );
+        await Promise.all(updates);
+        setCatToggle(cat, activar);
+        alert(`Productos de "${capitalize(cat)}" ${activar ? 'activados' : 'inactivados'}.`);
+      } catch(err){
+        console.error(err);
+        alert('Error al actualizar productos: ' + err.message);
+        toggleAll.checked = !activar;
+      }
+    });
+
+    header.appendChild(title);
+    header.appendChild(toggleAll);
+    sec.appendChild(header);
+
+    const list = document.createElement('ul');
+    list.className = 'items';
+    list.id = `list-${slug(cat)}`;
+    sec.appendChild(list);
+
+    productLists.appendChild(sec);
   });
 
-  header.appendChild(title);
-  header.appendChild(toggleAll);
-  sec.appendChild(header);
-
-  const list = document.createElement('ul');
-  list.className = 'items';
-  list.id = `list-${slug(cat)}`;
-  sec.appendChild(list);
-
-  productLists.appendChild(sec);
-});
-
-  // Helpers form
   function setEditMode(on){
     document.getElementById('submitBtn').textContent = on ? 'Actualizar producto' : 'Guardar producto';
     document.getElementById('cancelEditBtn').style.display = on ? 'inline-flex' : 'none';
@@ -860,7 +837,7 @@ function renderProductosPage(){
     applySearchFilter();
   });
 
-  // Búsqueda
+  // Búsqueda local (solo input de la página, no en el header)
   function applySearchFilter(){
     const q=(searchInput.value||'').toLowerCase().trim();
     document.querySelectorAll('#productLists .category-section').forEach(sec=>{
@@ -942,7 +919,7 @@ function renderDescuentosPage(){
   function capitalize(s){return (s||'').charAt(0).toUpperCase()+(s||'').slice(1);}
 }
 
-/* ========================== Utilities: toggles por categoría (localStorage) ========================== */
+/* ========================== Utilities: toggles por categoría ========================== */
 function _togglesKey() {
   return `catToggles:${slug(currentUserLocal || '')}`;
 }
@@ -963,37 +940,13 @@ function setCatToggle(cat, value) {
   _writeToggles(map);
 }
 
-/* ========== Small UI helpers: search sync (header <-> page) ========== */
-document.addEventListener('input', (e)=>{
-  if(e.target === searchInline){
-    const el = document.querySelector('#search');
-    if(el) el.value = searchInline.value;
-    const ev = new Event('input', { bubbles:true });
-    if(el) el.dispatchEvent(ev);
-  }
-});
-
-/* mobile search button toggles search focus */
-mobileSearchBtn.addEventListener('click', ()=>{
-  const el = document.querySelector('#search') || searchInline;
-  if(el){ el.focus(); }
-});
-
-/* ensure mobileSearchBtn & openSidebarBtn only show on small screens */
+/* ======== Mostrar/ocultar controles móviles (solo menú) ======== */
 function updateMobileControls(){
   const isMobile = window.matchMedia("(max-width:900px)").matches;
   if(isMobile){
-    mobileSearchBtn.style.display='inline-flex';
-    document.querySelector('.search-inline').style.display='block';
-    // ✅ FIX 1: mostrar botón de menú en móvil
     openSidebarBtn.style.display='inline-flex';
   } else {
-    mobileSearchBtn.style.display='none';
-    document.querySelector('.search-inline').style.display='none';
-    openSidebarBtn.style.display='none';
-    // por si quedó abierta la capa
-    document.body.classList.remove('sidebar-open');
-    sidebar.classList.remove('open');
+    openSidebarBtn.style.display='inline-flex'; /* también útil en desktop como colapsar/expandir */
   }
 }
 window.addEventListener('resize', updateMobileControls);
