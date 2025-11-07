@@ -118,7 +118,7 @@ body{
 
 /* ========== APP LAYOUT ========== */
 #dashboardDiv{display:none;flex:1;min-height:0;opacity:0;transition:opacity .35s ease}
-#dashboardDiv.visible{display:block;opacity:1}
+#dashboardDiv.visible{display:block;opacity:1} /* fade in class */
 .app{display:flex;height:calc(100vh - 66px);position:relative}
 
 /* Sidebar */
@@ -128,11 +128,12 @@ body{
   color:var(--text);
   display:flex;
   flex-direction:column;
-  justify-content:space-between;
+  justify-content:flex-start; /* dejamos que el botón sea sticky abajo en móvil */
   box-shadow:2px 0 12px rgba(2,6,23,0.6);
   border-right:1px solid var(--surface-border);
   transition:width .22s ease,left .22s ease,background .25s ease, transform .25s ease;
   z-index:90; /* ⬆ SOBRE el header */
+  overflow:auto;
 }
 #sidebarTop{display:flex;justify-content:flex-end;padding:10px}
 #toggleSidebarBtn{
@@ -156,8 +157,6 @@ body{
 #sidebar.collapsed{width:64px}
 #sidebar.collapsed .menu-text{display:none}
 #sidebar.collapsed #sidebarTop{justify-content:center}
-#sidebar.collapsed #logoutBtn{display:flex;justify-content:center}
-#sidebar.collapsed #logoutBtn span{display:none}
 
 /* tooltip when collapsed */
 #sidebar.collapsed #sidebarMenu li:hover::after{
@@ -175,8 +174,10 @@ body{
   font-size:13px;
 }
 
-/* Logout */
-#logoutBtn{margin:12px;border-radius:8px;background:#f43f5e;border:none;color:#fff;padding:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* Logout — por defecto oculto en desktop */
+#logoutBtn{
+  display:none;           /* 🔒 oculto en desktop */
+}
 
 /* Main content */
 #mainContent{flex:1;padding:22px;overflow:auto;}
@@ -255,11 +256,34 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
   /* Sidebar ahora cubre TODO (por encima del header) */
   #sidebar{
     position:fixed;left:-260px;top:0;height:100vh;transform:translateX(0);
-    transition:left .25s ease, box-shadow .25s ease
+    transition:left .25s ease, box-shadow .25s ease;
+    overflow:auto;
   }
   #sidebar.open{left:0}
   .app{padding-left:0}
   #mainContent{padding:16px}
+
+  /* Botón Cerrar sesión visible SOLAMENTE en móvil y fijo abajo */
+  #logoutBtn{
+    display:flex;
+    position:sticky;
+    bottom:0;
+    width:100%;
+    margin:0;
+    border-radius:0;
+    padding:12px;
+    background:#f43f5e;
+    color:#fff;
+    font-weight:700;
+    border:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1;
+    box-shadow:0 -4px 12px rgba(0,0,0,.2);
+  }
+
+  /* margen inferior para que el contenido no quede oculto por el botón */
+  #sidebarMenu{ padding-bottom:72px; }
 }
 
 /* small screens */
@@ -332,6 +356,7 @@ button,input,select,textarea,a{transition:all .15s ease}
           </ul>
         </nav>
       </div>
+      <!-- 👇 Solo se muestra en móvil por CSS -->
       <button id="logoutBtn"><span>Cerrar sesión</span></button>
     </aside>
 
@@ -461,7 +486,7 @@ document.addEventListener('click', (e)=>{
   }
 });
 
-/* ========== AUTH (Users) ========== */
+/* ========== ORIGINAL AUTH (Users) CODE (sin tocar la lógica) ========== */
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const username = document.getElementById("username").value.trim();
@@ -497,7 +522,7 @@ logoutBtn.addEventListener('click', ()=>{
   hideDashboard();
 });
 
-/* ========== Sidebar menu navigation ========== */
+/* ========== Layout: sidebar menu navigation ========== */
 sidebarMenu.addEventListener('click', (e)=>{
   const li = e.target.closest('li[data-section]'); if(!li) return;
   sidebarMenu.querySelectorAll('li').forEach(el=>el.classList.remove('active'));
@@ -509,6 +534,7 @@ sidebarMenu.addEventListener('click', (e)=>{
 
 /* ========== Dashboard show/hide (con fade) ========== */
 async function showDashboard(username, local){
+  // fade out login
   loginDiv.style.opacity = '0';
   loginDiv.style.transform = 'translateY(8px)';
   loginDiv.style.pointerEvents = 'none';
@@ -518,12 +544,14 @@ async function showDashboard(username, local){
     dashboardDiv.setAttribute('aria-hidden','false');
   }, 180);
 
-  /* Mensaje más compacto y claro */
   welcomeMessage.textContent = `Bienvenido ${username}. Local: ${local}`;
   currentUserLocal = local;
 
   await initCategoriesFromLocal();
+  // default: productos view
   renderProductosPage();
+
+  // foco accesibilidad
   setTimeout(()=>{ mainContent.focus(); }, 350);
 }
 function hideDashboard(){
@@ -596,6 +624,7 @@ function renderProductosPage(){
         <label class="field" for="category">Categoría</label>
         <select id="category" required></select>
 
+        <!-- Estado -->
         <label class="field" for="isActive">Estado</label>
         <label style="display:flex;align-items:center;gap:8px">
           <input type="checkbox" id="isActive" checked /> Producto activo
@@ -639,7 +668,7 @@ function renderProductosPage(){
     catSelect.appendChild(opt);
   });
 
-  // Listas por categoría
+  // Secciones por categoría
   productLists.innerHTML = '';
   currentCategories.forEach(cat=>{
     const sec = document.createElement('div');
@@ -837,7 +866,7 @@ function renderProductosPage(){
     applySearchFilter();
   });
 
-  // Búsqueda local (solo input de la página, no en el header)
+  // Búsqueda
   function applySearchFilter(){
     const q=(searchInput.value||'').toLowerCase().trim();
     document.querySelectorAll('#productLists .category-section').forEach(sec=>{
@@ -919,7 +948,7 @@ function renderDescuentosPage(){
   function capitalize(s){return (s||'').charAt(0).toUpperCase()+(s||'').slice(1);}
 }
 
-/* ========================== Utilities: toggles por categoría ========================== */
+/* ========================== Utilities: toggles por categoría (localStorage) ========================== */
 function _togglesKey() {
   return `catToggles:${slug(currentUserLocal || '')}`;
 }
@@ -940,14 +969,16 @@ function setCatToggle(cat, value) {
   _writeToggles(map);
 }
 
+/* ========== Small UI helpers: search sync (header <-> page) ========== */
+/* (eliminado el buscador del header, no hace falta sincronizar) */
+
+/* ensure mobileSearchBtn only shows on small screens (eliminado) */
+
 /* ======== Mostrar/ocultar controles móviles (solo menú) ======== */
 function updateMobileControls(){
   const isMobile = window.matchMedia("(max-width:900px)").matches;
-  if(isMobile){
-    openSidebarBtn.style.display='inline-flex';
-  } else {
-    openSidebarBtn.style.display='inline-flex'; /* también útil en desktop como colapsar/expandir */
-  }
+  // Mostramos el botón de abrir menú en móvil, en desktop también sirve para expandir/colapsar
+  openSidebarBtn.style.display = 'inline-flex';
 }
 window.addEventListener('resize', updateMobileControls);
 updateMobileControls();
