@@ -5,114 +5,279 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Admin — Productos del Local</title>
 
+<!-- Fuente moderna -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
 <style>
-/* Base layout */
-body{margin:0;font-family:Arial,sans-serif;background:#0f1115;color:#f5f7fb;min-height:100vh;display:flex;flex-direction:column;}
-header{width:100%;padding:16px 20px;background:#0f1115;border-bottom:1px solid #222}
-.header-title{font-size:18px;font-weight:700}
-#welcomeMessage{font-size:13px;color:#9aa3b2;margin-top:4px}
+/* ========== VARIABLES ========== */
+:root{
+  --accent: #22c55e; /* verde original */
+  --accent-600: #16a34a;
+  --bg-900: #0f1115;
+  --bg-800: #11151c;
+  --card-bg: #171a21;
+  --muted: #9aa3b2;
+  --text: #f5f7fb;
+  --surface-border: #2a2f3a;
+  --input-bg: #0f172a;
+  --search-bg: #1e293b;
+  --shadow: rgba(2,6,23,0.6);
+}
 
-/* Auth card */
+/* Light mode overrides (applied to body.light) */
+body.light{
+  --bg-900: #f6f7fb;
+  --bg-800: #eef2ff;
+  --card-bg: #ffffff;
+  --muted: #475569;
+  --text: #0f172a;
+  --surface-border: #e6eef6;
+  --input-bg: #ffffff;
+  --search-bg: #ffffff;
+  --shadow: rgba(12,18,30,0.06);
+}
+
+/* ========== BASE LAYOUT ========== */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:'Poppins', Arial, sans-serif;
+  background: linear-gradient(180deg,var(--bg-900) 0%, var(--bg-800) 100%);
+  color:var(--text);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  transition: background .25s ease, color .25s ease;
+}
+
+/* Header */
+header{
+  width:100%;
+  padding:12px 18px;
+  background:transparent;
+  border-bottom:1px solid rgba(255,255,255,0.02);
+  display:flex;
+  align-items:center;
+  gap:12px;
+  position:sticky;
+  top:0;
+  z-index:40;
+  backdrop-filter: blur(6px);
+}
+.header-left{display:flex;flex-direction:column;flex:1}
+.header-title{font-size:18px;font-weight:700;letter-spacing:0.2px}
+#welcomeMessage{font-size:13px;color:var(--muted);margin-top:3px}
+
+/* Header controls */
+.header-controls{display:flex;align-items:center;gap:8px}
+.icon-btn{
+  background:var(--card-bg);
+  border:1px solid var(--surface-border);
+  padding:8px 10px;
+  border-radius:10px;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+.icon-btn:hover{ transform:translateY(-2px) }
+#themeToggleBtn{font-weight:600}
+.search-inline{display:none}
+
+/* ========== AUTH CARD ========== */
 #loginDiv{flex:1;display:flex;align-items:flex-start;justify-content:center;padding-top:60px}
-.form-container{background:#171a21;padding:20px;border-radius:12px;width:320px;display:flex;flex-direction:column;gap:12px;box-shadow:0 4px 15px rgba(0,0,0,.3)}
-.form-container input[type="text"],.form-container input[type="password"]{padding:10px;border-radius:8px;border:none;background:#11151c;color:#f5f7fb}
-.form-container button{padding:10px;border:none;border-radius:8px;background:#22c55e;color:#fff;font-weight:bold;cursor:pointer}
+.form-container{
+  background:var(--card-bg);
+  padding:20px;
+  border-radius:12px;
+  width:360px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  box-shadow:0 6px 26px rgba(2,6,23,0.6);
+  transform:translateY(0);
+  transition:transform .18s ease, box-shadow .18s ease;
+  border:1px solid var(--surface-border);
+}
+.form-container:hover{
+  transform:translateY(-4px);
+  box-shadow:0 10px 40px rgba(2,6,23,0.65);
+}
+.form-container input[type="text"], .form-container input[type="password"]{
+  padding:12px;border-radius:8px;border:1px solid var(--surface-border);background:var(--input-bg);color:var(--text);
+  font-size:14px;
+}
+.form-container label{font-size:13px;color:var(--muted)}
+.form-container button{padding:11px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;
+  box-shadow:0 6px 18px rgba(34,197,94,0.12);
+  transition:transform .12s ease, filter .12s ease;
+}
+.form-container button:hover{transform:translateY(-2px);filter:brightness(.98)}
 
-/* App layout */
+/* ========== APP LAYOUT ========== */
 #dashboardDiv{display:none;flex:1;min-height:0}
-.app{display:flex;height:calc(100vh - 66px);}
+.app{display:flex;height:calc(100vh - 66px);position:relative}
 
 /* Sidebar */
-#sidebar{width:220px;background:#171a21;color:#fff;display:flex;flex-direction:column;justify-content:space-between;box-shadow:2px 0 5px rgba(0,0,0,.2)}
+#sidebar{
+  width:220px;
+  background:var(--card-bg);
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  box-shadow:2px 0 12px rgba(2,6,23,0.6);
+  border-right:1px solid var(--surface-border);
+  transition:width .22s ease,left .22s ease,background .25s ease, transform .25s ease;
+  z-index:30;
+}
 #sidebarTop{display:flex;justify-content:flex-end;padding:10px}
-
-/* 🔸 BOTÓN TOGGLE GRANDE/NOTORIO */
 #toggleSidebarBtn{
-  background:#22c55e;
-  color:#fff;
-  border:none;
-  border-radius:8px;
-  padding:12px 16px;          /* más grande */
-  cursor:pointer;
-  font-weight:bold;
-  font-size:18px;             /* más notorio */
-  transition:all .2s ease;
+  background:var(--accent);
+  color:#fff;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700;font-size:16px;
+  transition:all .18s ease;box-shadow:0 6px 18px rgba(34,197,94,0.12)
 }
-#toggleSidebarBtn:hover{
-  background:#16a34a;
-  transform:scale(1.1);
-}
+#toggleSidebarBtn:hover{ background:var(--accent-600); transform:scale(1.04) }
 
-#sidebarMenu{margin-top:8px}
+#sidebarMenu{margin-top:8px;position:relative;padding:8px}
 #sidebarMenu ul{list-style:none;margin:0;padding:0}
-#sidebarMenu li{padding:14px 18px;cursor:pointer;border-left:4px solid transparent;display:flex;align-items:center;gap:8px}
-#sidebarMenu li:hover{background:#1f222a}
-#sidebarMenu li.active{border-left-color:#22c55e;background:#1f222a}
-#logoutBtn{margin:12px;border-radius:8px;background:#f43f5e;border:none;color:#fff;padding:10px;font-weight:700;cursor:pointer}
+#sidebarMenu li{
+  padding:12px 14px;cursor:pointer;border-left:4px solid transparent;display:flex;align-items:center;gap:10px;border-radius:8px;margin:6px 4px;
+  transition:background .15s ease,color .15s ease, transform .12s ease;
+  position:relative;
+}
+#sidebarMenu li:hover{ background: rgba(34,197,94,0.04); transform:translateX(4px) }
+#sidebarMenu li.active{ border-left-color:var(--accent); background: rgba(34,197,94,0.06)}
 
-/* Collapsed */
-#sidebar.collapsed{width:60px}
+/* menu text hide when collapsed */
+#sidebar.collapsed{width:64px}
 #sidebar.collapsed .menu-text{display:none}
 #sidebar.collapsed #sidebarTop{justify-content:center}
 #sidebar.collapsed #logoutBtn{display:flex;justify-content:center}
 #sidebar.collapsed #logoutBtn span{display:none}
 
+/* tooltip when collapsed */
+#sidebar.collapsed #sidebarMenu li:hover::after{
+  content: attr(data-section);
+  position:fixed;
+  left:78px;
+  background:var(--card-bg);
+  color:var(--text);
+  padding:6px 10px;
+  border-radius:6px;
+  border:1px solid var(--surface-border);
+  box-shadow:0 6px 20px var(--shadow);
+  white-space:nowrap;
+  z-index:60;
+  font-size:13px;
+}
+
+/* Logout */
+#logoutBtn{margin:12px;border-radius:8px;background:#f43f5e;border:none;color:#fff;padding:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
 /* Main content */
-#mainContent{flex:1;padding:20px;overflow:auto}
+#mainContent{flex:1;padding:22px;overflow:auto;}
 
 /* Cards / forms / lists */
-.card{background:#171a21;border:1px solid #2a2f3a;border-radius:12px;padding:16px}
+.card{background:var(--card-bg);border:1px solid var(--surface-border);border-radius:12px;padding:16px;box-shadow:0 6px 22px var(--shadow)}
 .section{margin-bottom:18px}
-label.field{font-size:12px;color:#9aa3b2;margin-top:6px;display:block}
+label.field{font-size:12px;color:var(--muted);margin-top:6px;display:block;line-height:1.6}
 input,select,button{border:none}
-input,select{padding:10px;border-radius:8px;background:#11151c;color:#f5f7fb;width:100%}
-button.primary{background:#22c55e;color:#fff;border-radius:8px;padding:10px;font-weight:700;cursor:pointer}
-button.secondary{background:#9ca3af;color:#0f1115;border-radius:8px;padding:10px;font-weight:700;cursor:pointer}
+input,select{padding:10px;border-radius:8px;background:var(--input-bg);color:var(--text);width:100%;border:1px solid var(--surface-border);font-size:14px}
+button.primary{background:var(--accent);color:#fff;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;border:1px solid rgba(34,197,94,0.12)}
+button.secondary{background:var(--muted);color:var(--bg-900);border-radius:8px;padding:10px;font-weight:700;cursor:pointer}
 .actions-row{display:flex;gap:8px;margin-top:8px}
-#imgPreview{margin-top:10px;border-radius:8px;width:150px;height:100px;object-fit:cover;border:1px solid #333}
+#imgPreview{margin-top:10px;border-radius:8px;width:150px;height:100px;object-fit:cover;border:1px solid var(--surface-border)}
 
+/* items list */
 ul.items{list-style:none;margin:0;padding:0}
-ul.items li{display:flex;align-items:center;gap:10px;background:#171a21;border:1px solid #2a2f3a;border-radius:8px;padding:10px;margin-bottom:8px}
+ul.items li{
+  display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1px solid var(--surface-border);
+  border-radius:8px;padding:10px;margin-bottom:8px;transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+ul.items li:hover{ transform:translateY(-3px); box-shadow:0 10px 30px var(--shadow); background: linear-gradient(90deg, rgba(34,197,94,0.02), transparent) }
 ul.items li img{width:50px;height:50px;border-radius:6px;object-fit:cover}
-.btn-edit{background:#3b82f6;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer}
-.btn-delete{background:#f43f5e;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer}
+.btn-edit{background:#3b82f6;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer;border:none}
+.btn-delete{background:#f43f5e;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer;border:none}
 
-/* Dynamic category sections */
-.category-section{margin-top:16px}
-.category-section h3{margin:8px 0}
+/* inactive state */
+ul.items li.inactive{opacity:.55;filter:grayscale(1)}
+.badge-inactive{background:#ef4444;color:#fff;border-radius:6px;padding:2px 6px;font-size:11px;margin-left:6px}
 
-/* 🔸 BUSCADOR NOTORIO */
+/* Toggle-wrap alignment */
+.toggle-wrap{margin-left:auto;display:flex;align-items:center;gap:6px}
+
+/* Search */
 .search-wrapper{width:100%;max-width:920px;margin:14px 0;}
 #search{
   width:100%;
-  background:#1e293b;         /* contraste */
-  color:#f5f7fb;
-  border:2px solid #22c55e;   /* borde verde */
+  background:var(--search-bg);
+  color:var(--text);
+  border:2px solid var(--accent);
   border-radius:8px;
-  padding:12px 16px;          /* más alto */
+  padding:12px 16px;
   font-size:15px;
-  transition:all .2s ease;
+  transition:all .18s ease;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%23ffffff" height="16" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M15.7 14.3l-3.4-3.4A6.5 6.5 0 1 0 1 6.5a6.5 6.5 0 0 0 10.4 5l3.4 3.4a1 1 0 0 0 1.4-1.4zM3 6.5A3.5 3.5 0 1 1 6.5 10 3.5 3.5 0 0 1 3 6.5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: 12px center;
+  padding-left: 40px;
 }
 #search::placeholder{color:#94a3b8;font-weight:500}
-#search:focus{outline:none;border-color:#16a34a;background:#0f172a}
+#search:focus{outline:none;border-color:var(--accent-600);background:var(--input-bg);box-shadow:0 6px 20px rgba(16,185,129,0.08)}
 
-/* Descuentos (vista como página) */
+/* Discounts grid */
 .discount-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.discount-item{display:flex;align-items:center;justify-content:space-between;background:#11151c;border:1px solid #2a2f3a;border-radius:8px;padding:10px}
-.discount-item label{color:#f5f7fb}
+.discount-item{display:flex;align-items:center;justify-content:space-between;background:var(--input-bg);border:1px solid var(--surface-border);border-radius:8px;padding:10px}
+.discount-item label{color:var(--text)}
 .discount-actions{display:flex;gap:8px;margin-top:12px}
 @media (max-width:800px){.discount-grid{grid-template-columns:1fr}}
 
-/* ✅ NUEVO: estilos para inactivos/toggle en listado */
-ul.items li.inactive{opacity:.55;filter:grayscale(1)}
-.badge-inactive{background:#ef4444;color:#fff;border-radius:6px;padding:2px 6px;font-size:11px;margin-left:6px}
-.toggle-wrap{margin-left:auto;display:flex;align-items:center;gap:6px}
+/* responsive */
+@media (max-width:900px){
+  #sidebar{position:fixed;left:-260px;top:66px;height:calc(100vh - 66px);transform:translateX(0);transition:left .25s ease, box-shadow .25s ease}
+  #sidebar.open{left:0}
+  .app{padding-left:0}
+  .search-inline{display:block}
+  .search-inline .search-wrapper{max-width:360px}
+  #mainContent{padding:16px}
+}
+
+/* small screens */
+@media (max-width:520px){
+  .form-container{width:92%}
+  #toggleSidebarBtn{padding:8px 10px}
+  header{padding:10px}
+}
+
+/* global transitions */
+button,input,select,textarea,a{transition:all .15s ease}
 </style>
 </head>
-<body>
+<body class="light"> <!-- modo claro por defecto -->
 <header>
-  <div class="header-title">Admin — Productos y Descuentos</div>
-  <div id="welcomeMessage"></div>
+  <div class="header-left">
+    <div class="header-title">Admin — Productos y Descuentos</div>
+    <div id="welcomeMessage"></div>
+  </div>
+
+  <div class="header-controls">
+    <div class="search-inline">
+      <div class="search-wrapper"><input id="searchInline" placeholder="Buscar..." autocomplete="off"/></div>
+    </div>
+
+    <button id="themeToggleBtn" class="icon-btn" title="Alternar modo" aria-label="Alternar modo">
+      <span id="themeIcon">☀️</span>
+      <span style="font-weight:600">Tema</span>
+    </button>
+
+    <button id="mobileSearchBtn" class="icon-btn" title="Buscar (móvil)" style="display:none">
+      🔎
+    </button>
+  </div>
 </header>
 
 <!-- LOGIN -->
@@ -120,7 +285,7 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
   <form id="loginForm" class="form-container">
     <input type="text" id="username" placeholder="Usuario" required />
     <input type="password" id="password" placeholder="Contraseña" required />
-    <label style="gap:8px"><input type="checkbox" id="rememberMe"> Recordar sesión</label>
+    <label style="gap:8px;font-size:14px"><input type="checkbox" id="rememberMe"> Recordar sesión</label>
     <button type="submit">Ingresar</button>
   </form>
 </div>
@@ -128,7 +293,7 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 <!-- APP -->
 <div id="dashboardDiv">
   <div class="app">
-    <aside id="sidebar">
+    <aside id="sidebar" aria-hidden="false">
       <div>
         <div id="sidebarTop">
           <button id="toggleSidebarBtn">☰</button>
@@ -150,6 +315,7 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 </div>
 
 <script type="module">
+/* ================== MANTENGO TUS IMPORTS ORIGINALES ================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
   getFirestore, collection, doc, getDocs, getDoc, query, where, 
@@ -171,7 +337,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-/* ---------- Estado ---------- */
+/* ================== ESTADO ================== */
 let currentUserLocal = null;
 let currentCategories = [];
 let unsubscribeProducts = null;
@@ -180,28 +346,17 @@ const slug = s => (s||'').toString().trim().toLowerCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 
-/* ---------- Persistencia de toggle por categoría (por LOCAL) ---------- */
-function _togglesKey() {
-  return `catToggles:${slug(currentUserLocal || '')}`;
-}
-function _readToggles() {
-  try { return JSON.parse(localStorage.getItem(_togglesKey())) || {}; }
-  catch { return {}; }
-}
-function _writeToggles(map) {
-  localStorage.setItem(_togglesKey(), JSON.stringify(map || {}));
-}
-function getCatToggle(cat) {
-  const map = _readToggles();
-  return (cat in map) ? !!map[cat] : true; // por defecto activado
-}
-function setCatToggle(cat, value) {
-  const map = _readToggles();
-  map[cat] = !!value;
-  _writeToggles(map);
-}
+/* ================== Persistencia UI (theme & sidebar) ================== */
+const THEME_KEY = 'adminThemePref';
+const SIDEBAR_KEY = 'adminSidebarPref';
 
-/* ---------- DOM ---------- */
+function readTheme(){ return localStorage.getItem(THEME_KEY) || 'light'; }
+function writeTheme(v){ localStorage.setItem(THEME_KEY, v); }
+
+function readSidebar(){ return localStorage.getItem(SIDEBAR_KEY) === 'collapsed'; }
+function writeSidebar(collapsed){ localStorage.setItem(SIDEBAR_KEY, collapsed ? 'collapsed' : 'expanded'); }
+
+/* ================== DOM ELEMENTS ================== */
 const loginDiv = document.getElementById('loginDiv');
 const dashboardDiv = document.getElementById('dashboardDiv');
 const welcomeMessage = document.getElementById('welcomeMessage');
@@ -210,8 +365,66 @@ const sidebarMenu = document.getElementById('sidebarMenu');
 const mainContent = document.getElementById('mainContent');
 const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
 const logoutBtn = document.getElementById('logoutBtn');
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+const themeIcon = document.getElementById('themeIcon');
+const mobileSearchBtn = document.getElementById('mobileSearchBtn');
+const searchInline = document.getElementById('searchInline');
 
-/* ---------- Auth (Users) ---------- */
+/* ========== Theme init ========== */
+function applyTheme(theme){
+  if(theme === 'light'){
+    document.body.classList.add('light');
+    document.body.classList.remove('dark');
+    themeIcon.textContent = '☀️';
+  } else {
+    document.body.classList.remove('light');
+    document.body.classList.add('dark');
+    themeIcon.textContent = '🌙';
+  }
+  writeTheme(theme);
+}
+applyTheme(readTheme());
+
+themeToggleBtn.addEventListener('click', ()=>{
+  const next = document.body.classList.contains('light') ? 'dark' : 'light';
+  applyTheme(next);
+});
+
+/* ========== Sidebar init & behavior ========== */
+function applySidebarState(collapsed){
+  if(collapsed){
+    sidebar.classList.add('collapsed');
+    sidebar.setAttribute('aria-hidden','true');
+  }else{
+    sidebar.classList.remove('collapsed');
+    sidebar.setAttribute('aria-hidden','false');
+  }
+  writeSidebar(collapsed);
+}
+// apply stored sidebar preference
+applySidebarState(readSidebar());
+
+toggleSidebarBtn.addEventListener('click', ()=>{
+  // on small screens toggle overlay open
+  if(window.matchMedia("(max-width:900px)").matches){
+    sidebar.classList.toggle('open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+    writeSidebar(sidebar.classList.contains('collapsed'));
+  }
+});
+
+// close mobile sidebar by clicking outside
+document.addEventListener('click', (e)=>{
+  if(window.matchMedia("(max-width:900px)").matches){
+    if(!sidebar.classList.contains('open')) return;
+    if(!sidebar.contains(e.target) && !toggleSidebarBtn.contains(e.target)){
+      sidebar.classList.remove('open');
+    }
+  }
+});
+
+/* ========== ORIGINAL AUTH (Users) CODE (sin tocar la lógica) ========== */
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const username = document.getElementById("username").value.trim();
@@ -247,8 +460,7 @@ logoutBtn.addEventListener('click', ()=>{
   hideDashboard();
 });
 
-/* ---------- Layout ---------- */
-toggleSidebarBtn.addEventListener('click', ()=> sidebar.classList.toggle('collapsed'));
+/* ========== Layout: sidebar menu navigation ========== */
 sidebarMenu.addEventListener('click', (e)=>{
   const li = e.target.closest('li[data-section]'); if(!li) return;
   sidebarMenu.querySelectorAll('li').forEach(el=>el.classList.remove('active'));
@@ -258,7 +470,7 @@ sidebarMenu.addEventListener('click', (e)=>{
   if(section==='descuentos') renderDescuentosPage();
 });
 
-/* ---------- Dashboard ---------- */
+/* ========== Dashboard show/hide ========== */
 async function showDashboard(username, local){
   loginDiv.style.display='none';
   dashboardDiv.style.display='block';
@@ -266,7 +478,8 @@ async function showDashboard(username, local){
   currentUserLocal = local;
 
   await initCategoriesFromLocal();
-  renderProductosPage(); // default
+  // default: productos view (keeps old behaviour)
+  renderProductosPage();
 }
 function hideDashboard(){
   dashboardDiv.style.display='none';
@@ -276,7 +489,7 @@ function hideDashboard(){
   if(unsubscribeProducts){unsubscribeProducts(); unsubscribeProducts=null;}
 }
 
-/* ---------- Categorías dinámicas ---------- */
+/* ========== Categorías dinámicas (sin tocar mayormente) ========== */
 async function initCategoriesFromLocal(){
   const key = slug(currentUserLocal);
   const ref = doc(db, 'locals', key);
@@ -293,7 +506,7 @@ async function initCategoriesFromLocal(){
     const next = cats.length ? cats : DEFAULT_CATS;
     if(JSON.stringify(next)!==JSON.stringify(currentCategories)){
       currentCategories = next;
-    const active = sidebarMenu.querySelector('li.active')?.getAttribute('data-section');
+      const active = sidebarMenu.querySelector('li.active')?.getAttribute('data-section');
       if(active==='productos') renderProductosPage();
       if(active==='descuentos') renderDescuentosPage();
     }
@@ -365,7 +578,7 @@ function renderProductosPage(){
   const catSelect = document.getElementById('category');
   const searchInput = document.getElementById('search');
   const productLists = document.getElementById('productLists');
-  const isActiveInput = document.getElementById('isActive'); /* ✅ */
+  const isActiveInput = document.getElementById('isActive');
 
   // Select categorías
   catSelect.innerHTML = `<option value="">Seleccionar categoría</option>`;
@@ -382,7 +595,7 @@ function renderProductosPage(){
   sec.className='category-section';
   sec.dataset.cat = cat;
 
-  // 🔹 encabezado con checkbox de activar/inactivar categoría
+  // encabezado con checkbox de activar/inactivar categoría
   const header = document.createElement('div');
   header.style.display = 'flex';
   header.style.alignItems = 'center';
@@ -395,10 +608,9 @@ function renderProductosPage(){
 
   const toggleAll = document.createElement('input');
   toggleAll.type = 'checkbox';
-  toggleAll.checked = getCatToggle(cat); /* ✅ persistencia */
+  toggleAll.checked = getCatToggle(cat);
   toggleAll.title = 'Activar/Inactivar todos los productos de esta categoría';
 
-  // 🔸 manejador de evento
   toggleAll.addEventListener('change', async ()=>{
     const activar = toggleAll.checked;
     const confirmMsg = activar
@@ -413,12 +625,12 @@ function renderProductosPage(){
         setDoc(doc(db, 'productos', d.id), { active: activar, updatedAt: new Date() }, { merge: true })
       );
       await Promise.all(updates);
-      setCatToggle(cat, activar); /* ✅ guardamos estado elegido */
+      setCatToggle(cat, activar);
       alert(`Productos de "${capitalize(cat)}" ${activar ? 'activados' : 'inactivados'}.`);
     } catch(err){
       console.error(err);
       alert('Error al actualizar productos: ' + err.message);
-      toggleAll.checked = !activar; /* ✅ revertir visual si falla */
+      toggleAll.checked = !activar;
     }
   });
 
@@ -443,7 +655,7 @@ function renderProductosPage(){
     productForm.reset();
     editIdInput.value='';
     imgPreview.src="https://via.placeholder.com/150x100?text=Sin+imagen";
-    isActiveInput.checked = true; /* ✅ default activo */
+    isActiveInput.checked = true;
     setEditMode(false);
   }
   imgInput.addEventListener('change', e=>{
@@ -461,7 +673,7 @@ function renderProductosPage(){
     const position = parseInt(posInput.value,10);
     const discountPct = parseInt(prodDiscInput.value,10);
     const category = catSelect.value;
-    const active = !!isActiveInput.checked; /* ✅ */
+    const active = !!isActiveInput.checked;
     if(!name||!desc||!price||!category) return alert('Completá los campos obligatorios');
 
     try{
@@ -484,12 +696,12 @@ function renderProductosPage(){
         img: imgUrl,
         position: isNaN(position)?null:position,
         discountPct: isNaN(discountPct)?0:Math.max(0,Math.min(100,discountPct)),
-        active, /* ✅ guardamos estado */
+        active,
         updatedAt: new Date()
       };
 
       if(editId){
-        await setDoc(doc(db,'productos',editId), productData); /* dejamos tu comportamiento */
+        await setDoc(doc(db,'productos',editId), productData);
         alert('Producto actualizado');
       }else{
         await addDoc(collection(db,'productos'), { ...productData, createdAt: new Date() });
@@ -514,7 +726,7 @@ function renderProductosPage(){
 
       const li = document.createElement('li');
       li.dataset.name = (p.name||'').toLowerCase();
-      if(p.active===false){ li.classList.add('inactive'); } /* ✅ atenuar inactivos */
+      if(p.active===false){ li.classList.add('inactive'); }
 
       const img = document.createElement('img');
       img.src = p.img || 'https://via.placeholder.com/150x100?text=Sin+imagen';
@@ -525,7 +737,6 @@ function renderProductosPage(){
       span.innerHTML = `${p.name} — ${p.desc} — $${p.price}${(p.discountPct||0)>0?` — Desc ${p.discountPct}%`:''} ${p.active===false?'<span class="badge-inactive">Inactivo</span>':''}`;
       li.appendChild(span);
 
-      /* ✅ Toggle Activo/Inactivo en el listado */
       const toggleWrap = document.createElement('div');
       toggleWrap.className = 'toggle-wrap';
       const label = document.createElement('label');
@@ -535,7 +746,7 @@ function renderProductosPage(){
       label.style.gap='6px';
       const chk = document.createElement('input');
       chk.type='checkbox';
-      chk.checked = (p.active !== false); /* activo por defecto */
+      chk.checked = (p.active !== false);
       chk.addEventListener('change', async ()=>{
         try{
           await setDoc(doc(db,'productos',d.id), { active: chk.checked, updatedAt: new Date() }, { merge:true });
@@ -560,7 +771,7 @@ function renderProductosPage(){
         catSelect.value = p.category||'';
         editIdInput.value = d.id;
         imgPreview.src = p.img || 'https://via.placeholder.com/150x100?text=Sin+imagen';
-        isActiveInput.checked = (p.active !== false); /* ✅ refleja estado actual */
+        isActiveInput.checked = (p.active !== false);
         setEditMode(true);
         productForm.scrollIntoView({behavior:'smooth'});
       };
@@ -604,7 +815,7 @@ function renderDescuentosPage(){
         <button class="primary" id="saveDiscountsBtn">Guardar descuentos</button>
         <button class="secondary" id="clearDiscountsBtn">Limpiar descuentos</button>
       </div>
-      <p class="muted" style="margin-top:8px;color:#9aa3b2">
+      <p class="muted" style="margin-top:8px;color:var(--muted)">
         Se guardan en <code>settings/discounts_{LOCAL_KEY}</code> donde <code>LOCAL_KEY</code> = <em>slug</em> de tu local.
       </p>
     </div>
@@ -618,7 +829,7 @@ function renderDescuentosPage(){
     row.innerHTML=`
       <label>${capitalize(cat)}</label>
       <input type="number" min="0" max="100" step="1" data-cat="${cat}"
-        placeholder="%" style="width:90px;text-align:right;background:#0f1115;color:#f5f7fb;border:1px solid #2a2f3a;border-radius:6px;padding:6px"/>
+        placeholder="%" style="width:90px;text-align:right;background:var(--input-bg);color:var(--text);border:1px solid var(--surface-border);border-radius:6px;padding:6px"/>
     `;
     grid.appendChild(row);
   });
@@ -658,6 +869,57 @@ function renderDescuentosPage(){
   function clamp(n){ n=isNaN(n)?0:n; return n<0?0:n>100?100:n; }
   function capitalize(s){return (s||'').charAt(0).toUpperCase()+(s||'').slice(1);}
 }
+
+/* ========================== Utilities: toggles por categoría (localStorage) ========================== */
+function _togglesKey() {
+  return `catToggles:${slug(currentUserLocal || '')}`;
+}
+function _readToggles() {
+  try { return JSON.parse(localStorage.getItem(_togglesKey())) || {}; }
+  catch { return {}; }
+}
+function _writeToggles(map) {
+  localStorage.setItem(_togglesKey(), JSON.stringify(map || {}));
+}
+function getCatToggle(cat) {
+  const map = _readToggles();
+  return (cat in map) ? !!map[cat] : true;
+}
+function setCatToggle(cat, value) {
+  const map = _readToggles();
+  map[cat] = !!value;
+  _writeToggles(map);
+}
+
+/* ========== Small UI helpers: search sync (header <-> page) ========== */
+document.addEventListener('input', (e)=>{
+  if(e.target === searchInline){
+    const el = document.querySelector('#search');
+    if(el) el.value = searchInline.value;
+    const ev = new Event('input', { bubbles:true });
+    if(el) el.dispatchEvent(ev);
+  }
+});
+
+/* mobile search button toggles search focus */
+mobileSearchBtn.addEventListener('click', ()=>{
+  const el = document.querySelector('#search') || searchInline;
+  if(el){ el.focus(); }
+});
+
+/* ensure mobileSearchBtn only shows on small screens */
+function updateMobileControls(){
+  if(window.matchMedia("(max-width:900px)").matches){
+    mobileSearchBtn.style.display='inline-flex';
+    document.querySelector('.search-inline').style.display='block';
+  } else {
+    mobileSearchBtn.style.display='none';
+    document.querySelector('.search-inline').style.display='none';
+  }
+}
+window.addEventListener('resize', updateMobileControls);
+updateMobileControls();
+
 </script>
 </body>
 </html>
