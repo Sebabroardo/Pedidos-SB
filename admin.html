@@ -1,323 +1,297 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Admin — Productos del Local</title>
-
-<!-- Fuente moderna -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Administración - Santa’s</title>
 
 <style>
-/* ========== VARIABLES ========== */
-:root{
-  --accent: #22c55e; /* verde original */
-  --accent-600: #16a34a;
-  --bg-900: #0f1115;
-  --bg-800: #11151c;
-  --card-bg: #171a21;
-  --muted: #9aa3b2;
-  --text: #f5f7fb;
-  --surface-border: #2a2f3a;
-  --input-bg: #0f172a;
-  --search-bg: #1e293b;
-  --shadow: rgba(2,6,23,0.6);
-}
+  :root {
+    --verde: #16a34a;
+    --gris-claro: #f3f4f6;
+    --gris-oscuro: #1f2937;
+    --texto: #111827;
+  }
 
-/* Light mode overrides (applied to body.light) */
-body.light{
-  --bg-900: #f6f7fb;
-  --bg-800: #eef2ff;
-  --card-bg: #ffffff;
-  --muted: #475569;
-  --text: #0f172a;
-  --surface-border: #e6eef6;
-  --input-bg: #ffffff;
-  --search-bg: #ffffff;
-  --shadow: rgba(12,18,30,0.06);
-}
+  * {
+    box-sizing: border-box;
+  }
 
-/* ========== BASE LAYOUT ========== */
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  font-family:'Poppins', Arial, sans-serif;
-  background: linear-gradient(180deg,var(--bg-900) 0%, var(--bg-800) 100%);
-  color:var(--text);
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
-  transition: background .25s ease, color .25s ease;
-}
+  body {
+    margin: 0;
+    font-family: "Poppins", sans-serif;
+    background-color: var(--gris-claro);
+    color: var(--texto);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 
-/* Header (will be placed inside dashboardDiv so it's hidden before login) */
-.header-container header{
-  width:100%;
-  padding:12px 18px;
-  background:transparent;
-  border-bottom:1px solid rgba(255,255,255,0.02);
-  display:flex;
-  align-items:center;
-  gap:12px;
-  position:sticky;
-  top:0;
-  z-index:40;
-  backdrop-filter: blur(6px);
-}
-.header-left{display:flex;flex-direction:column;flex:1}
-.header-title{font-size:18px;font-weight:700;letter-spacing:0.2px}
-#welcomeMessage{font-size:13px;color:var(--muted);margin-top:3px}
+  header {
+    background: var(--verde);
+    color: #fff;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 20;
+  }
 
-/* Header controls */
-.header-controls{display:flex;align-items:center;gap:8px}
-.icon-btn{
-  background:var(--card-bg);
-  border:1px solid var(--surface-border);
-  padding:8px 10px;
-  border-radius:10px;
-  cursor:pointer;
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
-  box-shadow: 0 4px 12px var(--shadow);
-}
-.icon-btn:hover{ transform:translateY(-2px) }
-#themeToggleBtn{font-weight:600}
-.search-inline{display:none}
+  header h1 {
+    font-size: 1.3rem;
+    margin: 0;
+  }
 
-/* ========== AUTH CARD ========== */
-#loginDiv{flex:1;display:flex;align-items:flex-start;justify-content:center;padding-top:60px}
-.form-container{
-  background:var(--card-bg);
-  padding:20px;
-  border-radius:12px;
-  width:360px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  box-shadow:0 6px 26px rgba(2,6,23,0.6);
-  transform:translateY(0);
-  transition:transform .18s ease, box-shadow .18s ease, opacity .25s ease;
-  border:1px solid var(--surface-border);
-}
-.form-container:hover{
-  transform:translateY(-4px);
-  box-shadow:0 10px 40px rgba(2,6,23,0.65);
-}
-.form-container input[type="text"], .form-container input[type="password"]{
-  padding:12px;border-radius:8px;border:1px solid var(--surface-border);background:var(--input-bg);color:var(--text);
-  font-size:14px;
-}
-.form-container label{font-size:13px;color:var(--muted)}
-.form-container button{padding:11px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;
-  box-shadow:0 6px 18px rgba(34,197,94,0.12);
-  transition:transform .12s ease, filter .12s ease;
-}
-.form-container button:hover{transform:translateY(-2px);filter:brightness(.98)}
+  #menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.8rem;
+    cursor: pointer;
+  }
 
-/* ========== APP LAYOUT ========== */
-#dashboardDiv{display:none;flex:1;min-height:0;opacity:0;transition:opacity .35s ease}
-#dashboardDiv.visible{display:block;opacity:1} /* fade in class */
-.app{display:flex;height:calc(100vh - 66px);position:relative}
+  #sidebar {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    width: 220px;
+    height: calc(100vh - 60px);
+    background-color: var(--gris-oscuro);
+    color: #fff;
+    padding: 15px;
+    overflow-y: auto;
+    transition: left 0.3s ease;
+    z-index: 10;
+  }
 
-/* Sidebar */
-#sidebar{
-  width:220px;
-  background:var(--card-bg);
-  color:var(--text);
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  box-shadow:2px 0 12px rgba(2,6,23,0.6);
-  border-right:1px solid var(--surface-border);
-  transition:width .22s ease,left .22s ease,background .25s ease, transform .25s ease;
-  z-index:30;
-}
-#sidebarTop{display:flex;justify-content:flex-end;padding:10px}
-#toggleSidebarBtn{
-  background:var(--accent);
-  color:#fff;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:700;font-size:16px;
-  transition:all .18s ease;box-shadow:0 6px 18px rgba(34,197,94,0.12)
-}
-#toggleSidebarBtn:hover{ background:var(--accent-600); transform:scale(1.04) }
+  #sidebar.hidden {
+    left: -220px;
+  }
 
-#sidebarMenu{margin-top:8px;position:relative;padding:8px}
-#sidebarMenu ul{list-style:none;margin:0;padding:0}
-#sidebarMenu li{
-  padding:12px 14px;cursor:pointer;border-left:4px solid transparent;display:flex;align-items:center;gap:10px;border-radius:8px;margin:6px 4px;
-  transition:background .15s ease,color .15s ease, transform .12s ease;
-  position:relative;
-}
-#sidebarMenu li:hover{ background: rgba(34,197,94,0.04); transform:translateX(4px) }
-#sidebarMenu li.active{ border-left-color:var(--accent); background: rgba(34,197,94,0.06)}
+  #sidebar h2 {
+    font-size: 1rem;
+    margin-top: 0;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+  }
 
-/* menu text hide when collapsed */
-#sidebar.collapsed{width:64px}
-#sidebar.collapsed .menu-text{display:none}
-#sidebar.collapsed #sidebarTop{justify-content:center}
-#sidebar.collapsed #logoutBtn{display:flex;justify-content:center}
-#sidebar.collapsed #logoutBtn span{display:none}
+  main {
+    margin-left: 220px;
+    padding: 80px 20px 20px;
+    min-height: 100vh;
+    transition: margin-left 0.3s ease;
+  }
 
-/* tooltip when collapsed */
-#sidebar.collapsed #sidebarMenu li:hover::after{
-  content: attr(data-section);
-  position:fixed;
-  left:78px;
-  background:var(--card-bg);
-  color:var(--text);
-  padding:6px 10px;
-  border-radius:6px;
-  border:1px solid var(--surface-border);
-  box-shadow:0 6px 20px var(--shadow);
-  white-space:nowrap;
-  z-index:60;
-  font-size:13px;
-}
+  /* LOGIN */
+  #login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: var(--gris-claro);
+  }
 
-/* Logout */
-#logoutBtn{margin:12px;border-radius:8px;background:#f43f5e;border:none;color:#fff;padding:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  #login-box {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    width: 90%;
+    max-width: 350px;
+    text-align: center;
+    animation: fadeIn 0.5s ease;
+  }
 
-/* Main content */
-#mainContent{flex:1;padding:22px;overflow:auto;}
+  #login-box h2 {
+    margin-bottom: 20px;
+    color: var(--verde);
+  }
 
-/* Cards / forms / lists */
-.card{background:var(--card-bg);border:1px solid var(--surface-border);border-radius:12px;padding:16px;box-shadow:0 6px 22px var(--shadow)}
-.section{margin-bottom:18px}
-label.field{font-size:12px;color:var(--muted);margin-top:6px;display:block;line-height:1.6}
-input,select,button{border:none}
-input,select{padding:10px;border-radius:8px;background:var(--input-bg);color:var(--text);width:100%;border:1px solid var(--surface-border);font-size:14px}
-button.primary{background:var(--accent);color:#fff;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;border:1px solid rgba(34,197,94,0.12)}
-button.secondary{background:var(--muted);color:var(--bg-900);border-radius:8px;padding:10px;font-weight:700;cursor:pointer}
-.actions-row{display:flex;gap:8px;margin-top:8px}
-#imgPreview{margin-top:10px;border-radius:8px;width:150px;height:100px;object-fit:cover;border:1px solid var(--surface-border)}
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+  }
 
-/* items list */
-ul.items{list-style:none;margin:0;padding:0}
-ul.items li{
-  display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1px solid var(--surface-border);
-  border-radius:8px;padding:10px;margin-bottom:8px;transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
-}
-ul.items li:hover{ transform:translateY(-3px); box-shadow:0 10px 30px var(--shadow); background: linear-gradient(90deg, rgba(34,197,94,0.02), transparent) }
-ul.items li img{width:50px;height:50px;border-radius:6px;object-fit:cover}
-.btn-edit{background:#3b82f6;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer;border:none}
-.btn-delete{background:#f43f5e;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer;border:none}
+  button {
+    background-color: var(--verde);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
 
-/* inactive state */
-ul.items li.inactive{opacity:.55;filter:grayscale(1)}
-.badge-inactive{background:#ef4444;color:#fff;border-radius:6px;padding:2px 6px;font-size:11px;margin-left:6px}
+  button:hover {
+    background-color: #15803d;
+  }
 
-/* Toggle-wrap alignment */
-.toggle-wrap{margin-left:auto;display:flex;align-items:center;gap:6px}
+  /* LISTA DE PRODUCTOS */
+  #productos-lista {
+    list-style: none;
+    padding: 0;
+  }
 
-/* Search */
-.search-wrapper{width:100%;max-width:920px;margin:14px 0;}
-#search{
-  width:100%;
-  background:var(--search-bg);
-  color:var(--text);
-  border:2px solid var(--accent);
-  border-radius:8px;
-  padding:12px 16px;
-  font-size:15px;
-  transition:all .18s ease;
-  background-image: url('data:image/svg+xml;utf8,<svg fill="%23ffffff" height="16" width="16" xmlns="http://www.w3.org/2000/svg"><path d="M15.7 14.3l-3.4-3.4A6.5 6.5 0 1 0 1 6.5a6.5 6.5 0 0 0 10.4 5l3.4 3.4a1 1 0 0 0 1.4-1.4zM3 6.5A3.5 3.5 0 1 1 6.5 10 3.5 3.5 0 0 1 3 6.5z"/></svg>');
-  background-repeat: no-repeat;
-  background-position: 12px center;
-  padding-left: 40px;
-}
-#search::placeholder{color:#94a3b8;font-weight:500}
-#search:focus{outline:none;border-color:var(--accent-600);background:var(--input-bg);box-shadow:0 6px 20px rgba(16,185,129,0.08)}
+  #productos-lista li {
+    background: white;
+    margin: 10px 0;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s ease;
+  }
 
-/* Discounts grid */
-.discount-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.discount-item{display:flex;align-items:center;justify-content:space-between;background:var(--input-bg);border:1px solid var(--surface-border);border-radius:8px;padding:10px}
-.discount-item label{color:var(--text)}
-.discount-actions{display:flex;gap:8px;margin-top:12px}
-@media (max-width:800px){.discount-grid{grid-template-columns:1fr}}
+  #productos-lista li:hover {
+    transform: translateY(-2px);
+  }
 
-/* responsive */
-@media (max-width:900px){
-  #sidebar{position:fixed;left:-260px;top:66px;height:calc(100vh - 66px);transform:translateX(0);transition:left .25s ease, box-shadow .25s ease}
-  #sidebar.open{left:0}
-  .app{padding-left:0}
-  .search-inline{display:block}
-  .search-inline .search-wrapper{max-width:360px}
-  #mainContent{padding:16px}
-}
+  #productos-lista button {
+    margin: 5px 5px 0 0;
+    flex-shrink: 0;
+  }
 
-/* small screens */
-@media (max-width:520px){
-  .form-container{width:92%}
-  #toggleSidebarBtn{padding:8px 10px}
-  .header-left .header-title{font-size:16px}
-}
+  #productos-lista .acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 
-/* global transitions */
-button,input,select,textarea,a{transition:all .15s ease}
+  /* Responsive */
+  @media (max-width: 768px) {
+    #menu-toggle {
+      display: block;
+    }
+
+    #sidebar {
+      left: -220px;
+      top: 60px;
+      height: calc(100vh - 60px);
+      box-shadow: 4px 0 12px rgba(0,0,0,0.2);
+      background: #1e293b;
+    }
+
+    #sidebar.open {
+      left: 0;
+    }
+
+    #sidebar.open::after {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 220px;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: -1;
+    }
+
+    main {
+      margin-left: 0;
+      padding: 80px 10px;
+    }
+
+    #productos-lista li {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    #productos-lista .acciones {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 </style>
 </head>
-<body class="light"> <!-- modo claro por defecto -->
+
+<body>
 
 <!-- LOGIN -->
-<div id="loginDiv">
-  <form id="loginForm" class="form-container" aria-label="Formulario de login">
-    <input type="text" id="username" placeholder="Usuario" required />
-    <input type="password" id="password" placeholder="Contraseña" required />
-    <label style="gap:8px;font-size:14px"><input type="checkbox" id="rememberMe"> Recordar sesión</label>
-    <button type="submit">Ingresar</button>
-  </form>
-</div>
-
-<!-- APP (oculto hasta login) -->
-<div id="dashboardDiv" aria-hidden="true">
-  <!-- Header colocado dentro del dashboard para que no sea visible antes del login -->
-  <div class="header-container">
-    <header>
-      <div class="header-left">
-        <div class="header-title">Admin — Productos y Descuentos</div>
-        <div id="welcomeMessage"></div>
-      </div>
-
-      <div class="header-controls">
-        <div class="search-inline">
-          <div class="search-wrapper"><input id="searchInline" placeholder="Buscar..." autocomplete="off"/></div>
-        </div>
-
-        <button id="themeToggleBtn" class="icon-btn" title="Alternar modo" aria-label="Alternar modo">
-          <span id="themeIcon">☀️</span>
-          <span style="font-weight:600">Tema</span>
-        </button>
-
-        <button id="mobileSearchBtn" class="icon-btn" title="Buscar (móvil)" style="display:none">
-          🔎
-        </button>
-      </div>
-    </header>
-  </div>
-
-  <div class="app">
-    <aside id="sidebar" aria-hidden="false">
-      <div>
-        <div id="sidebarTop">
-          <button id="toggleSidebarBtn">☰</button>
-        </div>
-        <nav id="sidebarMenu">
-          <ul>
-            <li data-section="productos" class="active">🧀 <span class="menu-text">Productos</span></li>
-            <li data-section="descuentos">💸 <span class="menu-text">Descuentos</span></li>
-          </ul>
-        </nav>
-      </div>
-      <button id="logoutBtn"><span>Cerrar sesión</span></button>
-    </aside>
-
-    <main id="mainContent" tabindex="0">
-      <!-- contenido dinámico -->
-    </main>
+<div id="login-container">
+  <div id="login-box">
+    <h2>Acceso Administrativo</h2>
+    <input type="text" id="usuario" placeholder="Usuario">
+    <input type="password" id="password" placeholder="Contraseña">
+    <button id="login-btn">Ingresar</button>
   </div>
 </div>
+
+<!-- PANEL -->
+<header id="panel-header" style="display:none;">
+  <button id="menu-toggle">☰</button>
+  <h1>Panel de Administración</h1>
+  <button id="logout-btn">Cerrar sesión</button>
+</header>
+
+<aside id="sidebar" class="hidden">
+  <h2>Menú</h2>
+  <!-- (Aquí mantenés tu contenido original del sidebar) -->
+</aside>
+
+<main id="panel-main" style="display:none;">
+  <section id="productos">
+    <h2>Productos</h2>
+    <ul id="productos-lista">
+      <li>
+        <span>Hamburguesa Clásica</span>
+        <div class="acciones">
+          <button>Editar</button>
+          <button>Borrar</button>
+        </div>
+      </li>
+      <li>
+        <span>Santa Deluxe</span>
+        <div class="acciones">
+          <button>Editar</button>
+          <button>Borrar</button>
+        </div>
+      </li>
+    </ul>
+  </section>
+</main>
+
+<script>
+  const loginBtn = document.getElementById('login-btn');
+  const loginContainer = document.getElementById('login-container');
+  const panelHeader = document.getElementById('panel-header');
+  const panelMain = document.getElementById('panel-main');
+  const sidebar = document.getElementById('sidebar');
+  const menuToggle = document.getElementById('menu-toggle');
+  const logoutBtn = document.getElementById('logout-btn');
+
+  loginBtn.addEventListener('click', () => {
+    loginContainer.style.display = 'none';
+    panelHeader.style.display = 'flex';
+    panelMain.style.display = 'block';
+    panelMain.style.animation = 'fadeIn 0.5s ease';
+  });
+
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    sidebar.classList.toggle('hidden');
+  });
+
+  logoutBtn.addEventListener('click', () => {
+    panelHeader.style.display = 'none';
+    panelMain.style.display = 'none';
+    loginContainer.style.display = 'flex';
+  });
+</script>
 
 <script type="module">
 /* ================== MANTENGO TUS IMPORTS ORIGINALES ================== */
