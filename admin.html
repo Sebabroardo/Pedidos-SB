@@ -204,6 +204,20 @@ ul.items li img{width:50px;height:50px;border-radius:6px;object-fit:cover}
 .btn-edit{background:#3b82f6;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer;border:none}
 .btn-delete{background:#f43f5e;color:#fff;border-radius:6px;padding:6px 10px;cursor:pointer;border:none}
 
+/* ✅ FIX 2: buena adaptación de acciones en pantallas chicas (no desfasar) */
+@media (max-width:600px){
+  ul.items li{ flex-wrap:wrap; }
+  ul.items li > img{ flex:0 0 56px; }
+  ul.items li > span{ flex:1 1 calc(100% - 70px); min-width:200px; }
+  ul.items li .toggle-wrap{ flex:1 1 100%; order:3; justify-content:flex-start; }
+  ul.items li .btn-edit,
+  ul.items li .btn-delete{
+    order:4;
+    flex:1 1 calc(50% - 6px);
+    padding:10px;
+  }
+}
+
 /* inactive state */
 ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 .badge-inactive{background:#ef4444;color:#fff;border-radius:6px;padding:2px 6px;font-size:11px;margin-left:6px}
@@ -240,7 +254,7 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 /* responsive */
 @media (max-width:900px){
   #sidebar{position:fixed;left:-260px;top:66px;height:calc(100vh - 66px);transform:translateX(0);transition:left .25s ease, box-shadow .25s ease}
-  #sidebar.open{left:0}
+  #sidebar.open{left:0} /* ya existía la clase open, la usamos con el botón de header */
   .app{padding-left:0}
   .search-inline{display:block}
   .search-inline .search-wrapper{max-width:360px}
@@ -252,10 +266,22 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
   .form-container{width:92%}
   #toggleSidebarBtn{padding:8px 10px}
   .header-left .header-title{font-size:16px}
+  /* ✅ FIX 2 extra: que los botones no se salgan en muy chico */
+  .btn-edit,.btn-delete{padding:10px}
 }
 
 /* global transitions */
 button,input,select,textarea,a{transition:all .15s ease}
+
+/* ✅ FIX 1: capa semitransparente al abrir sidebar en móvil (mejor UX, opcional) */
+@media (max-width:900px){
+  body.sidebar-open::after{
+    content:"";
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.35);
+    z-index:25;
+  }
+}
 </style>
 </head>
 <body class="light"> <!-- modo claro por defecto -->
@@ -281,6 +307,9 @@ button,input,select,textarea,a{transition:all .15s ease}
       </div>
 
       <div class="header-controls">
+        <!-- ✅ FIX 1: botón de menú para móvil (para poder abrir el sidebar) -->
+        <button id="openSidebarBtn" class="icon-btn" title="Abrir menú" aria-label="Abrir menú" style="display:none">☰</button>
+
         <div class="search-inline">
           <div class="search-wrapper"><input id="searchInline" placeholder="Buscar..." autocomplete="off"/></div>
         </div>
@@ -374,6 +403,8 @@ const themeToggleBtn = document.getElementById('themeToggleBtn');
 const themeIcon = document.getElementById('themeIcon');
 const mobileSearchBtn = document.getElementById('mobileSearchBtn');
 const searchInline = document.getElementById('searchInline');
+/* ✅ FIX 1: botón de header para abrir sidebar en móvil */
+const openSidebarBtn = document.getElementById('openSidebarBtn');
 
 /* ========== Theme init ========== */
 function applyTheme(theme){
@@ -410,9 +441,22 @@ function applySidebarState(collapsed){
 applySidebarState(readSidebar());
 
 toggleSidebarBtn.addEventListener('click', ()=>{
-  // on small screens toggle overlay open
+  // on small screens toggle overlay open/close since el botón está dentro del sidebar
   if(window.matchMedia("(max-width:900px)").matches){
+    const willOpen = !sidebar.classList.contains('open');
     sidebar.classList.toggle('open');
+    document.body.classList.toggle('sidebar-open', willOpen);
+  } else {
+    sidebar.classList.toggle('collapsed');
+    writeSidebar(sidebar.classList.contains('collapsed'));
+  }
+});
+
+/* ✅ FIX 1: abrir sidebar desde el header en móvil */
+openSidebarBtn?.addEventListener('click', ()=>{
+  if(window.matchMedia("(max-width:900px)").matches){
+    sidebar.classList.add('open');
+    document.body.classList.add('sidebar-open');
   } else {
     sidebar.classList.toggle('collapsed');
     writeSidebar(sidebar.classList.contains('collapsed'));
@@ -423,8 +467,9 @@ toggleSidebarBtn.addEventListener('click', ()=>{
 document.addEventListener('click', (e)=>{
   if(window.matchMedia("(max-width:900px)").matches){
     if(!sidebar.classList.contains('open')) return;
-    if(!sidebar.contains(e.target) && !toggleSidebarBtn.contains(e.target)){
+    if(!sidebar.contains(e.target) && !toggleSidebarBtn.contains(e.target) && !openSidebarBtn.contains(e.target)){
       sidebar.classList.remove('open');
+      document.body.classList.remove('sidebar-open');
     }
   }
 });
@@ -934,14 +979,21 @@ mobileSearchBtn.addEventListener('click', ()=>{
   if(el){ el.focus(); }
 });
 
-/* ensure mobileSearchBtn only shows on small screens */
+/* ensure mobileSearchBtn & openSidebarBtn only show on small screens */
 function updateMobileControls(){
-  if(window.matchMedia("(max-width:900px)").matches){
+  const isMobile = window.matchMedia("(max-width:900px)").matches;
+  if(isMobile){
     mobileSearchBtn.style.display='inline-flex';
     document.querySelector('.search-inline').style.display='block';
+    // ✅ FIX 1: mostrar botón de menú en móvil
+    openSidebarBtn.style.display='inline-flex';
   } else {
     mobileSearchBtn.style.display='none';
     document.querySelector('.search-inline').style.display='none';
+    openSidebarBtn.style.display='none';
+    // por si quedó abierta la capa
+    document.body.classList.remove('sidebar-open');
+    sidebar.classList.remove('open');
   }
 }
 window.addEventListener('resize', updateMobileControls);
