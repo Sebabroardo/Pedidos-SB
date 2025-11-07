@@ -51,8 +51,8 @@ body{
   transition: background .25s ease, color .25s ease;
 }
 
-/* Header */
-header{
+/* Header (will be placed inside dashboardDiv so it's hidden before login) */
+.header-container header{
   width:100%;
   padding:12px 18px;
   background:transparent;
@@ -99,7 +99,7 @@ header{
   gap:12px;
   box-shadow:0 6px 26px rgba(2,6,23,0.6);
   transform:translateY(0);
-  transition:transform .18s ease, box-shadow .18s ease;
+  transition:transform .18s ease, box-shadow .18s ease, opacity .25s ease;
   border:1px solid var(--surface-border);
 }
 .form-container:hover{
@@ -118,7 +118,8 @@ header{
 .form-container button:hover{transform:translateY(-2px);filter:brightness(.98)}
 
 /* ========== APP LAYOUT ========== */
-#dashboardDiv{display:none;flex:1;min-height:0}
+#dashboardDiv{display:none;flex:1;min-height:0;opacity:0;transition:opacity .35s ease}
+#dashboardDiv.visible{display:block;opacity:1} /* fade in class */
 .app{display:flex;height:calc(100vh - 66px);position:relative}
 
 /* Sidebar */
@@ -250,7 +251,7 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 @media (max-width:520px){
   .form-container{width:92%}
   #toggleSidebarBtn{padding:8px 10px}
-  header{padding:10px}
+  .header-left .header-title{font-size:16px}
 }
 
 /* global transitions */
@@ -258,31 +259,10 @@ button,input,select,textarea,a{transition:all .15s ease}
 </style>
 </head>
 <body class="light"> <!-- modo claro por defecto -->
-<header>
-  <div class="header-left">
-    <div class="header-title">Admin — Productos y Descuentos</div>
-    <div id="welcomeMessage"></div>
-  </div>
-
-  <div class="header-controls">
-    <div class="search-inline">
-      <div class="search-wrapper"><input id="searchInline" placeholder="Buscar..." autocomplete="off"/></div>
-    </div>
-
-    <button id="themeToggleBtn" class="icon-btn" title="Alternar modo" aria-label="Alternar modo">
-      <span id="themeIcon">☀️</span>
-      <span style="font-weight:600">Tema</span>
-    </button>
-
-    <button id="mobileSearchBtn" class="icon-btn" title="Buscar (móvil)" style="display:none">
-      🔎
-    </button>
-  </div>
-</header>
 
 <!-- LOGIN -->
 <div id="loginDiv">
-  <form id="loginForm" class="form-container">
+  <form id="loginForm" class="form-container" aria-label="Formulario de login">
     <input type="text" id="username" placeholder="Usuario" required />
     <input type="password" id="password" placeholder="Contraseña" required />
     <label style="gap:8px;font-size:14px"><input type="checkbox" id="rememberMe"> Recordar sesión</label>
@@ -290,8 +270,33 @@ button,input,select,textarea,a{transition:all .15s ease}
   </form>
 </div>
 
-<!-- APP -->
-<div id="dashboardDiv">
+<!-- APP (oculto hasta login) -->
+<div id="dashboardDiv" aria-hidden="true">
+  <!-- Header colocado dentro del dashboard para que no sea visible antes del login -->
+  <div class="header-container">
+    <header>
+      <div class="header-left">
+        <div class="header-title">Admin — Productos y Descuentos</div>
+        <div id="welcomeMessage"></div>
+      </div>
+
+      <div class="header-controls">
+        <div class="search-inline">
+          <div class="search-wrapper"><input id="searchInline" placeholder="Buscar..." autocomplete="off"/></div>
+        </div>
+
+        <button id="themeToggleBtn" class="icon-btn" title="Alternar modo" aria-label="Alternar modo">
+          <span id="themeIcon">☀️</span>
+          <span style="font-weight:600">Tema</span>
+        </button>
+
+        <button id="mobileSearchBtn" class="icon-btn" title="Buscar (móvil)" style="display:none">
+          🔎
+        </button>
+      </div>
+    </header>
+  </div>
+
   <div class="app">
     <aside id="sidebar" aria-hidden="false">
       <div>
@@ -308,7 +313,7 @@ button,input,select,textarea,a{transition:all .15s ease}
       <button id="logoutBtn"><span>Cerrar sesión</span></button>
     </aside>
 
-    <main id="mainContent">
+    <main id="mainContent" tabindex="0">
       <!-- contenido dinámico -->
     </main>
   </div>
@@ -337,7 +342,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-/* ================== ESTADO ================== */
+/* ---------- Estado ---------- */
 let currentUserLocal = null;
 let currentCategories = [];
 let unsubscribeProducts = null;
@@ -470,20 +475,42 @@ sidebarMenu.addEventListener('click', (e)=>{
   if(section==='descuentos') renderDescuentosPage();
 });
 
-/* ========== Dashboard show/hide ========== */
+/* ========== Dashboard show/hide (con fade) ========== */
 async function showDashboard(username, local){
-  loginDiv.style.display='none';
-  dashboardDiv.style.display='block';
+  // hide login with fade out
+  loginDiv.style.opacity = '0';
+  loginDiv.style.transform = 'translateY(8px)';
+  loginDiv.style.pointerEvents = 'none';
+  // small delay to allow visual fade
+  setTimeout(()=>{
+    loginDiv.style.display='none';
+    // reveal dashboard with smooth fade-in
+    dashboardDiv.classList.add('visible');
+    dashboardDiv.setAttribute('aria-hidden','false');
+  }, 180);
+
   welcomeMessage.textContent = `Bienvenido ${username}. Local: ${local}`;
   currentUserLocal = local;
 
   await initCategoriesFromLocal();
-  // default: productos view (keeps old behaviour)
+  // default: productos view
   renderProductosPage();
+
+  // ensure main content is focused for accessibility
+  setTimeout(()=>{ mainContent.focus(); }, 350);
 }
 function hideDashboard(){
-  dashboardDiv.style.display='none';
-  loginDiv.style.display='flex';
+  // hide dashboard with fade out
+  dashboardDiv.classList.remove('visible');
+  dashboardDiv.setAttribute('aria-hidden','true');
+  // small delay then show login
+  setTimeout(()=>{
+    dashboardDiv.style.display = 'block'; // ensure not removed
+    loginDiv.style.display='flex';
+    loginDiv.style.opacity='1';
+    loginDiv.style.transform='translateY(0)';
+    loginDiv.style.pointerEvents='auto';
+  }, 220);
   currentUserLocal = null;
   currentCategories = [];
   if(unsubscribeProducts){unsubscribeProducts(); unsubscribeProducts=null;}
