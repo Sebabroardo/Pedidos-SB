@@ -60,7 +60,7 @@ header { background: rgba(255,255,255,0.9); backdrop-filter: blur(4px); border-r
 .tot{display:flex;align-items:center;justify-content:space-between;font-weight:800}
 .muted{color:var(--muted);font-size:12px}
 .inputs{display:grid;gap:10px}
-.inputs input, .inputs textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text)}
+.inputs input, .inputs textarea, .inputs select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--ring);background:#f8f8f8;color:var(--text)}
 .inputs textarea{min-height:72px;resize:vertical}
 footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center; background: rgba(255,255,255,0.9); padding:10px; border-radius:12px; }
 .btn.primary { background: linear-gradient(180deg,#22c55e,#16a34a); border:none; color:#fff; font-size:15px; font-weight:600; padding:12px 14px; border-radius:999px; cursor:pointer; width:100%; }
@@ -120,10 +120,30 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
     </div>
     <div id="discountInfo" class="muted" style="font-size:12px;display:none;"></div>
     <div id="discountBreakdown" class="muted"></div>
+
+    <!-- 🔹 CAMPOS DE DATOS DEL CLIENTE / SUCURSAL / DELIVERY -->
     <div class="inputs">
-      <input id="customerName" placeholder="Tu nombre"/>
+      <!-- Nombre -->
+      <input id="customerName" placeholder="Tu nombre" required />
+
+      <!-- Sucursal (desde Firestore, no tipeable) -->
+      <select id="branchSelect" required >
+        <option value="">Seleccioná una sucursal... </option>
+      </select>
+
+		<label style="font-size:14px; font-weight:600;">Delivery:</label>
+			<select id="deliverySelect">
+			<option value="no">No</option>
+			<option value="si">Sí</option>
+			</select>
+
+      <!-- Dirección de envío (solo si Delivery = Sí) -->
+      <input id="deliveryAddress" placeholder="Dirección de envío" style="display:none" />
+
+      <!-- Notas -->
       <textarea id="customerNotes" placeholder="Notas para la cocina (sin mayonesa, más ketchup, etc.)"></textarea>
     </div>
+
     <button class="btn primary" id="whatsBtn">📲 Enviar pedido por WhatsApp</button>
     <div class="muted">Al hacer clic se abrirá WhatsApp con el detalle de tu pedido para confirmar.</div>
   </div>
@@ -154,6 +174,14 @@ const LOCAL_NAME = "Honey";
 const state = { cart: {} };
 const currency = new Intl.NumberFormat('es-AR',{ style:'currency', currency:'ARS', maximumFractionDigits:0 });
 
+// 🔹 Estado sucursal / delivery
+let selectedBranch = null;
+let deliveryCost = 0;
+
+const branchSelect = document.getElementById('branchSelect');
+const deliverySelect = document.getElementById('deliverySelect');
+const deliveryAddress = document.getElementById('deliveryAddress');
+
 const slug = (s)=> (s||'').toString().trim().toLowerCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
   .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
@@ -167,7 +195,6 @@ const discountDocRef  = doc(db, "settings", `discount_${LOCAL_KEY}`);
 onSnapshot(discountsDocRef, snap => {
   if (snap.exists()) {
     const data = snap.data() || {};
-    // usa las claves tal como estén guardadas en locals.categories
     catDiscounts = Object.fromEntries(Object.entries(data)
       .filter(([k])=>k!=='local')
       .map(([k,v])=> [k.toString().trim().toLowerCase(), Number(v||0)]));
@@ -180,7 +207,6 @@ onSnapshot(discountsDocRef, snap => {
 onSnapshot(discountDocRef, snapshot => {
   if (snapshot.exists()) {
     const data = snapshot.data();
-    // si existe un set por categoría, el global se ignora (misma lógica que antes)
     globalDiscount = Number(data?.value || 0);
   } else {
     globalDiscount = 0;
@@ -199,6 +225,60 @@ function getDiscountPercents(product){
   const combined = clampPercent(prod + baseOther);
   return { prod, cat, global: anyCatHasDiscount ? 0 : baseOther, combined, usedCat: anyCatHasDiscount };
 }
+
+// ====== SUCURSALES (FireStore) ======
+function loadBranches(){
+  onSnapshot(collection(db, "Sucursales"), snap => {
+    branchSelect.innerHTML = `<option value="">Seleccioná una sucursal...</option>`;
+    snap.forEach(docu => {
+      const d = docu.data();
+      // filtrar por local
+      if (slug(d.local) !== slug(LOCAL_KEY) && d.local !== LOCAL_KEY) return;
+      const opt = document.createElement("option");
+      opt.value = docu.id;
+      opt.dataset.phone = d.phone || "";
+      opt.dataset.address = d.address || "";
+      opt.textContent = d.name || "Sucursal";
+      branchSelect.appendChild(opt);
+    });
+  });
+
+  branchSelect.addEventListener("change", () => {
+    const opt = branchSelect.selectedOptions[0];
+    if (!opt || !opt.value) {
+      selectedBranch = null;
+      return;
+    }
+    selectedBranch = {
+      id: opt.value,
+      name: opt.textContent,
+      address: opt.dataset.address || "",
+      phone: opt.dataset.phone || ""
+    };
+  });
+}
+loadBranches();
+
+deliverySelect.addEventListener("change", () => {
+  const val = deliverySelect.value;
+
+  if (val === "si") {
+    deliveryAddress.style.display = "block";
+    deliveryCost = 3000;
+  } 
+  else if (val === "no") {
+    deliveryAddress.style.display = "none";
+    deliveryCost = 0;
+  }
+  else {
+    // Sin selección → ocultar campo y no sumar nada
+    deliveryAddress.style.display = "none";
+    deliveryCost = 0;
+  }
+
+  renderCart();
+});
+
 
 // ====== UI LOCALES (estética) ======
 async function loadLocalVisual(){
@@ -236,13 +316,11 @@ async function loadLocalVisual(){
     const hours = (d.hoursText || '').trim();
     if(hours) document.getElementById('hoursPill').textContent = `⏱️ ${hours}`;
 
-    // Crear categorías dinámicas y render
     const cats = Array.isArray(d.categories) && d.categories.length ? d.categories : ['pizza','hamburguesa','papas','menu especial','extras'];
     buildCategorySections(cats);
     subscribeProducts(cats);
   }catch(e){
     console.error('Error cargando locals visual:', e);
-    // Fallback si el doc no existe: categorías default
     const cats = ['pizza','hamburguesa','papas','menu especial','extras'];
     buildCategorySections(cats);
     subscribeProducts(cats);
@@ -257,21 +335,18 @@ function buildCategorySections(categories){
     const key = cat.toString();
     const id = `grid-${slug(key)}`;
 
-    // botón
     const btn = document.createElement('button');
     btn.className = 'category-btn';
     btn.dataset.target = id;
     btn.textContent = `${capitalize(key)} ▸`;
     container.appendChild(btn);
 
-    // grid
     const grid = document.createElement('div');
     grid.id = id;
     grid.className = 'grid';
     container.appendChild(grid);
   });
 
-  // toggle
   container.querySelectorAll('.category-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const grid = document.getElementById(btn.dataset.target);
@@ -288,12 +363,10 @@ function subscribeProducts(categories){
   const productsRef = collection(db,'productos');
 
   onSnapshot(productsRef, snapshot => {
-    // agrupar por categoría válida
     const catsSet = new Set(categories.map(c=>c.toString()));
     const groups = {};
     snapshot.docs.forEach(docu=>{
       const data = docu.data();
-      // filtra por local (compat: si guardaron nombre, uso slug)
       if(slug(data.local) !== slug(LOCAL_KEY) && data.local !== LOCAL_KEY) return;
 
       const cat = data.category?.toString();
@@ -302,10 +375,8 @@ function subscribeProducts(categories){
       groups[cat].push({ id: docu.id, ...data });
     });
 
-    // Render de cada grid
     Object.keys(groups).forEach(cat=>{
       const arr = groups[cat] || [];
-      // orden
       arr.sort((a, b) => {
         const pa = Number(a.position ?? 999999);
         const pb = Number(b.position ?? 999999);
@@ -338,7 +409,6 @@ function subscribeProducts(categories){
       });
     });
 
-    // Delegación de + y - sobre el contenedor completo
     document.getElementById('categoriesContainer').onclick = (e)=>{
       const productId = e.target.dataset.id;
       if(!productId) return;
@@ -420,7 +490,6 @@ function renderCart() {
     list.appendChild(row);
   });
 
-  // eventos dinámicos
   list.querySelectorAll('.extra-checkbox').forEach(chk=>{
     chk.addEventListener('change', e=>{
       const uid = e.target.dataset.id;
@@ -439,10 +508,11 @@ function renderCart() {
     });
   });
 
-  document.getElementById('total').textContent = currency.format(total);
-
   const discountInfo = document.getElementById('discountInfo');
   const breakdown = document.getElementById('discountBreakdown');
+
+  const totalFinal = total + deliveryCost;
+  document.getElementById('total').textContent = currency.format(totalFinal);
 
   if(totalSavings > 0){
     discountInfo.style.display = 'block';
@@ -525,16 +595,26 @@ function buildWhatsAppMessage() {
     if(parts.length) lines.push(`*Ahorro detallado:* ${parts.join(' · ')}`);
   }
 
-  lines.push(`*Total:* ${currency.format(total)}`);
+  const totalFinal = total + deliveryCost;
+  lines.push(`*Total:* ${currency.format(totalFinal)}`);
 
-  // Dirección / mapa desde locals
-  const addrEl = document.getElementById('hoursPill');
-  const mapAnchor = document.getElementById('mapAnchor');
-  // Usamos dataset guardado al cargar locals
-  const addressText = (window.__localAddressText || '').trim();
-  const mapUrl = (window.__localMapUrl || '').trim();
-  if (mapUrl) {
-    lines.push(`*Retiro:* ${addressText || 'Retira por local'} (${mapUrl})`);
+  // Info sucursal
+  if (selectedBranch) {
+    lines.push(
+      '',
+      `📍 *Sucursal:* ${selectedBranch.name}`,
+      `📌 ${selectedBranch.address}`,
+    );
+  }
+
+  // Delivery
+  if (deliverySelect.value === "si") {
+    const addr = deliveryAddress.value.trim();
+    if (addr) {
+      lines.push(`🚚 *Delivery a:* ${addr}`);
+    }
+  } else {
+    lines.push('🚶 Retiro en local');
   }
 
   const igHandle = (window.__localIG || '').trim();
@@ -549,9 +629,37 @@ function buildWhatsAppMessage() {
 }
 
 document.getElementById('whatsBtn').addEventListener('click', ()=>{
+
+  const name = customerName.value.trim();
+  const branch = branchSelect.value;
+  const delivery = deliverySelect.value;
+  const deliveryAddr = deliveryAddress.value.trim();
+
+  // VALIDACIONES OBLIGATORIAS
+  if (name === "") {
+    alert("Por favor ingresá tu nombre.");
+    return;
+  }
+
+  if (branch === "") {
+    alert("Por favor seleccioná una sucursal.");
+    return;
+  }
+
+  if (delivery === "si" && deliveryAddr === "") {
+    alert("Ingresá la dirección para envío.");
+    return;
+  }
+
   const message = buildWhatsAppMessage();
   if(!message) return;
-  const phone = (window.__localPhoneE164 || '').replace(/[^\d]/g,''); // sin +
+
+  let phoneRaw = window.__localPhoneE164 || '';
+  if (selectedBranch && selectedBranch.phone) {
+    phoneRaw = selectedBranch.phone;
+  }
+
+  const phone = (phoneRaw || '').replace(/[^\d]/g,'');
   const target = phone ? `+${phone}` : '+543537581341';
   const url = 'https://wa.me/'+encodeURIComponent(target)+'?text='+encodeURIComponent(message);
   window.open(url,'_blank');
@@ -559,10 +667,7 @@ document.getElementById('whatsBtn').addEventListener('click', ()=>{
 
 // ====== INICIO ======
 document.getElementById('year').textContent = new Date().getFullYear();
-loadLocalVisual().then(()=>{
-  // guardar algunos datos para WA
-  // (Se setean en loadLocalVisual dentro del getDoc)
-}).catch(console.error);
+loadLocalVisual().catch(console.error);
 
 // Guardar datos globales para WA cuando cargamos locals
 (async ()=>{
@@ -570,7 +675,7 @@ loadLocalVisual().then(()=>{
     const ref = doc(db, 'locals', LOCAL_KEY);
     const snap = await getDoc(ref);
     const d = snap.exists() ? snap.data() : {};
-    window.__localPhoneE164 = (d.whatsE164 || '').trim(); // sin '+'
+    window.__localPhoneE164 = (d.whatsE164 || '').trim();
     window.__localAddressText = (d.addressText || '').trim();
     window.__localMapUrl = (d.mapUrl || '').trim();
     window.__localIG = (d.instagramHandle || '').trim();
