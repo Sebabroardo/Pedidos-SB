@@ -353,6 +353,7 @@ button,input,select,textarea,a{transition:all .15s ease}
           <ul>
             <li data-section="productos" class="active">🧀 <span class="menu-text">Productos</span></li>
             <li data-section="descuentos">💸 <span class="menu-text">Descuentos</span></li>
+            <li data-section="sucursales">🏬 <span class="menu-text">Sucursales</span></li>
           </ul>
         </nav>
       </div>
@@ -530,6 +531,7 @@ sidebarMenu.addEventListener('click', (e)=>{
   const section = li.getAttribute('data-section');
   if(section==='productos') renderProductosPage();
   if(section==='descuentos') renderDescuentosPage();
+  if(section==='sucursales') renderSucursalesPage();
 });
 
 /* ========== Dashboard show/hide (con fade) ========== */
@@ -948,6 +950,185 @@ function renderDescuentosPage(){
   function capitalize(s){return (s||'').charAt(0).toUpperCase()+(s||'').slice(1);}
 }
 
+/* ========================== VISTA: SUCURSALES ========================== */
+function renderSucursalesPage(){
+  mainContent.innerHTML = `
+    <div class="section card">
+      <h2>Sucursales</h2>
+
+      <div style="
+        margin-top:15px;
+        display:flex;
+        align-items:center;
+        gap:12px;
+      ">
+        <span style="font-size:18px; font-weight:600;">
+          ¿Tiene sucursales?
+        </span>
+
+        <input 
+          type="checkbox" 
+          id="hasBranches"
+          style="width:22px; height:22px; cursor:pointer;"
+        />
+      </div>
+
+      <div id="branchesForm" style="display:none; margin-top:15px;">
+        
+        <input type="hidden" id="editBranchId" />
+
+        <label class="field">Nombre de la sucursal</label>
+        <input id="branchName" placeholder="Ej: Sucursal Centro" />
+
+        <label class="field">Dirección</label>
+        <input id="branchAddress" placeholder="Calle 123" />
+
+        <label class="field">Teléfono</label>
+        <input id="branchPhone" placeholder="351-0000000" />
+
+        <div class="actions-row" style="margin-top:12px;">
+          <button id="saveBranchBtn" class="primary">Guardar</button>
+          <button id="cancelBranchEditBtn" class="secondary" style="display:none;">Cancelar</button>
+        </div>
+      </div>
+
+      <div class="section" style="margin-top:25px;">
+        <h3>Listado de sucursales</h3>
+        <ul id="branchesList" class="items"></ul>
+      </div>
+    </div>
+  `;
+
+  const chk = document.getElementById("hasBranches");
+  const form = document.getElementById("branchesForm");
+  const saveBtn = document.getElementById("saveBranchBtn");
+  const cancelEditBtn = document.getElementById("cancelBranchEditBtn");
+  const list = document.getElementById("branchesList");
+
+  const editIdInput = document.getElementById("editBranchId");
+  const nameInput = document.getElementById("branchName");
+  const addressInput = document.getElementById("branchAddress");
+  const phoneInput = document.getElementById("branchPhone");
+
+  /* ========== Mostrar / ocultar formulario ========== */
+  chk.addEventListener("change", () => {
+    form.style.display = chk.checked ? "block" : "none";
+  });
+
+  /* ========== Reset formulario ========== */
+  function resetBranchForm(){
+    editIdInput.value = "";
+    nameInput.value = "";
+    addressInput.value = "";
+    phoneInput.value = "";
+    cancelEditBtn.style.display = "none";
+    saveBtn.textContent = "Guardar";
+  }
+
+  cancelEditBtn.addEventListener("click", resetBranchForm);
+
+  /* ========== Guardar o actualizar sucursal ========== */
+  saveBtn.addEventListener("click", async () => {
+    const name = nameInput.value.trim();
+    const address = addressInput.value.trim();
+    const phone = phoneInput.value.trim();
+    const editId = editIdInput.value;
+
+    if (!name || !address || !phone) {
+      return alert("Complete todos los campos");
+    }
+
+    try {
+      if(editId){
+        // actualizar
+        await setDoc(
+          doc(db, "Sucursales", editId),
+          {
+            name,
+            address,
+            phone,
+            local: currentUserLocal,
+            updatedAt: new Date()
+          },
+          { merge: true }
+        );
+        alert("Sucursal actualizada");
+      } else {
+        // agregar nueva
+        await addDoc(collection(db, "Sucursales"), {
+          local: currentUserLocal,
+          name,
+          address,
+          phone,
+          createdAt: new Date()
+        });
+        alert("Sucursal guardada");
+      }
+
+      resetBranchForm();
+
+    } catch (err) {
+      console.error(err);
+      alert("Error al guardar sucursal: " + err.message);
+    }
+  });
+
+  /* ========== Cargar listado de sucursales del local ========== */
+  const q = query(
+    collection(db, "Sucursales"),
+    where("local", "==", currentUserLocal)
+  );
+
+  onSnapshot(q, (snap) => {
+    list.innerHTML = "";
+    snap.forEach((d) => {
+      const s = d.data();
+      const li = document.createElement("li");
+
+      li.innerHTML = `
+        <span style="flex:1;">
+          <b>${s.name}</b><br>
+          ${s.address}<br>
+          ${s.phone}
+        </span>
+      `;
+
+      // Botón Editar
+      const editBtn = document.createElement("button");
+      editBtn.className = "btn-edit";
+      editBtn.textContent = "Editar";
+      editBtn.onclick = () => {
+        editIdInput.value = d.id;
+        nameInput.value = s.name;
+        addressInput.value = s.address;
+        phoneInput.value = s.phone;
+
+        saveBtn.textContent = "Actualizar";
+        cancelEditBtn.style.display = "inline-flex";
+
+        form.style.display = "block";
+        chk.checked = true;
+
+        form.scrollIntoView({ behavior: "smooth" });
+      };
+
+      // Botón Eliminar
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn-delete";
+      delBtn.textContent = "Eliminar";
+      delBtn.onclick = async () => {
+        if (confirm("¿Eliminar sucursal?")) {
+          await deleteDoc(doc(db, "Sucursales", d.id));
+        }
+      };
+
+      li.appendChild(editBtn);
+      li.appendChild(delBtn);
+      list.appendChild(li);
+    });
+  });
+}
+
 /* ========================== Utilities: toggles por categoría (localStorage) ========================== */
 function _togglesKey() {
   return `catToggles:${slug(currentUserLocal || '')}`;
@@ -968,11 +1149,6 @@ function setCatToggle(cat, value) {
   map[cat] = !!value;
   _writeToggles(map);
 }
-
-/* ========== Small UI helpers: search sync (header <-> page) ========== */
-/* (eliminado el buscador del header, no hace falta sincronizar) */
-
-/* ensure mobileSearchBtn only shows on small screens (eliminado) */
 
 /* ======== Mostrar/ocultar controles móviles (solo menú) ======== */
 function updateMobileControls(){
