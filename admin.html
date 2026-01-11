@@ -174,10 +174,25 @@ body{
   font-size:13px;
 }
   
-/* Logout — en desktop */
+/* Logout — desktop (sidebar) */
 #logoutBtn{
-    display:none;           /* 🔒 oculto en desktop */
-	}
+  display:flex;
+  margin-top:auto;          /* lo empuja al fondo del sidebar */
+  padding:12px 14px;
+  background:transparent;
+  color:#f43f5e;
+  font-weight:600;
+  border:none;
+  border-radius:8px;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+  cursor:pointer;
+}
+
+#logoutBtn:hover{
+  background:rgba(244,63,94,0.12);
+}
 
 /* Main content */
 #mainContent{flex:1;padding:22px;overflow:auto;}
