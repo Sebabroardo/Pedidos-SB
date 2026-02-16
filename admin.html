@@ -670,10 +670,10 @@ function renderProductosPage(){
         <select id="category" required></select>
 
         <!-- Estado -->
-        <label class="field" for="isActive">Estado</label>
-        <label style="display:flex;align-items:center;gap:8px">
-          <input type="checkbox" id="isActive" checked /> Producto activo
-        </label>
+        <label style="display:flex;align-items:center;gap:8px;white-space:nowrap;">
+		  <input type="checkbox" id="isActive" checked />
+		  <span>Producto activo</span>
+		</label>
 
         <div class="actions-row">
           <button class="primary" id="submitBtn" type="submit">Guardar producto</button>
