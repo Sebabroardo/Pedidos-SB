@@ -301,27 +301,55 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
   #sidebarMenu{ padding-bottom:72px; }
 }
 
-/* small screens */
-@media (max-width:520px){
-  .form-container{width:92%}
-  #toggleSidebarBtn{padding:8px 10px}
-  .header-left .header-title{font-size:16px}
-  #welcomeMessage{font-size:12px}
-  .btn-edit,.btn-delete{padding:10px}
-}
+	/* small screens */
+	@media (max-width:520px){
+	  .form-container{width:92%}
+	  #toggleSidebarBtn{padding:8px 10px}
+	  .header-left .header-title{font-size:16px}
+	  #welcomeMessage{font-size:12px}
+	  .btn-edit,.btn-delete{padding:10px}
+	}
 
-/* global transitions */
-button,input,select,textarea,a{transition:all .15s ease}
+	/* global transitions */
+	button,input,select,textarea,a{transition:all .15s ease}
 
-/* Capa semitransparente al abrir sidebar en móvil */
-@media (max-width:900px){
-  body.sidebar-open::after{
-    content:"";
-    position:fixed;inset:0;
-    background:rgba(0,0,0,.35);
-    z-index:80; /* debajo del sidebar (90) y encima del resto */
-  }
-}
+	/* Capa semitransparente al abrir sidebar en móvil */
+	@media (max-width:900px){
+	  body.sidebar-open::after{
+		content:"";
+		position:fixed;inset:0;
+		background:rgba(0,0,0,.35);
+		z-index:80; /* debajo del sidebar (90) y encima del resto */
+	  }
+	}
+
+	/* ===== FIX MOBILE HEADERS CATEGORIAS ===== */
+	@media (max-width:600px){
+
+	  .category-section > div { /* header */
+		flex-direction: column !important;
+		align-items: stretch !important;
+		gap: 8px;
+	  }
+
+	  .category-section h3{
+		font-size:16px;
+	  }
+
+	  /* contenedor toggle */
+	  .toggle-wrap{
+		width:100%;
+		justify-content:space-between;
+	  }
+
+	  /* botón limpiar */
+	  .clear-btn{
+		width:100%;
+		padding:10px !important;
+		font-size:13px;
+	  }
+
+	}
 </style>
 </head>
 <body class="light"> <!-- modo claro por defecto -->
@@ -783,7 +811,9 @@ function renderProductosPage(){
 	header.appendChild(title);
 	header.appendChild(toggleWrap);
 
+	// BOTON LIMPIAR DESCUENTOS
 	const clearBtn = document.createElement('button');
+	clearBtn.classList.add('clear-btn');
 	clearBtn.textContent = 'LIMPIAR DESCUENTOS';
 	clearBtn.style.fontSize = '13px';
 	clearBtn.style.fontWeight = 'bold';
@@ -795,9 +825,9 @@ function renderProductosPage(){
 	clearBtn.style.color = '#7CFFB2';
 
 	clearBtn.addEventListener('click', async (e)=>{
-	  e.stopPropagation(); // evita plegar categoría
+	  e.stopPropagation();
 
-	  if(!confirm(`¿Quitar TODOS los descuentos de "${capitalize(cat)}"?`)) return;
+	  if(!confirm(`¿Limpiar descuentos de ${capitalize(cat)}?`)) return;
 
 	  try{
 		const q = query(
@@ -808,23 +838,22 @@ function renderProductosPage(){
 
 		const qs = await getDocs(q);
 
-		const updates = qs.docs.map(docSnap =>
-		  setDoc(
-			doc(db,'productos',docSnap.id),
-			{ discountPct: 0, updatedAt: new Date() },
+		const updates = qs.docs.map(d =>
+		  setDoc(doc(db,'productos',d.id),
+			{ discountPct:0, updatedAt:new Date() },
 			{ merge:true }
 		  )
 		);
 
 		await Promise.all(updates);
-
-		alert('Descuentos limpiados ✔');
+		alert('Descuentos limpiados');
 	  }catch(err){
-		alert('Error: '+err.message);
+		alert(err.message);
 	  }
 	});
 
 	header.appendChild(clearBtn);
+
 
     sec.appendChild(header);
 
