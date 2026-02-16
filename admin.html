@@ -369,16 +369,18 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 	
 	}
 	
-	/* evita scroll lateral en toda la web */
+	/* BLOQUEO REAL DE SCROLL LATERAL */
 	html, body{
-	  overflow-x:hidden;
-	}
-
-	body{
-	  overflow-x: hidden;
+	  overflow-x: hidden !important;
+	  width: 100%;
+	  max-width: 100%;
 	  position: relative;
 	}
-
+	
+	/* evita que cualquier elemento rompa el ancho */
+	body > *{
+	  max-width: 100vw;
+	}
 </style>
 </head>
 <body class="light"> <!-- modo claro por defecto -->
