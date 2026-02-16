@@ -693,10 +693,17 @@ function renderProductosPage(){
     sec.dataset.cat = cat;
 
     const header = document.createElement('div');
-    header.style.display = 'flex';
-    header.style.alignItems = 'center';
-    header.style.gap = '10px';
-    header.style.marginBottom = '6px';
+	header.style.display = 'flex';
+	header.style.alignItems = 'center';
+	header.style.gap = '10px';
+	header.style.marginBottom = '6px';
+	header.style.cursor = 'pointer';
+	
+	const arrow = document.createElement('span');
+	arrow.textContent = '▼';
+	arrow.style.fontSize = '14px';
+
+	header.appendChild(arrow);
 
     const title = document.createElement('h3');
     title.textContent = capitalize(cat);
@@ -730,14 +737,111 @@ function renderProductosPage(){
       }
     });
 
-    header.appendChild(title);
-    header.appendChild(toggleAll);
+	// contenedor check + label
+	const toggleWrap = document.createElement('div');
+	toggleWrap.style.display = 'inline-flex';
+	toggleWrap.style.alignItems = 'center';
+	toggleWrap.style.gap = '8px';
+	toggleWrap.style.padding = '6px 12px';
+	toggleWrap.style.borderRadius = '999px';
+	toggleWrap.style.whiteSpace = 'nowrap';
+	toggleWrap.style.transition = '0.25s ease';
+
+	// icono
+	const statusIcon = document.createElement('span');
+	statusIcon.style.fontSize = '14px';
+
+	// texto
+	const toggleLabel = document.createElement('span');
+	toggleLabel.textContent = 'ACTIVAR / DESACTIVAR PRODUCTOS';
+	toggleLabel.style.fontSize = '13px';
+	toggleLabel.style.fontWeight = 'bold';
+
+	// función visual
+	function updateToggleUI(){
+	  if(toggleAll.checked){
+		toggleWrap.style.background = '#1f3a2a';
+		toggleWrap.style.color = '#7CFFB2';
+		statusIcon.textContent = '✔';
+	  } else {
+		toggleWrap.style.background = '#3a1f1f';
+		toggleWrap.style.color = '#FF9B9B';
+		statusIcon.textContent = '✖';
+	  }
+	}
+
+	// estado inicial
+	updateToggleUI();
+
+	// cuando cambia
+	toggleAll.addEventListener('change', updateToggleUI);
+
+	toggleWrap.appendChild(statusIcon);
+	toggleWrap.appendChild(toggleLabel);
+	toggleWrap.appendChild(toggleAll);
+
+	header.appendChild(title);
+	header.appendChild(toggleWrap);
+
+	const clearBtn = document.createElement('button');
+	clearBtn.textContent = 'LIMPIAR DESCUENTOS';
+	clearBtn.style.fontSize = '13px';
+	clearBtn.style.fontWeight = 'bold';
+	clearBtn.style.padding = '4px 8px';
+	clearBtn.style.cursor = 'pointer';
+	clearBtn.style.borderRadius = '6px';
+	clearBtn.style.border = 'none';
+	clearBtn.style.background = '#1f3a2a';
+	clearBtn.style.color = '#7CFFB2';
+
+	clearBtn.addEventListener('click', async (e)=>{
+	  e.stopPropagation(); // evita plegar categoría
+
+	  if(!confirm(`¿Quitar TODOS los descuentos de "${capitalize(cat)}"?`)) return;
+
+	  try{
+		const q = query(
+		  collection(db,'productos'),
+		  where('local','==',currentUserLocal),
+		  where('category','==',cat)
+		);
+
+		const qs = await getDocs(q);
+
+		const updates = qs.docs.map(docSnap =>
+		  setDoc(
+			doc(db,'productos',docSnap.id),
+			{ discountPct: 0, updatedAt: new Date() },
+			{ merge:true }
+		  )
+		);
+
+		await Promise.all(updates);
+
+		alert('Descuentos limpiados ✔');
+	  }catch(err){
+		alert('Error: '+err.message);
+	  }
+	});
+
+	header.appendChild(clearBtn);
+
     sec.appendChild(header);
 
     const list = document.createElement('ul');
     list.className = 'items';
     list.id = `list-${slug(cat)}`;
     sec.appendChild(list);
+	let open = true;
+
+	header.addEventListener('click', ()=>{
+	  open = !open;
+	  list.style.display = open ? '' : 'none';
+	  arrow.textContent = open ? '▼' : '▶';
+	});
+
+	// evita que el checkbox dispare el plegado
+	toggleAll.addEventListener('click', e => e.stopPropagation());
 
     productLists.appendChild(sec);
   });
@@ -829,8 +933,12 @@ function renderProductosPage(){
 
       const span = document.createElement('span');
       span.style.flex='1';
-      span.innerHTML = `${p.name} — ${p.desc} — $${p.price}${(p.discountPct||0)>0?` — Desc ${p.discountPct}%`:''} ${p.active===false?'<span class="badge-inactive">Inactivo</span>':''}`;
-      li.appendChild(span);
+      span.innerHTML = `${p.name} — ${p.desc} — $${p.price}${
+	  (p.discountPct||0)>0
+		? ` <span style="background:#1f3a2a;color:#7CFFB2;font-weight:bold;padding:2px 8px;border-radius:6px;margin-left:6px;">-${p.discountPct}%</span>`
+		: ''} ${p.active===false?'<span class="badge-inactive">Inactivo</span>':''}`;
+      
+	  li.appendChild(span);
 
       const toggleWrap = document.createElement('div');
       toggleWrap.className = 'toggle-wrap';
