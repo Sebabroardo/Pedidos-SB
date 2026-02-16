@@ -349,11 +349,30 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 		font-size:13px;
 	  }
 	}
-	/* Fix checkbox Producto activo en mobile */
+	/* FIX checkbox producto activo mobile */
+	.active-check{
+	  display:flex;
+	  align-items:center;
+	  gap:8px;
+	  margin-top:12px;
+	}
+	
 	@media (max-width:600px){
-	  label:has(#isActive){
+	
+	  /* fuerza que el form no desborde */
+	  #productForm{
 	    width:100%;
-	    margin-top:8px;
+	    max-width:100%;
+	  }
+	
+	  .active-check{
+	    width:100%;
+	    justify-content:flex-start;
+	  }
+	
+	  .active-check span{
+	    white-space:normal;
+	    font-size:14px;
 	  }
 	}
 </style>
@@ -676,8 +695,8 @@ function renderProductosPage(){
         <select id="category" required></select>
 
         <!-- Estado -->
-        <label style="display:flex;align-items:center;gap:8px;">
-		  <input type="checkbox" id="isActive" checked />
+        <label class="active-check">
+		  <input type="checkbox" id="isActive" checked>
 		  <span>Producto activo</span>
 		</label>
 
