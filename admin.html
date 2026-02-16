@@ -349,32 +349,31 @@ ul.items li.inactive{opacity:.55;filter:grayscale(1)}
 		font-size:13px;
 	  }
 	}
-	/* FIX checkbox producto activo mobile */
-	.active-check{
-	  display:flex;
-	  align-items:center;
-	  gap:8px;
-	  margin-top:12px;
-	}
-	
+	/* ===== FIX REAL MOBILE OVERFLOW ===== */
 	@media (max-width:600px){
 	
-	  /* fuerza que el form no desborde */
-	  #productForm{
-	    width:100%;
-	    max-width:100%;
+	  #mainContent{
+	    padding:12px !important;
 	  }
 	
-	  .active-check{
-	    width:100%;
-	    justify-content:flex-start;
+	  .card{
+	    width:100% !important;
+	    max-width:100% !important;
+	    margin:0 !important;
 	  }
 	
-	  .active-check span{
-	    white-space:normal;
-	    font-size:14px;
+	  input, select, textarea{
+	    width:100% !important;
+	    max-width:100% !important;
 	  }
+	
 	}
+	
+	/* evita scroll lateral en toda la web */
+	html, body{
+	  overflow-x:hidden;
+	}
+
 </style>
 </head>
 <body class="light"> <!-- modo claro por defecto -->
