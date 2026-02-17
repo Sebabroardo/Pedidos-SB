@@ -348,6 +348,8 @@ html, body{
 	@media (max-width:600px){
 
 	  .category-section > div { /* header */
+		flex-direction: column !important;
+		align-items: stretch !important;
 		gap: 8px;
 	  }
 
@@ -778,7 +780,6 @@ function renderProductosPage(){
 	header.style.gap = '10px';
 	header.style.marginBottom = '6px';
 	header.style.cursor = 'pointer';
-	header.style.background = '#3b3436';
 	header.style.display = 'inline-flex';
 	header.style.alignItems = 'center';
 	header.style.gap = '8px';
