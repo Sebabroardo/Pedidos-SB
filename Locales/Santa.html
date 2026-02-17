@@ -223,6 +223,16 @@ const prettyLabel = (cat) => {
 let globalDiscount = 0;
 let catDiscounts = {};
 
+// ====== PROMO UPSIZE (Agrandado Hamburguesas) ======
+let upsellEnabled = true;
+let upsellAmount = 3000;
+
+function clampMoney(n){
+  n = Number(n);
+  if (isNaN(n)) return 0;
+  return Math.max(0, Math.round(n));
+}
+
 function clampPercent(n){ n=Number(n)||0; return n<0?0:n>100?100:n; }
 function mapLower(d){
   const out={};
@@ -258,6 +268,19 @@ onSnapshot(doc(db,"settings",`discount_${LOCAL_KEY}`), snap=>{
     globalDiscount = 0;
   }
   renderCart();
+});
+
+// upsell (settings/upsell_{LOCAL_KEY})
+onSnapshot(doc(db,"settings",`upsell_${LOCAL_KEY}`), snap=>{
+  if(snap.exists()){
+    const data = snap.data();
+    upsellEnabled = data.enabled !== false; // default true
+    upsellAmount  = clampMoney(data.amount ?? 3000);
+  }else{
+    upsellEnabled = true;
+    upsellAmount  = 3000;
+  }
+  renderCart(); // recalcular totales si cambia monto/estado
 });
 
 // ====== CATALOGO ======
@@ -433,7 +456,9 @@ function renderCart() {
 
   Object.values(state.cart).forEach(({ uid, product, extra })=>{
     const base = Number(product.price) || 0;
-    const extraAdd = (extra && (product.category||'').toLowerCase()==='hamburguesa') ? 3000 : 0;
+    const isBurger = (product.category||'').toLowerCase() === 'hamburguesa';
+	const extraAdd = (upsellEnabled && isBurger && extra) ? upsellAmount : 0;
+
 
     const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
     const discountAmount = Math.round(base * (combined/100));
@@ -462,10 +487,13 @@ function renderCart() {
         <div class="title">${product.name}${extra?' (Agrandado)':''} — ${currency.format(discountedLineTotal)}</div>
         ${combined>0 ? `<div class="note">Ahorro ${currency.format(discountAmount)}${detail}</div>` : ''}
         ${
-          (product.category||'').toLowerCase()==='hamburguesa'
-          ? `<label style="font-size:12px;"><input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra?'checked':''}>Agrandar Pedido +$3.000${combined>0?' (no se descuenta)':''}</label>`
-          : ''
-        }
+		  (isBurger && upsellEnabled)
+			? `<label style="font-size:12px;">
+				<input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra ? 'checked' : ''}>
+				Agrandar Pedido +${currency.format(upsellAmount)}${combined > 0 ? ' (no se descuenta)' : ''}
+			  </label>`
+			: ''
+		}
       </div>
       <button class="remove-btn" data-id="${uid}">X</button>
     `;
@@ -531,7 +559,8 @@ function buildWhatsAppMessage() {
 
   entries.forEach(({ product, extra })=>{
     const base = Number(product.price) || 0;
-    const extraAdd = (extra && (product.category||'').toLowerCase()==='hamburguesa') ? 3000 : 0;
+    const isBurger = (product.category||'').toLowerCase() === 'hamburguesa';
+	const extraAdd = (upsellEnabled && isBurger && extra) ? upsellAmount : 0;
     const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
     const discountAmount = Math.round(base * (combined/100));
     const discountedLineTotal = (base - discountAmount) + extraAdd;
@@ -590,6 +619,3 @@ document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
-
-
-
