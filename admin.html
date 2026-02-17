@@ -402,7 +402,7 @@ html, body{
 	}
 	
 	.categoria-header{
-	  display:inline-flex;
+	  display:flex;
 	  align-items:center;
 	  gap:8px;
 	  padding:6px 12px;
@@ -411,17 +411,35 @@ html, body{
 	  cursor:pointer;
 	  transition:0.25s ease;
 	  margin-bottom:6px;
+	  width:100%;
+	  max-width:100%;
+	  overflow:hidden; /* 🔥 CLAVE */
 	}
-
+	
 	/* MOBILE */
 	@media (max-width:600px){
+	
 	  .categoria-header{
-		width:100%;
-		border-radius:12px;
-		white-space:normal;
-		justify-content:space-between;
-		flex-wrap:wrap;
+	    border-radius:12px;
+	    flex-wrap:wrap;
+	    justify-content:flex-start;
 	  }
+	
+	  /* botones debajo en mobile */
+	  .toggle-wrap,
+	  .clear-btn{
+	    width:100%;
+	  }
+	
+	}
+	
+	.toggle-wrap{
+	  flex-shrink:0;
+	  max-width:100%;
+	}
+	
+	.categoria-header *{
+	  max-width:100%;
 	}
 	
 	.cat-left{
@@ -429,17 +447,14 @@ html, body{
 	  align-items:center;
 	  gap:8px;
 	  flex:1;
-	  min-width:0; /* CLAVE */
+	  min-width:0;
 	}
-
+	
 	.cat-left h3{
-	  white-space:normal;      /* permite salto de línea */
-	  word-break:break-word;   /* corta palabras largas */
+	  white-space:normal;
+	  word-break:break-word;
 	}
-
-	*{
-  outline:1px solid red;
-	}
+	
 </style>
 </head>
 <body class="light"> <!-- modo claro por defecto -->
