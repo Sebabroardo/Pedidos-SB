@@ -757,6 +757,14 @@ function renderProductosPage(){
 	header.style.gap = '10px';
 	header.style.marginBottom = '6px';
 	header.style.cursor = 'pointer';
+	header.style.background = '#3b3436';
+	header.style.display = 'inline-flex';
+	header.style.alignItems = 'center';
+	header.style.gap = '8px';
+	header.style.padding = '6px 12px';
+	header.style.borderRadius = '999px';
+	header.style.whiteSpace = 'nowrap';
+	header.style.transition = '0.25s ease';
 	
 	const arrow = document.createElement('span');
 	arrow.textContent = '▼';
@@ -767,7 +775,7 @@ function renderProductosPage(){
     const title = document.createElement('h3');
     title.textContent = capitalize(cat);
     title.style.margin = '0';
-
+	
     const toggleAll = document.createElement('input');
     toggleAll.type = 'checkbox';
     toggleAll.checked = getCatToggle(cat);
@@ -845,7 +853,7 @@ function renderProductosPage(){
 	// BOTON LIMPIAR DESCUENTOS
 	const clearBtn = document.createElement('button');
 	clearBtn.classList.add('clear-btn');
-	clearBtn.textContent = 'LIMPIAR DESCUENTOS';
+	clearBtn.textContent = 'LIMPIAR DESCUENTOS %';
 	clearBtn.style.fontSize = '13px';
 	clearBtn.style.fontWeight = 'bold';
 	clearBtn.style.padding = '4px 8px';
