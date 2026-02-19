@@ -200,6 +200,48 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+/* ================= PROMO STATE ================= */
+
+const promoRef = doc(db,'settings',`promoCodes_${slug(currentUserLocal)}`);
+
+let promoState = {
+  active: false,          // si está activo en Firestore
+  applied: false,         // si el cliente lo aplicó
+  discountPct: 0,
+  code: '',
+  remainingUses: 0
+};
+
+const promoBox = document.getElementById('promoBox');
+const promoInput = document.getElementById('clientPromoCode');
+const promoMessage = document.getElementById('promoMessage');
+
+onSnapshot(promoRef, snap => {
+
+  if(!snap.exists()){
+    promoBox.style.display = 'none';
+    promoState.active = false;
+    return;
+  }
+
+  const data = snap.data();
+
+  if(data.enabled && data.remainingUses > 0){
+    promoBox.style.display = 'block';
+
+    promoState.active = true;
+    promoState.discountPct = data.discountPct;
+    promoState.code = data.code;
+    promoState.remainingUses = data.remainingUses;
+
+  } else {
+    promoBox.style.display = 'none';
+    promoState.active = false;
+    promoState.applied = false;
+  }
+
+});
+
 const LOCAL_NAME = "Santa"; // informativo
 const LOCAL_KEY  = "santa"; // clave real usada en settings/locals
 const state = { cart: {} };
@@ -457,15 +499,28 @@ function renderCart() {
   Object.values(state.cart).forEach(({ uid, product, extra })=>{
     const base = Number(product.price) || 0;
     const isBurger = (product.category||'').toLowerCase() === 'hamburguesa';
-	const extraAdd = (upsellEnabled && isBurger && extra) ? upsellAmount : 0;
-
+    const extraAdd = (upsellEnabled && isBurger && extra) ? upsellAmount : 0;
 
     const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
     const discountAmount = Math.round(base * (combined/100));
     const discountedLineTotal = (base - discountAmount) + extraAdd;
-
+      
     total += discountedLineTotal;
     totalSavings += discountAmount;
+  });
+
+  // 🔥 DESCUENTO PROMO
+  let promoDiscount = 0;
+
+  if (promoState.applied) {
+    promoDiscount = Math.round(total * (promoState.discountPct / 100));
+    total -= promoDiscount;
+  }
+
+  total = Math.max(0, total);
+
+  totalEl.textContent = "$" + total;
+}
 
     if (prod > 0) savingsByKey[`prod:${product.name}`] = (savingsByKey[`prod:${product.name}`] || 0) + Math.round(base * (prod/100));
     const otherPct = usedCat ? cat : global;
@@ -609,6 +664,44 @@ document.getElementById('whatsBtn').addEventListener('click', ()=>{
   window.open(url,'_blank');
 });
 
+document.getElementById('applyPromoBtn').onclick = async () => {
+
+  if(!promoState.active) return;
+
+  const entered = promoInput.value.trim().toUpperCase();
+
+  if(entered !== promoState.code){
+    alert("Código inválido");
+    return;
+  }
+
+  if(promoState.remainingUses <= 0){
+    alert("Código agotado");
+    return;
+  }
+
+  const confirmApply = confirm(
+    `¿Confirmar aplicar ${promoState.discountPct}% de descuento?\n\nEsta acción descontará un uso del código.`
+  );
+
+  if(!confirmApply) return;
+
+  const newRemaining = promoState.remainingUses - 1;
+
+  await updateDoc(promoRef,{
+    remainingUses: newRemaining,
+    enabled: newRemaining > 0
+  });
+
+  promoState.applied = true;
+  promoState.remainingUses = newRemaining;
+
+  promoMessage.style.color = "#7CFFB2";
+  promoMessage.textContent = `Descuento aplicado (${promoState.discountPct}% OFF)`;
+
+  renderCart();
+};
+
 function updateCardQty(uid){
   const count = Object.values(state.cart).filter(item => item.idOriginal === uid).length;
   const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
@@ -619,5 +712,6 @@ document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
+
 
 
