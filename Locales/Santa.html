@@ -187,7 +187,14 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  getDoc, 
+  onSnapshot, 
+  updateDoc 
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -504,29 +511,19 @@ function renderCart() {
     const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
     const discountAmount = Math.round(base * (combined/100));
     const discountedLineTotal = (base - discountAmount) + extraAdd;
-      
+
     total += discountedLineTotal;
     totalSavings += discountAmount;
-  });
 
-  // 🔥 DESCUENTO PROMO
-  let promoDiscount = 0;
+    if (prod > 0)
+      savingsByKey[`prod:${product.name}`] =
+        (savingsByKey[`prod:${product.name}`] || 0) + Math.round(base * (prod/100));
 
-  if (promoState.applied) {
-    promoDiscount = Math.round(total * (promoState.discountPct / 100));
-    total -= promoDiscount;
-  }
-
-  total = Math.max(0, total);
-
-  totalEl.textContent = "$" + total;
-}
-
-    if (prod > 0) savingsByKey[`prod:${product.name}`] = (savingsByKey[`prod:${product.name}`] || 0) + Math.round(base * (prod/100));
     const otherPct = usedCat ? cat : global;
     if (otherPct > 0) {
       const key = usedCat ? `cat:${catKeyOf(product)}` : 'global';
-      savingsByKey[key] = (savingsByKey[key] || 0) + Math.round(base * (otherPct/100));
+      savingsByKey[key] =
+        (savingsByKey[key] || 0) + Math.round(base * (otherPct/100));
     }
 
     const detailParts = [];
@@ -539,61 +536,62 @@ function renderCart() {
     row.className='cart-item';
     row.innerHTML=`
       <div>
-        <div class="title">${product.name}${extra?' (Agrandado)':''} — ${currency.format(discountedLineTotal)}</div>
+        <div class="title">
+          ${product.name}${extra?' (Agrandado)':''}
+          — ${currency.format(discountedLineTotal)}
+        </div>
         ${combined>0 ? `<div class="note">Ahorro ${currency.format(discountAmount)}${detail}</div>` : ''}
         ${
-		  (isBurger && upsellEnabled)
-			? `<label style="font-size:12px;">
-				<input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra ? 'checked' : ''}>
-				Agrandar Pedido +${currency.format(upsellAmount)}${combined > 0 ? ' (no se descuenta)' : ''}
-			  </label>`
-			: ''
-		}
+          (isBurger && upsellEnabled)
+          ? `<label style="font-size:12px;">
+              <input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra ? 'checked' : ''}>
+              Agrandar Pedido +${currency.format(upsellAmount)}${combined > 0 ? ' (no se descuenta)' : ''}
+            </label>`
+          : ''
+        }
       </div>
       <button class="remove-btn" data-id="${uid}">X</button>
     `;
     list.appendChild(row);
   });
 
+  // 🔥 DESCUENTO PROMO
+  let promoDiscount = 0;
+  if (promoState.applied) {
+    promoDiscount = Math.round(total * (promoState.discountPct / 100));
+    total -= promoDiscount;
+  }
+
+  total = Math.max(0, total);
+  document.getElementById('total').textContent = currency.format(total);
+
+  // Eventos
   list.querySelectorAll('.extra-checkbox').forEach(chk=>{
     chk.addEventListener('change', e=>{
       const uid = e.target.dataset.id;
       if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
       renderCart();
-      if(state.cart[uid]) updateCardQty(state.cart[uid].idOriginal);
     });
   });
+
   list.querySelectorAll('.remove-btn').forEach(btn=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
-      const prodId = state.cart[uid]?.idOriginal;
       delete state.cart[uid];
       renderCart();
-      if(prodId) updateCardQty(prodId);
     });
   });
 
-  document.getElementById('total').textContent = currency.format(total);
-
+  // Mostrar ahorro normal (sin promo)
   const discountInfo = document.getElementById('discountInfo');
   const breakdown = document.getElementById('discountBreakdown');
 
   if(totalSavings > 0){
     discountInfo.style.display = 'block';
-    discountInfo.textContent = `¡Descuentos aplicados! Ahorrás ${currency.format(totalSavings)}.`;
-    const parts = Object.entries(savingsByKey)
-      .filter(([_, amt]) => amt > 0)
-      .map(([k, amt]) => {
-        if (k.startsWith('prod:')) return `${k.replace('prod:','Producto ')}: ${currency.format(amt)}`;
-        if (k.startsWith('cat:')) return `Categoría ${k.replace('cat:','')}: ${currency.format(amt)}`;
-        return `Global: ${currency.format(amt)}`;
-      });
-    breakdown.style.display = parts.length ? 'block' : 'none';
-    breakdown.textContent = parts.join(' · ');
+    discountInfo.textContent =
+      `¡Descuentos aplicados! Ahorrás ${currency.format(totalSavings)}.`;
   } else {
     discountInfo.style.display = 'none';
-    breakdown.style.display = 'none';
-    breakdown.textContent = '';
   }
 }
 
@@ -712,6 +710,7 @@ document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
+
 
 
 
