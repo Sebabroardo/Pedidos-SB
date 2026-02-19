@@ -1385,32 +1385,65 @@ function renderSucursalesPage(){
 /* ========================== VISTA: PROMOS ========================== */
 function renderPromosPage(){
   mainContent.innerHTML = `
-    <div class="section card">
-      <h2 style="margin:0 0 10px 0">Gestión de Promos</h2>
+  <div class="section card">
+    <h2 style="margin:0 0 10px 0">Gestión de Promos</h2>
 
-      <div style="margin-top:12px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:var(--input-bg)">
-        <h3 style="margin:0 0 10px 0;font-size:15px;">Agrandado de Hamburguesas</h3>
+    <!-- AGRANDADO -->
+    <div style="margin-top:12px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:var(--input-bg)">
+      <h3 style="margin:0 0 10px 0;font-size:15px;">Agrandado de Hamburguesas</h3>
 
-        <label class="field" for="upsellEnabled">Activo</label>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <input id="upsellEnabled" type="checkbox" style="width:22px;height:22px;cursor:pointer;" />
-          <span id="upsellStatus" style="font-weight:700;"></span>
-        </div>
+      <label class="field">Activo</label>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <input id="upsellEnabled" type="checkbox" style="width:22px;height:22px;cursor:pointer;" />
+        <span id="upsellStatus" style="font-weight:700;"></span>
+      </div>
 
-        <label class="field" for="upsellAmount">Monto del agrandado (ARS)</label>
-        <input id="upsellAmount" type="number" min="0" step="1" placeholder="3000" />
+      <label class="field">Monto del agrandado (ARS)</label>
+      <input id="upsellAmount" type="number" min="0" step="1" placeholder="3000" />
 
-        <div class="actions-row" style="margin-top:12px;">
-          <button class="primary" id="saveUpsellBtn">Guardar</button>
-          <button class="secondary" id="resetUpsellBtn">Restablecer</button>
-        </div>
-
-        <p class="muted" style="margin-top:10px;color:var(--muted);">
-          Esto guarda una configuración por local en Firestore (colección settings).
-        </p>
+      <div class="actions-row" style="margin-top:12px;">
+        <button class="primary" id="saveUpsellBtn">Guardar</button>
+        <button class="secondary" id="resetUpsellBtn">Restablecer</button>
       </div>
     </div>
-  `;
+
+    <!-- CODIGOS PROMOCIONALES -->
+	<div style="margin-top:20px;padding:12px;border:1px solid var(--surface-border);border-radius:10px;background:var(--input-bg)">
+	  <h3 style="margin:0 0 10px 0;font-size:15px;">Códigos Promocionales</h3>
+
+	  <label class="field">Código</label>
+	  <input id="promoCodeInput" type="text" placeholder="Ej: SANTA10" />
+
+	  <label class="field">Porcentaje de descuento (%)</label>
+	  <input id="promoDiscountPct" type="number" min="0" max="100" step="1" placeholder="10" />
+
+	  <label class="field">Categorías aplicables</label>
+	  <div id="promoCategoriesContainer" 
+		style="max-height:140px;overflow:auto;
+            padding:8px;border:1px solid var(--surface-border);
+            border-radius:8px;background:var(--input-bg);
+            display:flex;flex-direction:column;gap:6px;">
+		</div>
+
+	  <label class="field">Cantidad máxima de usos</label>
+	  <input id="promoMaxUses" type="number" min="0" step="1" placeholder="100" />
+
+	  <label class="field">Activar sistema de códigos</label>
+	  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+		<input id="promoEnabled" type="checkbox" style="width:22px;height:22px;cursor:pointer;" />
+		<span id="promoStatus" style="font-weight:700;"></span>
+	  </div>
+
+	  <div class="actions-row">
+		<button class="primary" id="savePromoBtn">Guardar</button>
+		<button class="secondary" id="resetPromoBtn">Restablecer</button>
+	  </div>
+
+	  <p style="margin-top:10px;color:var(--muted);font-size:13px;">
+		El código aplicará el descuento solo a las categorías seleccionadas.
+	  </p>
+	</div>  
+	`;
 
   const key = slug(currentUserLocal);
   const ref = doc(db,'settings',`upsell_${key}`);
@@ -1462,6 +1495,140 @@ function renderPromosPage(){
   // Guardamos la referencia en window para no acumular listeners
   window.__unsubPromos?.();
   window.__unsubPromos = unsub;
+  
+  /* ================= CODIGOS PROMOCIONALES ================= */
+
+	const promoRef = doc(db,'settings',`promoCodes_${key}`);
+
+	const promoCodeInput = document.getElementById('promoCodeInput');
+	const promoMaxUses = document.getElementById('promoMaxUses');
+	const promoEnabled = document.getElementById('promoEnabled');
+	const promoStatus = document.getElementById('promoStatus');
+	const promoCategoriesSelect = document.getElementById('promoCategories');
+	const promoDiscountPct = document.getElementById('promoDiscountPct');
+
+	// llenar select con categorías dinámicas del local
+	const promoCategoriesContainer = document.getElementById('promoCategoriesContainer');
+	promoCategoriesContainer.innerHTML = '';
+
+	if (Array.isArray(currentCategories)) {
+	  currentCategories.forEach(cat=>{
+	  const row = document.createElement('div');
+	  row.style.display = 'flex';
+	  row.style.alignItems = 'center';
+	  row.style.width = '100%';
+	  row.style.padding = '6px 10px';
+	  row.style.boxSizing = 'border-box';
+
+	  const span = document.createElement('span');
+	  span.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+	  span.style.flex = '1'; // ocupa todo el espacio
+
+	  const checkbox = document.createElement('input');
+	  checkbox.type = 'checkbox';
+	  checkbox.value = cat;
+	  checkbox.classList.add('promoCategoryCheck');
+	  checkbox.style.width = '18px';
+	  checkbox.style.height = '18px';
+	  checkbox.style.margin = '0';
+
+	  row.appendChild(span);
+	  row.appendChild(checkbox);
+
+	  promoCategoriesContainer.appendChild(row);
+	});
+	}
+	
+	function paintPromoStatus(){
+	  const on = !!promoEnabled.checked;
+	  promoStatus.textContent = on ? 'ACTIVO' : 'INACTIVO';
+	  promoStatus.style.color = on ? '#7CFFB2' : '#FF9B9B';
+	}
+	promoEnabled.addEventListener('change', paintPromoStatus);
+	paintPromoStatus();
+
+	const unsubPromoCodes = onSnapshot(promoRef, snap=>{
+	const data = snap.exists() ? snap.data() : {};
+
+	  if(document.activeElement !== promoCodeInput)
+		promoCodeInput.value = data.code || '';
+
+	  if(document.activeElement !== promoMaxUses)
+		promoMaxUses.value = data.maxUses || 0;
+
+	  if(document.activeElement !== promoDiscountPct)
+		promoDiscountPct.value = data.discountPct || 0;
+
+	  if(document.activeElement !== promoEnabled)
+		promoEnabled.checked = !!data.enabled;
+
+	  // seleccionar categorías
+	  const selected = Array.isArray(data.categories) ? data.categories : [];
+	  document.querySelectorAll('.promoCategoryCheck').forEach(cb=>{
+	  cb.checked = selected.includes(cb.value);
+	});
+
+	  paintPromoStatus();
+	});
+
+	// Guardar
+	document.getElementById('savePromoBtn').onclick = async ()=>{
+	  const enabled = !!promoEnabled.checked;
+
+	  const code = promoCodeInput.value.trim().toUpperCase();
+	  const maxUses = Math.max(0, Math.round(Number(promoMaxUses.value || 0)));
+	  const discountPct = Math.max(0, Math.min(100, Math.round(Number(promoDiscountPct.value || 0))));
+	  const categories = [...document.querySelectorAll('.promoCategoryCheck:checked')]
+		.map(cb => cb.value);
+
+	  // 🔹 SOLO validar si está activo
+	  if (enabled) {
+		if(!code) return alert("Ingresá un código válido");
+		if(categories.length === 0) return alert("Seleccioná al menos una categoría");
+		if(discountPct <= 0) return alert("Ingresá un porcentaje de descuento válido");
+	  }
+
+	  await setDoc(promoRef,{
+		local: currentUserLocal,
+		code,
+		enabled,
+		discountPct,
+		categories,
+		maxUses,
+		remainingUses: maxUses,
+		updatedAt: new Date()
+	  },{merge:true});
+
+	  alert("Configuración guardada");
+	};
+
+	// Restablecer
+	document.getElementById('resetPromoBtn').onclick = async ()=>{
+	  promoCodeInput.value = '';
+	  promoMaxUses.value = 0;
+	  promoDiscountPct.value = 0;
+	  promoEnabled.checked = false;
+
+	  [...promoCategoriesSelect.options].forEach(o=>o.selected=false);
+
+	  paintPromoStatus();
+
+	  await setDoc(promoRef,{
+		code:'',
+		maxUses:0,
+		remainingUses:0,
+		discountPct:0,
+		categories:[],
+		enabled:false,
+		updatedAt:new Date()
+	  },{merge:true});
+
+	  alert("Código promocional restablecido");
+	};
+
+	// limpiar listener anterior si cambia de sección
+	window.__unsubPromoCodes?.();
+	window.__unsubPromoCodes = unsubPromoCodes;
 }
 
 /* ========================== Utilities: toggles por categoría (localStorage) ========================== */
