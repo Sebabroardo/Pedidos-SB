@@ -187,14 +187,7 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  getDoc, 
-  onSnapshot, 
-  updateDoc 
-} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -206,48 +199,6 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
-/* ================= PROMO STATE ================= */
-
-const promoRef = doc(db,'settings',`promoCodes_${slug(currentUserLocal)}`);
-
-let promoState = {
-  active: false,          // si está activo en Firestore
-  applied: false,         // si el cliente lo aplicó
-  discountPct: 0,
-  code: '',
-  remainingUses: 0
-};
-
-const promoBox = document.getElementById('promoBox');
-const promoInput = document.getElementById('clientPromoCode');
-const promoMessage = document.getElementById('promoMessage');
-
-onSnapshot(promoRef, snap => {
-
-  if(!snap.exists()){
-    promoBox.style.display = 'none';
-    promoState.active = false;
-    return;
-  }
-
-  const data = snap.data();
-
-  if(data.enabled && data.remainingUses > 0){
-    promoBox.style.display = 'block';
-
-    promoState.active = true;
-    promoState.discountPct = data.discountPct;
-    promoState.code = data.code;
-    promoState.remainingUses = data.remainingUses;
-
-  } else {
-    promoBox.style.display = 'none';
-    promoState.active = false;
-    promoState.applied = false;
-  }
-
-});
 
 const LOCAL_NAME = "Santa"; // informativo
 const LOCAL_KEY  = "santa"; // clave real usada en settings/locals
@@ -506,7 +457,8 @@ function renderCart() {
   Object.values(state.cart).forEach(({ uid, product, extra })=>{
     const base = Number(product.price) || 0;
     const isBurger = (product.category||'').toLowerCase() === 'hamburguesa';
-    const extraAdd = (upsellEnabled && isBurger && extra) ? upsellAmount : 0;
+	const extraAdd = (upsellEnabled && isBurger && extra) ? upsellAmount : 0;
+
 
     const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
     const discountAmount = Math.round(base * (combined/100));
@@ -515,15 +467,11 @@ function renderCart() {
     total += discountedLineTotal;
     totalSavings += discountAmount;
 
-    if (prod > 0)
-      savingsByKey[`prod:${product.name}`] =
-        (savingsByKey[`prod:${product.name}`] || 0) + Math.round(base * (prod/100));
-
+    if (prod > 0) savingsByKey[`prod:${product.name}`] = (savingsByKey[`prod:${product.name}`] || 0) + Math.round(base * (prod/100));
     const otherPct = usedCat ? cat : global;
     if (otherPct > 0) {
       const key = usedCat ? `cat:${catKeyOf(product)}` : 'global';
-      savingsByKey[key] =
-        (savingsByKey[key] || 0) + Math.round(base * (otherPct/100));
+      savingsByKey[key] = (savingsByKey[key] || 0) + Math.round(base * (otherPct/100));
     }
 
     const detailParts = [];
@@ -536,62 +484,61 @@ function renderCart() {
     row.className='cart-item';
     row.innerHTML=`
       <div>
-        <div class="title">
-          ${product.name}${extra?' (Agrandado)':''}
-          — ${currency.format(discountedLineTotal)}
-        </div>
+        <div class="title">${product.name}${extra?' (Agrandado)':''} — ${currency.format(discountedLineTotal)}</div>
         ${combined>0 ? `<div class="note">Ahorro ${currency.format(discountAmount)}${detail}</div>` : ''}
         ${
-          (isBurger && upsellEnabled)
-          ? `<label style="font-size:12px;">
-              <input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra ? 'checked' : ''}>
-              Agrandar Pedido +${currency.format(upsellAmount)}${combined > 0 ? ' (no se descuenta)' : ''}
-            </label>`
-          : ''
-        }
+		  (isBurger && upsellEnabled)
+			? `<label style="font-size:12px;">
+				<input type="checkbox" class="extra-checkbox" data-id="${uid}" ${extra ? 'checked' : ''}>
+				Agrandar Pedido +${currency.format(upsellAmount)}${combined > 0 ? ' (no se descuenta)' : ''}
+			  </label>`
+			: ''
+		}
       </div>
       <button class="remove-btn" data-id="${uid}">X</button>
     `;
     list.appendChild(row);
   });
 
-  // 🔥 DESCUENTO PROMO
-  let promoDiscount = 0;
-  if (promoState.applied) {
-    promoDiscount = Math.round(total * (promoState.discountPct / 100));
-    total -= promoDiscount;
-  }
-
-  total = Math.max(0, total);
-  document.getElementById('total').textContent = currency.format(total);
-
-  // Eventos
   list.querySelectorAll('.extra-checkbox').forEach(chk=>{
     chk.addEventListener('change', e=>{
       const uid = e.target.dataset.id;
       if(state.cart[uid]) state.cart[uid].extra = e.target.checked;
       renderCart();
+      if(state.cart[uid]) updateCardQty(state.cart[uid].idOriginal);
     });
   });
-
   list.querySelectorAll('.remove-btn').forEach(btn=>{
     btn.addEventListener('click', e=>{
       const uid = e.target.dataset.id;
+      const prodId = state.cart[uid]?.idOriginal;
       delete state.cart[uid];
       renderCart();
+      if(prodId) updateCardQty(prodId);
     });
   });
 
-  // Mostrar ahorro normal (sin promo)
+  document.getElementById('total').textContent = currency.format(total);
+
   const discountInfo = document.getElementById('discountInfo');
   const breakdown = document.getElementById('discountBreakdown');
 
   if(totalSavings > 0){
     discountInfo.style.display = 'block';
-    discountInfo.textContent =
-      `¡Descuentos aplicados! Ahorrás ${currency.format(totalSavings)}.`;
+    discountInfo.textContent = `¡Descuentos aplicados! Ahorrás ${currency.format(totalSavings)}.`;
+    const parts = Object.entries(savingsByKey)
+      .filter(([_, amt]) => amt > 0)
+      .map(([k, amt]) => {
+        if (k.startsWith('prod:')) return `${k.replace('prod:','Producto ')}: ${currency.format(amt)}`;
+        if (k.startsWith('cat:')) return `Categoría ${k.replace('cat:','')}: ${currency.format(amt)}`;
+        return `Global: ${currency.format(amt)}`;
+      });
+    breakdown.style.display = parts.length ? 'block' : 'none';
+    breakdown.textContent = parts.join(' · ');
   } else {
     discountInfo.style.display = 'none';
+    breakdown.style.display = 'none';
+    breakdown.textContent = '';
   }
 }
 
@@ -662,44 +609,6 @@ document.getElementById('whatsBtn').addEventListener('click', ()=>{
   window.open(url,'_blank');
 });
 
-document.getElementById('applyPromoBtn').onclick = async () => {
-
-  if(!promoState.active) return;
-
-  const entered = promoInput.value.trim().toUpperCase();
-
-  if(entered !== promoState.code){
-    alert("Código inválido");
-    return;
-  }
-
-  if(promoState.remainingUses <= 0){
-    alert("Código agotado");
-    return;
-  }
-
-  const confirmApply = confirm(
-    `¿Confirmar aplicar ${promoState.discountPct}% de descuento?\n\nEsta acción descontará un uso del código.`
-  );
-
-  if(!confirmApply) return;
-
-  const newRemaining = promoState.remainingUses - 1;
-
-  await updateDoc(promoRef,{
-    remainingUses: newRemaining,
-    enabled: newRemaining > 0
-  });
-
-  promoState.applied = true;
-  promoState.remainingUses = newRemaining;
-
-  promoMessage.style.color = "#7CFFB2";
-  promoMessage.textContent = `Descuento aplicado (${promoState.discountPct}% OFF)`;
-
-  renderCart();
-};
-
 function updateCardQty(uid){
   const count = Object.values(state.cart).filter(item => item.idOriginal === uid).length;
   const span = document.querySelector(`.qty-display[data-id="${uid}"]`);
@@ -710,7 +619,3 @@ document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
-
-
-
-
