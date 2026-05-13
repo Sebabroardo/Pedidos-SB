@@ -169,7 +169,19 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
       <div class="card cart">
         <h3>🛒 Tu pedido</h3>
         <div class="cart-list" id="cartList"></div>
-        <div class="tot"><span>Total</span><span id="total">$0</span></div>
+		<div class="tot"><span>Total</span><span id="total">$0</span></div>
+        
+        <!-- INICIO CONTENEDOR DE CÓDIGO PROMOCIONAL -->
+        <div id="promoContainer" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--ring);">
+          <label class="muted" style="margin-bottom:6px; display:block; font-size:13px; font-weight:800;">Agregar CÓDIGO DE DESCUENTO</label>
+          <div style="display:flex; gap:8px;">
+            <input id="promoInput" placeholder="Ej: SANTA10" style="text-transform:uppercase; flex:1;" autocomplete="off"/>
+            <button class="btn primary" id="applyPromoBtn" style="width:auto; padding:8px 16px; font-size:13px;">Canjear</button>
+          </div>
+          <div id="promoMessage" style="font-size:12px; margin-top:6px; font-weight:600;"></div>
+        </div>
+        <!-- FIN CONTENEDOR -->
+
         <div id="discountInfo" class="muted" style="font-size:12px;display:none;"></div>
         <div id="discountBreakdown" class="muted"></div>
         <div class="inputs">
@@ -187,7 +199,8 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyAou7COlKKf0mJCnwEefntTKVGI2cxxJrU",
@@ -249,8 +262,21 @@ function getDiscountPercents(product){
   const cat = clampPercent(catDiscounts[key] || 0);
   const anyCat = Object.values(catDiscounts||{}).some(v=>Number(v)>0);
   const baseOther = anyCat ? cat : clampPercent(globalDiscount || 0);
-  const combined = clampPercent(prod + baseOther);
-  return { prod, cat, global: anyCat ? 0 : baseOther, combined, usedCat: anyCat };
+
+  // Lógica del cupón con validación ultra flexible
+  let promoDiscount = 0;
+  if(appliedPromo && Array.isArray(appliedPromo.categories)){
+    // Verifica si la categoría del producto contiene la del cupón o viceversa
+    const aplicaCupón = appliedPromo.categories.some(c => 
+      key.includes(c.toLowerCase().trim()) || c.toLowerCase().trim().includes(key)
+    );
+    if (aplicaCupón) {
+      promoDiscount = clampPercent(appliedPromo.discountPct || 0);
+    }
+  }
+
+  const combined = clampPercent(prod + baseOther + promoDiscount);
+  return { prod, cat, global: anyCat ? 0 : baseOther, promo: promoDiscount, combined, usedCat: anyCat };
 }
 
 // per-categoría (settings/discounts_{LOCAL_KEY})
@@ -271,6 +297,80 @@ onSnapshot(doc(db,"settings",`discount_${LOCAL_KEY}`), snap=>{
 });
 
 // upsell (settings/upsell_{LOCAL_KEY})
+// ====== CÓDIGOS PROMOCIONALES ======
+let activePromoDB = null; // Lo que viene de Firebase
+let appliedPromo = null;  // Lo que el cliente canjeó con éxito
+
+onSnapshot(doc(db, "settings", `promoCodes_${LOCAL_KEY}`), snap => {
+  if(snap.exists()){
+    const data = snap.data();
+    // Validar si está activado desde el admin y si le quedan usos
+    if(data.enabled && data.remainingUses > 0) {
+      activePromoDB = data;
+      document.getElementById('promoContainer').style.display = 'block';
+    } else {
+      activePromoDB = null;
+      appliedPromo = null; // Se desactiva si el admin lo apagó
+      document.getElementById('promoContainer').style.display = 'none';
+    }
+  } else {
+    activePromoDB = null;
+    appliedPromo = null;
+    document.getElementById('promoContainer').style.display = 'none';
+  }
+  renderCart();
+});
+
+// Evento del botón Canjear
+document.getElementById('applyPromoBtn').addEventListener('click', () => {
+  const inputVal = document.getElementById('promoInput').value.trim().toUpperCase();
+  const msgEl = document.getElementById('promoMessage');
+
+  if(!activePromoDB) return;
+
+  if(inputVal === activePromoDB.code.toUpperCase()) {
+    
+    // --- NUEVA LÓGICA DE VALIDACIÓN DE CATEGORÍAS ---
+    const cats = Array.isArray(activePromoDB.categories) ? activePromoDB.categories : [];
+    let hasValidProduct = false;
+
+    if (cats.length === 0) {
+      hasValidProduct = true; // Aplica a todo si el admin no configuró categorías
+    } else {
+      const cartItems = Object.values(state.cart);
+      if (cartItems.length === 0) {
+        alert("Agregá productos al carrito antes de canjear el código.");
+        return;
+      }
+      // Verificamos si en el carrito hay al menos un producto de la categoría permitida
+      hasValidProduct = cartItems.some(item => {
+        const prodCat = catKeyOf(item.product);
+        return cats.some(c => {
+          const strC = String(c).toLowerCase().trim();
+          return prodCat.includes(strC) || strC.includes(prodCat);
+        });
+      });
+    }
+
+    if (!hasValidProduct) {
+      // Si no tiene un producto válido, mostramos la alerta y detenemos el canje
+      const categoriasPermitidas = cats.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ');
+      alert(`Este código de descuento es únicamente válido para: ${categoriasPermitidas}`);
+      return;
+    }
+    // ------------------------------------------------
+
+    appliedPromo = activePromoDB;
+    msgEl.textContent = `¡Código ${appliedPromo.code} aplicado! (${appliedPromo.discountPct}% off)`;
+    msgEl.style.color = '#16a34a'; // Verde
+    renderCart();
+  } else {
+    appliedPromo = null;
+    msgEl.textContent = 'Código inválido o agotado.';
+    msgEl.style.color = '#ef4444'; // Rojo
+    renderCart();
+  }
+});
 onSnapshot(doc(db,"settings",`upsell_${LOCAL_KEY}`), snap=>{
   if(snap.exists()){
     const data = snap.data();
@@ -460,7 +560,7 @@ function renderCart() {
 	const extraAdd = (upsellEnabled && isBurger && extra) ? upsellAmount : 0;
 
 
-    const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
+    const { prod, cat, global, promo, combined, usedCat } = getDiscountPercents(product);	
     const discountAmount = Math.round(base * (combined/100));
     const discountedLineTotal = (base - discountAmount) + extraAdd;
 
@@ -478,8 +578,10 @@ function renderCart() {
     if (prod > 0) detailParts.push(`prod ${prod}%`);
     if (usedCat && cat > 0) detailParts.push(`cat ${cat}%`);
     if (!usedCat && global > 0) detailParts.push(`global ${global}%`);
+    if (promo > 0) detailParts.push(`cupón ${promo}%`); // ¡Agrega esta línea!
     const detail = detailParts.length ? ` (desc. ${detailParts.join(' + ')})` : '';
-
+	
+	
     const row = document.createElement('div');
     row.className='cart-item';
     row.innerHTML=`
@@ -561,7 +663,7 @@ function buildWhatsAppMessage() {
     const base = Number(product.price) || 0;
     const isBurger = (product.category||'').toLowerCase() === 'hamburguesa';
 	const extraAdd = (upsellEnabled && isBurger && extra) ? upsellAmount : 0;
-    const { prod, cat, global, combined, usedCat } = getDiscountPercents(product);
+    const { prod, cat, global, promo, combined, usedCat } = getDiscountPercents(product);
     const discountAmount = Math.round(base * (combined/100));
     const discountedLineTotal = (base - discountAmount) + extraAdd;
 
@@ -579,7 +681,8 @@ function buildWhatsAppMessage() {
     if (prod > 0) detailParts.push(`prod ${prod}%`);
     if (usedCat && cat > 0) detailParts.push(`cat ${cat}%`);
     if (!usedCat && global > 0) detailParts.push(`global ${global}%`);
-    const detail = detailParts.length ? ` (${detailParts.join(' + ')})` : '';
+    if (promo > 0) detailParts.push(`cupón ${promo}%`); // NUEVA LÍNEA
+    const detail = detailParts.length ? ` (desc. ${detailParts.join(' + ')})` : '';
 
     lines.push(`• ${product.name}${extra?' (Agrandado)':''} — ${currency.format(discountedLineTotal)}${detail}`);
   });
@@ -589,6 +692,7 @@ function buildWhatsAppMessage() {
     const parts = Object.entries(savingsByKey).filter(([_, a])=>a>0).map(([k,a])=>{
       if (k.startsWith('prod:')) return `${k.replace('prod:','Producto ')}: ${currency.format(a)}`;
       if (k.startsWith('cat:'))  return `Categoría ${k.replace('cat:','')}: ${currency.format(a)}`;
+	  if(appliedPromo) lines.push(`*Cupón aplicado:* ${appliedPromo.code}`);
       return `Global: ${currency.format(a)}`;
     });
     lines.push(`*Ahorro total:* ${currency.format(totalSavings)}`);
@@ -602,9 +706,25 @@ function buildWhatsAppMessage() {
   return lines.join('\n');
 }
 
-document.getElementById('whatsBtn').addEventListener('click', ()=>{
+document.getElementById('whatsBtn').addEventListener('click', async () => {
   const msg = buildWhatsAppMessage();
   if(!msg) return;
+
+  // --- NUEVA LÓGICA: RESTAR USOS EN FIREBASE ---
+  if (appliedPromo && activePromoDB) {
+    // Calculamos el nuevo valor restando 1
+    const remaining = Math.max(0, activePromoDB.remainingUses - 1);
+    try {
+      await updateDoc(doc(db, "settings", `promoCodes_${LOCAL_KEY}`), {
+        remainingUses: remaining,
+        enabled: remaining > 0 ? activePromoDB.enabled : false // Si llega a 0, lo apagamos por seguridad
+      });
+    } catch (error) {
+      console.error("Error al descontar el uso del cupón:", error);
+    }
+  }
+  // ---------------------------------------------
+
   const url = 'https://wa.me/+543537443959?text='+encodeURIComponent(msg);
   window.open(url,'_blank');
 });
