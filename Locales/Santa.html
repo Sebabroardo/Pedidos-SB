@@ -199,7 +199,7 @@ footer { margin-top:22px; color: var(--muted); font-size:12px; text-align:center
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, onSnapshot, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
 
 const firebaseConfig = {
@@ -736,6 +736,20 @@ function updateCardQty(uid){
 }
 
 document.getElementById('year').textContent = new Date().getFullYear();
+
+// --- REGISTRO DE TRÁFICO ---
+async function registrarVisita() {
+  try {
+    await addDoc(collection(db, "traffic_log"), {
+      timestamp: serverTimestamp(),
+      userAgent: navigator.userAgent, // Para saber si entran desde el celu o PC
+      page: "index"
+    });
+  } catch (e) {
+    console.error("Error al registrar tráfico:", e);
+  }
+}
+registrarVisita();
 </script>
 </body>
 </html>
