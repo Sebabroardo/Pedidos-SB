@@ -481,6 +481,9 @@ html, body{
       <div class="header-controls">
         <!-- Botón de menú para móvil -->
         <button id="openSidebarBtn" class="icon-btn" title="Abrir menú" aria-label="Abrir menú">☰</button>
+		<button id="btnOpenTraffic" style="padding: 8px 16px; background-color: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-family: inherit; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+  📊 Ver Estadísticas de Tráfico
+</button>
 
         <!-- Botón tema -->
         <button id="themeToggleBtn" class="icon-btn" title="Alternar modo" aria-label="Alternar modo">
@@ -520,8 +523,8 @@ html, body{
 /* ================== IMPORTS ================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { 
-  getFirestore, collection, doc, getDocs, getDoc, query, where, 
-  onSnapshot, deleteDoc, addDoc, setDoc 
+  getFirestore, collection, doc, getDocs, getDoc, query, where, orderBy, limit,
+  onSnapshot, deleteDoc, addDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 import { 
   getStorage, ref as storageRef, uploadBytes, getDownloadURL 
@@ -1661,6 +1664,126 @@ function updateMobileControls(){
 window.addEventListener('resize', updateMobileControls);
 updateMobileControls();
 
+// --- LÓGICA DEL MODAL DE TRÁFICO ---
+const modal = document.getElementById('trafficModal');
+const btnOpen = document.getElementById('btnOpenTraffic');
+const btnClose = document.getElementById('btnCloseTraffic');
+
+// Abrir el modal
+btnOpen.addEventListener('click', () => {
+  modal.style.display = 'flex'; 
+  monitorearTrafico(); 
+});
+
+// Cerrar el modal
+btnClose.addEventListener('click', () => {
+  modal.style.display = 'none';
+});
+
+// Cerrar si hace clic afuera
+modal.addEventListener('click', (e) => {
+  if (e.target === modal) {
+    modal.style.display = 'none';
+  }
+});
+
+let listeningTraffic = false;
+
+function monitorearTrafico() {
+  if(listeningTraffic) return; 
+  listeningTraffic = true;
+
+  const trafficCol = collection(db, "traffic_log");
+  
+  const qRecent = query(trafficCol, orderBy("timestamp", "desc"), limit(20));
+  onSnapshot(qRecent, (snap) => {
+    const listEl = document.getElementById('trafficList');
+    listEl.innerHTML = "";
+    
+    snap.forEach(doc => {
+      const data = doc.data();
+      if(!data.timestamp) return;
+      
+      const dateObj = data.timestamp.toDate();
+      const hora = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      const dia = dateObj.toLocaleDateString();
+      
+      const isMobile = /Mobile|Android|iPhone/i.test(data.userAgent) ? "📱 Celular" : "💻 PC";
+
+      const li = document.createElement('li');
+      li.style.borderBottom = "1px solid #f3f4f6";
+      li.style.padding = "8px 0";
+      li.innerHTML = `<strong>${dia} - ${hora}</strong> <span style="float:right; color:#888;">${isMobile}</span>`;
+      listEl.appendChild(li);
+    });
+  });
+
+  const hoy = new Date();
+  hoy.setHours(0,0,0,0);
+  const qToday = query(trafficCol, where("timestamp", ">=", hoy));
+  onSnapshot(qToday, (snap) => {
+    document.getElementById('visitsToday').textContent = snap.size;
+  });
+  
+  onSnapshot(trafficCol, (snap) => {
+    document.getElementById('visitsTotal').textContent = snap.size;
+  });
+}
+
+// --- LÓGICA PARA LIMPIAR EL TRÁFICO ---
+const btnClear = document.getElementById('btnClearTraffic');
+
+btnClear.addEventListener('click', async () => {
+  // 1. Pedir confirmación para evitar accidentes
+  const confirmar = confirm("⚠️ ¿Estás seguro de que querés borrar TODO el historial de tráfico? Esta acción no se puede deshacer.");
+  
+  if (!confirmar) return;
+
+  try {
+    btnClear.disabled = true;
+    btnClear.textContent = "⌛ Borrando datos...";
+    
+    const trafficCol = collection(db, "traffic_log");
+    const snapshot = await getDocs(trafficCol);
+    
+    // 2. Borrar cada documento encontrado
+    const borrados = snapshot.docs.map(documento => deleteDoc(doc(db, "traffic_log", documento.id)));
+    
+    await Promise.all(borrados);
+
+    alert("✅ El historial ha sido limpiado correctamente.");
+  } catch (error) {
+    console.error("Error al limpiar tráfico:", error);
+    alert("Hubo un error al intentar borrar los datos.");
+  } finally {
+    btnClear.disabled = false;
+    btnClear.textContent = "🗑️ Limpiar todo el historial";
+  }
+});
 </script>
+
+<div id="trafficModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(3px);">
+  <div style="background: white; width: 90%; max-width: 500px; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; max-height: 85vh; display: flex; flex-direction: column;">
+    <button id="btnCloseTraffic" style="position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 18px; cursor: pointer; color: #666;">❌</button>
+    <h2 style="margin-top: 0; color: #111;">📊 Tráfico de Usuarios</h2>
+    <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+      <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; flex: 1; text-align: center; border: 1px solid #bbf7d0;">
+        <span style="display: block; font-size: 12px; color: #16a34a; font-weight: bold;">VISITAS HOY</span>
+        <strong id="visitsToday" style="font-size: 28px; color: #15803d;">0</strong>
+      </div>
+      <div style="background: #eff6ff; padding: 15px; border-radius: 8px; flex: 1; text-align: center; border: 1px solid #bfdbfe;">
+        <span style="display: block; font-size: 12px; color: #2563eb; font-weight: bold;">TOTAL REGISTRADO</span>
+        <strong id="visitsTotal" style="font-size: 28px; color: #1d4ed8;">0</strong>
+      </div>
+    </div>
+	<button id="btnClearTraffic" style="width: 100%; margin-bottom: 20px; padding: 10px; background-color: #fee2e2; color: #dc2626; border: 1px solid #fecaca; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; transition: all 0.2s;">
+      🗑️ Limpiar todo el historial
+    </button>
+    <h3 style="font-size: 14px; color: #444; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px;">Últimos 20 ingresos</h3>
+    <ul id="trafficList" style="list-style: none; padding: 0; margin: 0; overflow-y: auto; font-size: 13px; color: #555; flex: 1;">
+    </ul>
+  </div>
+</div>
+
 </body>
 </html>
